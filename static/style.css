@@ -1,0 +1,117 @@
+:root {
+    --saas-bg: #f8fafc;
+    --saas-card-bg: #ffffff;
+    --saas-border: #e2e8f0;
+    --saas-text-main: #1e293b;
+    --saas-text-muted: #64748b;
+    --saas-accent: #0f172a;
+    --saas-primary: #3b82f6;
+}
+
+body {
+    background-color: var(--saas-bg);
+    color: var(--saas-text-main);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 0.9rem;
+}
+
+.navbar-saas {
+    background-color: #ffffff;
+    border-bottom: 1px solid var(--saas-border);
+    padding: 0.6rem 1.5rem;
+}
+
+.card {
+    background-color: var(--saas-card-bg);
+    border: 1px solid var(--saas-border);
+    border-radius: 8px;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.02);
+    margin-bottom: 1.25rem;
+}
+
+.card-body {
+    padding: 1.5rem;
+}
+
+.form-control, .form-select {
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    padding: 0.45rem 0.75rem;
+    font-size: 0.875rem;
+    background-color: #ffffff;
+    color: var(--saas-text-main);
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: var(--saas-primary);
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+}
+
+.form-label {
+    font-weight: 500;
+    font-size: 0.8rem;
+    color: var(--saas-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+    margin-bottom: 0.35rem;
+}
+
+.btn-primary {
+    background-color: var(--saas-accent);
+    border: none;
+    border-radius: 6px;
+    padding: 0.45rem 1rem;
+    font-weight: 500;
+    font-size: 0.875rem;
+}
+
+.btn-primary:hover {
+    background-color: #1e293b;
+}
+
+.btn-outline-secondary {
+    border-color: #cbd5e1;
+    color: var(--saas-text-muted);
+    border-radius: 6px;
+    font-size: 0.875rem;
+}
+
+.btn-outline-secondary:hover {
+    background-color: #f1f5f9;
+    color: var(--saas-text-main);
+    border-color: #94a3b8;
+}
+
+.table {
+    margin-bottom: 0;
+}
+
+.table th {
+    font-weight: 600;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--saas-text-muted);
+    background-color: #f8fafc !important;
+    border-bottom: 1px solid var(--saas-border);
+    padding: 0.75rem 1rem;
+}
+
+.table td {
+    padding: 0.85rem 1rem;
+    vertical-align: middle;
+    border-bottom: 1px solid var(--saas-border);
+    color: var(--saas-text-main);
+}
+
+.user-badge {
+    background-color: #0f172a;
+    color: #ffffff;
+    padding: 0.35rem 0.85rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}

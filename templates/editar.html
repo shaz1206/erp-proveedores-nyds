@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Expediente de Proveedor</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <nav class="navbar navbar-saas navbar-expand-lg mb-4">
+        <div class="container-fluid">
+            <a class="navbar-brand fw-bold text-dark" href="/">🏢 ERP Módulo Proveedores</a>
+            <a href="/" class="btn btn-sm btn-outline-secondary">← Volver al Catálogo</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <h4 class="fw-bold mb-1">Expediente del Proveedor</h4>
+        <p class="text-muted mb-4"><span class="badge bg-secondary">{{ codigo }}</span> {{ razon }}</p>
+
+        <!-- Asignación de Materia Prima -->
+        <div class="card mb-4">
+            <div class="card-body p-4">
+                <h5 class="fw-semibold text-dark mb-3">Asignar Materia Prima (Histórico Inmutable)</h5>
+                <form id="formMateriaPrima">
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Materia Prima *</label>
+                            <select id="id_materia_prima" class="form-select" required></select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Presentación *</label>
+                            <input type="text" id="presentacion_compra" class="form-control" placeholder="Ej. Saco 25kg" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Unidad *</label>
+                            <select id="unidad_compra" class="form-select">
+                                <option value="Pieza">Pieza</option>
+                                <option value="kg">kg</option>
+                                <option value="Litro">Litro</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-3">
+                            <label class="form-label">Precio Vigente *</label>
+                            <input type="number" step="0.01" id="precio_vigente" class="form-control" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Moneda *</label>
+                            <select id="moneda" class="form-select">
+                                <option value="MXN">MXN</option>
+                                <option value="USD">USD</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Contenido *</label>
+                            <input type="number" step="0.1" id="contenido_presentacion" class="form-control" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Lead Time (Días) *</label>
+                            <input type="number" id="lead_time" class="form-control" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Registrar Nueva Condición</button>
+                </form>
+
+                <div class="table-responsive mt-4">
+                    <table class="table table-sm align-middle">
+                        <thead>
+                            <tr>
+                                <th>Materia Prima</th>
+                                <th>Presentación</th>
+                                <th>Precio Vigente</th>
+                                <th>Moneda</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaMPS"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Documentación -->
+        <div class="card mb-5">
+            <div class="card-body p-4">
+                <h5 class="fw-semibold text-dark mb-3">Documentación y Archivos</h5>
+                <form id="formDocumento" class="mb-4" enctype="multipart/form-data">
+                    <div class="row align-items-end">
+                        <div class="col-md-4">
+                            <label class="form-label">Tipo de Documento *</label>
+                            <select id="tipo_documento" class="form-select" required>
+                                <option value="Constancia de Situación Fiscal">Constancia de Situación Fiscal</option>
+                                <option value="Ficha técnica">Ficha técnica</option>
+                                <option value="Convenio">Convenio Comercial</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Archivo PDF / Imagen *</label>
+                            <input type="file" id="archivo_doc" class="form-control" accept=".pdf,.jpg,.jpeg,.xlsx" required>
+                        </div>
+                        <div class="col-md-2">
+                            <button type="submit" class="btn btn-success w-100">Subir</button>
+                        </div>
+                    </div>
+                </form>
+
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead>
+                            <tr>
+                                <th>Tipo de Documento</th>
+                                <th>Nombre Original</th>
+                                <th>Fecha de Carga</th>
+                                <th>Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaDocumentos"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const PROVEEDOR_ID = {{ id_proveedor }};
+        document.addEventListener('DOMContentLoaded', () => { cargarCatalogoMP(); cargarMPSuministradas(); cargarDocumentos(); });
+
+        async function cargarCatalogoMP() {
+            const res = await fetch('/api/materias-primas');
+            const data = await res.json();
+            const sel = document.getElementById('id_materia_prima');
+            data.forEach(mp => sel.innerHTML += `<option value="${mp.id_materia_prima}">${mp.nombre}</option>`);
+        }
+
+        async function cargarMPSuministradas() {
+            const res = await fetch(`/api/proveedores/${PROVEEDOR_ID}/materias-primas`);
+            const data = await res.json();
+            const tb = document.getElementById('tablaMPS');
+            tb.innerHTML = data.length ? '' : '<tr><td colspan="4" class="text-center text-muted">Sin materias primas asignadas.</td></tr>';
+            data.forEach(item => {
+                tb.innerHTML += `<tr><td><strong>${item.nombre}</strong></td><td>${item.presentacion}</td><td>$${item.precio_vigente.toFixed(2)}</td><td>${item.moneda}</td></tr>`;
+            });
+        }
+
+        document.getElementById('formMateriaPrima').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const bodyData = {
+                id_materia_prima: parseInt(document.getElementById('id_materia_prima').value),
+                presentacion_compra: document.getElementById('presentacion_compra').value,
+                unidad_compra: document.getElementById('unidad_compra').value,
+                contenido_presentacion: parseFloat(document.getElementById('contenido_presentacion').value),
+                precio_vigente: parseFloat(document.getElementById('precio_vigente').value),
+                moneda: document.getElementById('moneda').value,
+                lead_time: parseFloat(document.getElementById('lead_time').value)
+            };
+            const res = await fetch(`/api/proveedores/${PROVEEDOR_ID}/materias-primas`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(bodyData)
+            });
+            if(res.ok) { document.getElementById('formMateriaPrima').reset(); cargarMPSuministradas(); }
+        });
+
+        async function cargarDocumentos() {
+            const res = await fetch(`/api/proveedores/${PROVEEDOR_ID}/documentos`);
+            const data = await res.json();
+            const tb = document.getElementById('tablaDocumentos');
+            tb.innerHTML = data.length ? '' : '<tr><td colspan="4" class="text-center text-muted">No hay documentos cargados.</td></tr>';
+            data.forEach(doc => {
+                tb.innerHTML += `<tr><td><strong>${doc.tipo_documento}</strong></td><td>${doc.nombre_original}</td><td>${doc.fecha}</td><td><a href="${doc.url_descarga}" target="_blank" class="btn btn-sm btn-outline-primary">Descargar</a></td></tr>`;
+            });
+        }
+
+        document.getElementById('formDocumento').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const fd = new FormData();
+            fd.append('tipo_documento', document.getElementById('tipo_documento').value);
+            fd.append('archivo', document.getElementById('archivo_doc').files[0]);
+            const res = await fetch(`/api/proveedores/${PROVEEDOR_ID}/documentos`, { method: 'POST', body: fd });
+            if(res.ok) { document.getElementById('formDocumento').reset(); cargarDocumentos(); }
+        });
+    </script>
+</body>
+</html>
