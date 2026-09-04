@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Acceso Administrativo - ERP NYDS</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="bg-light d-flex align-items-center justify-content-center" style="height: 100vh;">
+    <div class="card shadow border-0 p-4" style="width: 100%; max-width: 400px;">
+        <div class="text-center mb-4">
+            <h4 class="fw-bold text-dark">🔐 ERP Compras NYDS</h4>
+            <small class="text-muted">Acceso restringido para personal autorizado</small>
+        </div>
+        
+        <form id="formLogin">
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Usuario</label>
+                <input type="text" id="usuario" name="usuario" class="form-control" required placeholder="compras.nyds">
+            </div>
+            <div class="mb-4">
+                <label class="form-label fw-semibold">Contraseña</label>
+                <div class="input-group">
+                    <input type="password" id="password" name="password" class="form-control" required placeholder="••••••••">
+                    <!-- Botón para ver u ocultar contraseña -->
+                    <button class="btn btn-outline-secondary" type="button" id="togglePassword">👁️</button>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold">Ingresar al Sistema</button>
+        </form>
+        
+        <div class="text-center mt-3">
+            <a href="/" class="text-decoration-none small text-muted">← Ir al Portal Público de Proveedores</a>
+        </div>
+    </div>
+
+    <script>
+        // Script para alternar visibilidad de contraseña
+        const togglePassword = document.getElementById('togglePassword');
+        const passwordInput = document.getElementById('password');
+
+        togglePassword.addEventListener('click', function () {
+            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            passwordInput.setAttribute('type', type);
+            this.textContent = type === 'password' ? '👁️' : '🔒';
+        });
+
+        // Script de envío de login robusto
+        document.getElementById('formLogin').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData();
+            formData.append('usuario', document.getElementById('usuario').value);
+            formData.append('password', document.getElementById('password').value);
+
+            const res = await fetch('/login', {
+                method: 'POST',
+                body: new URLSearchParams(formData)
+            });
+
+            if(res.ok) {
+                window.location.href = "/admin/catalogo";
+            } else {
+                const data = await res.json().catch(() => ({}));
+                alert("Error: " + (data.error || "Credenciales incorrectas"));
+            }
+        });
+    </script>
+</body>
+</html>

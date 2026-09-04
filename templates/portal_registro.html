@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Portal de Proveedores - NYDS</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --primary-hover: #1d4ed8;
+            --bg-color: #f1f5f9;
+            --card-bg: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+        }
+
+        body.bg-matjobs {
+            background-color: var(--bg-color);
+            font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            color: var(--text-main);
+        }
+
+        .navbar-matjobs {
+            background: #ffffff;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .card-matjobs {
+            background: var(--card-bg);
+            border-radius: 20px;
+            border: 1px solid var(--border-color) !important;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05) !important;
+        }
+
+        .form-control-matjobs {
+            background-color: #fafbfc;
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            padding: 12px 16px;
+            font-size: 0.95rem;
+            color: var(--text-main);
+            transition: all 0.2s ease-in-out;
+        }
+
+        .form-control-matjobs:focus {
+            background-color: #ffffff;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+        }
+
+        .step-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            background-color: #eff6ff;
+            color: var(--primary-color);
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+
+        .btn-matjobs {
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            letter-spacing: 0.3px;
+            transition: all 0.25s ease;
+        }
+
+        .btn-matjobs:hover {
+            background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(37, 99, 235, 0.3);
+        }
+
+        .section-divider {
+            border-top: 1px solid #f1f5f9;
+            margin: 2.5rem 0 2rem 0;
+        }
+    </style>
+</head>
+<body class="bg-matjobs">
+    
+    <!-- Navbar Superior -->
+    <nav class="navbar navbar-expand-lg navbar-matjobs sticky-top py-3 mb-4 shadow-sm">
+        <div class="container" style="max-width: 850px;">
+            <span class="navbar-brand fw-bold text-dark fs-5">🏢 NYDS <span class="text-muted fw-normal fs-6">| Portal de Proveedores</span></span>
+        </div>
+    </nav>
+
+    <div class="container mb-5" style="max-width: 850px;">
+        <div class="mb-4">
+            <h2 class="fw-bold text-dark tracking-tight mb-1">Registro de Nuevo Proveedor</h2>
+            <p class="text-muted">Complete los apartados con su información oficial para iniciar su validación y alta en el sistema.</p>
+        </div>
+
+        <div class="card card-matjobs p-4 p-md-5">
+            <form id="formPortal">
+                
+                <!-- Sección 1 -->
+                <div class="d-flex align-items-center mb-4">
+                    <span class="step-badge">1</span>
+                    <h5 class="fw-bold text-dark ms-3 mb-0">Información General y Fiscal</h5>
+                </div>
+
+                <div class="row g-3 mb-4">
+                    <div class="col-md-8">
+                        <label class="form-label fw-semibold small text-uppercase text-secondary">Razón Social *</label>
+                        <input type="text" id="razon_social" class="form-control form-control-matjobs" required placeholder="Ej. Proveedores Químicos del Caribe S.A. de C.V.">
+                        <div id="error-razon" class="invalid-feedback fw-semibold"></div>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold small text-uppercase text-secondary">RFC *</label>
+                        <input type="text" id="rfc" class="form-control form-control-matjobs" required placeholder="Ej. XAXX010101000">
+                        <div id="error-rfc" class="invalid-feedback fw-semibold"></div>
+                    </div>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold small text-uppercase text-secondary">Tipo de Suministro *</label>
+                        <select id="tipo_proveedor" class="form-select form-control-matjobs">
+                            <option value="Materia Prima">Materia Prima / Químicos</option>
+                            <option value="Empaque">Material de Empaque</option>
+                            <option value="Servicios">Servicios Industriales</option>
+                            <option value="Mixto">Mixto</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold small text-uppercase text-secondary">Condición de Pago *</label>
+                        <select id="condicion_pago" class="form-select form-control-matjobs">
+                            <option value="Contado">Contado</option>
+                            <option value="Crédito 15 días">Crédito 15 días</option>
+                            <option value="Crédito 30 días">Crédito 30 días</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold small text-uppercase text-secondary">Tiempo de Entrega (Días) *</label>
+                        <input type="number" step="0.5" id="tiempo_entrega_normal" class="form-control form-control-matjobs" required placeholder="Ej. 3" value="3">
+                    </div>
+                </div>
+
+                <div class="section-divider"></div>
+
+                <!-- Sección 2 -->
+                <div class="d-flex align-items-center mb-4">
+                    <span class="step-badge">2</span>
+                    <h5 class="fw-bold text-dark ms-3 mb-0">Domicilio Fiscal</h5>
+                </div>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-md-8">
+                        <label class="form-label fw-semibold small text-uppercase text-secondary">Calle y Número *</label>
+                        <input type="text" id="calle_numero" class="form-control form-control-matjobs" required placeholder="Ej. Av. Tulum Mz 4 Lote 2">
+                        <div id="error-domicilio" class="invalid-feedback fw-semibold"></div>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold small text-uppercase text-secondary">Colonia *</label>
+                        <input type="text" id="colonia" class="form-control form-control-matjobs" required placeholder="Ej. Centro">
+                    </div>
+                </div>
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold small text-uppercase text-secondary">Ciudad *</label>
+                        <input type="text" id="ciudad" class="form-control form-control-matjobs" required placeholder="Ej. Cancún" value="Cancún">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold small text-uppercase text-secondary">Estado *</label>
+                        <select id="estado" class="form-select form-control-matjobs" required>
+                            <option value="Aguascalientes">Aguascalientes</option>
+                            <option value="Baja California">Baja California</option>
+                            <option value="Baja California Sur">Baja California Sur</option>
+                            <option value="Campeche">Campeche</option>
+                            <option value="Chiapas">Chiapas</option>
+                            <option value="Chihuahua">Chihuahua</option>
+                            <option value="Ciudad de México">Ciudad de México</option>
+                            <option value="Coahuila">Coahuila</option>
+                            <option value="Colima">Colima</option>
+                            <option value="Durango">Durango</option>
+                            <option value="Estado de México">Estado de México</option>
+                            <option value="Guanajuato">Guanajuato</option>
+                            <option value="Guerrero">Guerrero</option>
+                            <option value="Hidalgo">Hidalgo</option>
+                            <option value="Jalisco">Jalisco</option>
+                            <option value="Michoacán">Michoacán</option>
+                            <option value="Morelos">Morelos</option>
+                            <option value="Nayarit">Nayarit</option>
+                            <option value="Nuevo León">Nuevo León</option>
+                            <option value="Oaxaca">Oaxaca</option>
+                            <option value="Puebla">Puebla</option>
+                            <option value="Querétaro">Querétaro</option>
+                            <option value="Quintana Roo" selected>Quintana Roo</option>
+                            <option value="San Luis Potosí">San Luis Potosí</option>
+                            <option value="Sinaloa">Sinaloa</option>
+                            <option value="Sonora">Sonora</option>
+                            <option value="Tabasco">Tabasco</option>
+                            <option value="Tamaulipas">Tamaulipas</option>
+                            <option value="Tlaxcala">Tlaxcala</option>
+                            <option value="Veracruz">Veracruz</option>
+                            <option value="Yucatán">Yucatán</option>
+                            <option value="Zacatecas">Zacatecas</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold small text-uppercase text-secondary">Código Postal *</label>
+                        <input type="text" id="codigo_postal" class="form-control form-control-matjobs" required placeholder="Ej. 77500">
+                    </div>
+                </div>
+
+                <div class="section-divider"></div>
+
+                <!-- Sección 3 -->
+                <div class="d-flex align-items-center mb-4">
+                    <span class="step-badge">3</span>
+                    <h5 class="fw-bold text-dark ms-3 mb-0">Contacto Comercial Principal</h5>
+                </div>
+
+                <div class="row g-3 mb-5">
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold small text-uppercase text-secondary">Nombre Completo *</label>
+                        <input type="text" id="contacto_nombre" class="form-control form-control-matjobs" required placeholder="Ej. Lic. Carlos Gómez">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold small text-uppercase text-secondary">Correo Electrónico *</label>
+                        <input type="email" id="contacto_correo" class="form-control form-control-matjobs" required placeholder="Ej. contacto@empresa.com">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold small text-uppercase text-secondary">Teléfono *</label>
+                        <input type="text" id="contacto_telefono" class="form-control form-control-matjobs" required placeholder="Ej. 9981234567">
+                    </div>
+                </div>
+
+                <button type="submit" id="btnSubmit" class="btn btn-matjobs w-100 py-3 fw-bold text-white shadow-sm">Enviar Solicitud de Registro</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        async function verificarCampo(campo, valor, errorElementId, inputElement) {
+            if (!valor) return;
+            const cp = document.getElementById('codigo_postal').value;
+            const res = await fetch('/api/verificar-duplicado', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ campo: campo, valor: valor, codigo_postal: cp })
+            });
+            const data = await res.json();
+            const errorDiv = document.getElementById(errorElementId);
+
+            if (data.existe) {
+                inputElement.classList.add('is-invalid');
+                errorDiv.textContent = data.mensaje;
+                errorDiv.style.display = 'block';
+            } else {
+                inputElement.classList.remove('is-invalid');
+                errorDiv.style.display = 'none';
+            }
+        }
+
+        document.getElementById('rfc').addEventListener('blur', function() {
+            verificarCampo('rfc', this.value, 'error-rfc', this);
+        });
+
+        document.getElementById('razon_social').addEventListener('blur', function() {
+            verificarCampo('razon_social', this.value, 'error-razon', this);
+        });
+
+        document.getElementById('calle_numero').addEventListener('blur', function() {
+            const calle = this.value;
+            const cp = document.getElementById('codigo_postal').value;
+            if (calle && cp) {
+                verificarCampo('domicilio', calle, 'error-domicilio', document.getElementById('calle_numero'));
+            }
+        });
+
+        document.getElementById('codigo_postal').addEventListener('blur', function() {
+            const cp = this.value;
+            const calle = document.getElementById('calle_numero').value;
+            if (calle && cp) {
+                verificarCampo('domicilio', calle, 'error-domicilio', document.getElementById('calle_numero'));
+            }
+        });
+
+        document.getElementById('formPortal').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            if (document.querySelectorAll('.is-invalid').length > 0) {
+                alert("Por favor, corrija los campos marcados en rojo antes de enviar.");
+                return;
+            }
+
+            const data = {
+                razon_social: document.getElementById('razon_social').value,
+                rfc: document.getElementById('rfc').value,
+                tipo_proveedor: document.getElementById('tipo_proveedor').value,
+                condicion_pago: document.getElementById('condicion_pago').value,
+                tiempo_entrega_normal: parseFloat(document.getElementById('tiempo_entrega_normal').value),
+                calle_numero: document.getElementById('calle_numero').value,
+                colonia: document.getElementById('colonia').value,
+                ciudad: document.getElementById('ciudad').value,
+                estado: document.getElementById('estado').value,
+                codigo_postal: document.getElementById('codigo_postal').value,
+                estatus_inicial: 'Pendiente',
+                contactos: [{
+                    nombre: document.getElementById('contacto_nombre').value,
+                    correo: document.getElementById('contacto_correo').value,
+                    telefono: document.getElementById('contacto_telefono').value,
+                    tipo_contacto: "Portal Público",
+                    es_principal: true
+                }]
+            };
+
+            const res = await fetch('/api/proveedores', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            const result = await res.json();
+            
+            if(res.ok) {
+                alert("¡Solicitud enviada con éxito! Su expediente quedó en estatus 'Pendiente' para validación del departamento de compras.");
+                window.location.reload();
+            } else {
+                alert("Error: " + result.error);
+            }
+        });
+    </script>
+</body>
+</html>
