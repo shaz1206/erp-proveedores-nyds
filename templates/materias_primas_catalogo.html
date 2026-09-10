@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Materias Primas - ERP NYDS</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20260907-teal') }}">
+</head>
+<body class="bg-light">
+{% include 'erp_header.html' %}
+
+<div class="container-fluid px-4 mb-5">
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body p-4">
+            <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+                <div>
+                    <h4 class="fw-bold mb-1">Catálogo maestro de materias primas</h4>
+                    <p class="text-muted mb-0">Una sola identidad por insumo para Compras, Inventario, Recetas y Producción.</p>
+                </div>
+                <span class="badge rounded-pill text-bg-light border px-3 py-2" id="contadorRegistros">0 registros</span>
+            </div>
+
+            <div class="row g-2">
+                <div class="col-lg-5">
+                    <input id="buscadorMP" class="form-control" placeholder="Buscar por SKU, nombre, alias, CAS o SKU de proveedor...">
+                </div>
+                <div class="col-lg-3">
+                    <select id="filtroFamilia" class="form-select">
+                        <option value="">Todas las familias</option>
+                    </select>
+                </div>
+                <div class="col-lg-2">
+                    <select id="filtroEstatus" class="form-select">
+                        <option value="">Todos los estatus</option>
+                        <option value="Activo">Activas</option>
+                        <option value="Borrador">Borradores</option>
+                        <option value="Inactivo">Inactivas</option>
+                    </select>
+                </div>
+                <div class="col-lg-2 d-grid">
+                    <button class="btn btn-outline-secondary" onclick="limpiarFiltros()">Limpiar filtros</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="alert alert-info border-0 shadow-sm py-2 small">
+        <strong>Nota:</strong> Stock actual y filtros por nivel se habilitarán cuando se integre el módulo operativo de Inventarios. Por ahora este apartado administra el maestro y su configuración de reabastecimiento.
+    </div>
+
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-dark">
+                    <tr>
+                        <th>SKU</th>
+                        <th>Materia prima</th>
+                        <th>Familia</th>
+                        <th>Unidad base</th>
+                        <th>Stock mín.</th>
+                        <th>P. reorden</th>
+                        <th>Proveedor principal</th>
+                        <th>Ubicación</th>
+                        <th>Costo / unidad</th>
+                        <th>Estatus</th>
+                        <th class="text-end">Acciones</th>
+                    </tr>
+                    </thead>
+                    <tbody id="tablaMP"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let ultimaLista = [];
+    let temporizadorBusqueda;
+
+    function escapeHtml(valor) {
+        return String(valor ?? '')
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;')
+            .replaceAll("'", '&#039;');
+    }
+
+    function badgeEstatus(estatus) {
+        if (estatus === 'Activo') return 'bg-success';
+        if (estatus === 'Borrador') return 'bg-warning text-dark';
+        return 'bg-secondary';
+    }
+
+    async function cargarMateriasPrimas() {
+        const q = document.getElementById('buscadorMP').value.trim();
+        const familia = document.getElementById('filtroFamilia').value;
+        const estatus = document.getElementById('filtroEstatus').value;
+        const params = new URLSearchParams();
+        if (q) params.set('q', q);
+        if (familia) params.set('familia', familia);
+        if (estatus) params.set('estatus', estatus);
+
+        const res = await fetch('/api/materias-primas?' + params.toString());
+        if (res.status === 403) {
+            window.location.href = '/login';
+            return;
+        }
+        ultimaLista = await res.json();
+        renderTabla(ultimaLista);
+        actualizarFamilias(ultimaLista);
+    }
+
+    function renderTabla(lista) {
+        const tb = document.getElementById('tablaMP');
+        document.getElementById('contadorRegistros').textContent = `${lista.length} registro${lista.length === 1 ? '' : 's'}`;
+        if (!lista.length) {
+            tb.innerHTML = `<tr><td colspan="11" class="text-center text-muted py-5">No hay materias primas que coincidan con la búsqueda.</td></tr>`;
+            return;
+        }
+
+        tb.innerHTML = lista.map(mp => {
+            const costo = mp.costo_unidad_base == null ? '—' : `${Number(mp.costo_unidad_base).toLocaleString('es-MX', {style:'currency', currency:'MXN'})}/${escapeHtml(mp.unidad_base)}`;
+            return `
+                <tr>
+                    <td class="font-monospace fw-semibold text-secondary">${escapeHtml(mp.sku_mp)}</td>
+                    <td>
+                        <div class="fw-bold text-dark">${escapeHtml(mp.nombre_oficial)}</div>
+                        <small class="text-muted">${escapeHtml(mp.estado_fisico)}</small>
+                    </td>
+                    <td>${escapeHtml(mp.familia)}</td>
+                    <td><span class="badge bg-light text-dark border">${escapeHtml(mp.unidad_base)}</span></td>
+                    <td>${mp.stock_minimo == null ? '—' : Number(mp.stock_minimo).toLocaleString('es-MX')}</td>
+                    <td>${mp.punto_reorden == null ? '—' : Number(mp.punto_reorden).toLocaleString('es-MX')}</td>
+                    <td><small>${escapeHtml(mp.proveedor_principal || 'Sin asignar')}</small></td>
+                    <td><small>${escapeHtml(mp.ubicacion_principal || 'Sin asignar')}</small></td>
+                    <td><small>${costo}</small></td>
+                    <td><span class="badge ${badgeEstatus(mp.estatus)}">${escapeHtml(mp.estatus)}</span></td>
+                    <td class="text-end text-nowrap">
+                        ${mp.estatus === 'Activo' ? `<button class="btn btn-sm btn-outline-secondary me-1" onclick="cambiarEstatus(${mp.id_mp}, 'Inactivo')">Desactivar</button>` : `<button class="btn btn-sm btn-outline-success me-1" onclick="cambiarEstatus(${mp.id_mp}, 'Activo')">Activar</button>`}
+                        <a href="/admin/materias-primas/${mp.id_mp}" class="btn btn-sm btn-outline-primary">Expediente</a>
+                    </td>
+                </tr>`;
+        }).join('');
+    }
+
+    function actualizarFamilias(lista) {
+        const select = document.getElementById('filtroFamilia');
+        const actual = select.value;
+        const familias = [...new Set(lista.map(x => x.familia).filter(Boolean))].sort((a,b) => a.localeCompare(b));
+        // No borrar opciones ya visibles si la lista fue filtrada por familia.
+        const existentes = new Set([...select.options].map(o => o.value).filter(Boolean));
+        familias.forEach(f => {
+            if (!existentes.has(f)) select.insertAdjacentHTML('beforeend', `<option value="${escapeHtml(f)}">${escapeHtml(f)}</option>`);
+        });
+        select.value = actual;
+    }
+
+    async function cambiarEstatus(id, estatus) {
+        let motivo = null;
+        if (estatus === 'Inactivo') {
+            motivo = prompt('Motivo de la desactivación (opcional):');
+            if (motivo === null) return;
+        }
+        const res = await fetch(`/api/materias-primas/${id}/estatus`, {
+            method: 'PATCH',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({estatus, motivo})
+        });
+        const data = await res.json();
+        if (!res.ok) {
+            alert((data.error || 'No se pudo cambiar el estatus') + (data.detalles ? '\n\n• ' + data.detalles.join('\n• ') : ''));
+            return;
+        }
+        cargarMateriasPrimas();
+    }
+
+    function limpiarFiltros() {
+        document.getElementById('buscadorMP').value = '';
+        document.getElementById('filtroFamilia').value = '';
+        document.getElementById('filtroEstatus').value = '';
+        cargarMateriasPrimas();
+    }
+
+    document.getElementById('buscadorMP').addEventListener('input', () => {
+        clearTimeout(temporizadorBusqueda);
+        temporizadorBusqueda = setTimeout(cargarMateriasPrimas, 250);
+    });
+    document.getElementById('filtroFamilia').addEventListener('change', cargarMateriasPrimas);
+    document.getElementById('filtroEstatus').addEventListener('change', cargarMateriasPrimas);
+    cargarMateriasPrimas();
+</script>
+</body>
+</html>

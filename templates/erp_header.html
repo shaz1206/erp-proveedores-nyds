@@ -1,0 +1,21 @@
+{% set es_mp = request.path.startswith('/admin/materias-primas') %}
+{% set es_pt = request.path.startswith('/admin/productos-terminados') %}
+<header class="erp-header"><div class="erp-header-inner">
+    <a class="erp-brand" href="/admin/catalogo"><span class="erp-monogram">NY</span><span><strong>NYDS · ERP</strong><small>Gestión de productos y compras</small></span></a>
+    <nav class="erp-nav" aria-label="Módulos del ERP">
+        <a href="/admin/catalogo" {% if not es_mp and not es_pt %}aria-current="page"{% endif %}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21V7l9-4 9 4v14M8 21v-5h8v5M7 10h2m6 0h2M7 13h2m6 0h2"/></svg>Proveedores</a>
+        <a href="/admin/materias-primas" {% if es_mp %}aria-current="page"{% endif %}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6m-5 0v7L4 19q-1 2 2 2h12q3 0 2-2l-6-9V3M7 16h10"/></svg>Materias primas</a>
+        <a href="/admin/productos-terminados" {% if es_pt %}aria-current="page"{% endif %}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 7 9-4 9 4v11l-9 4-9-4Zm0 0 9 4 9-4M12 11v11M7 5l10 4"/></svg>Producto terminado</a>
+        <a href="/logout" class="erp-logout"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4H4v16h5m5-13 5 5-5 5m-6-5h11"/></svg>Salir</a>
+    </nav>
+</div></header>
+<div class="erp-toolbar">
+    <span class="erp-context">Administración / {{ 'Materias primas' if es_mp else 'Producto terminado' if es_pt else 'Proveedores' }}</span>
+    {% if es_mp %}
+    <a href="/admin/materias-primas" class="btn btn-outline-secondary btn-sm">Catálogo</a><a href="/admin/materias-primas/nueva" class="btn btn-primary btn-sm">+ Materia prima</a>
+    {% elif es_pt %}
+    <a href="/admin/productos-terminados" class="btn btn-outline-secondary btn-sm">Catálogo</a><a href="/admin/productos-terminados/nuevo" class="btn btn-primary btn-sm">+ Producto terminado</a>
+    {% else %}
+    <a href="/portal-registro" target="_blank" rel="noopener" class="btn btn-outline-secondary btn-sm">Portal de registro ↗</a><a href="/admin/catalogo" class="btn btn-outline-secondary btn-sm">Catálogo</a><a href="/admin/alta" class="btn btn-primary btn-sm">+ Proveedor</a>
+    {% endif %}
+</div>
