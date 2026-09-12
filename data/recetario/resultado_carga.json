@@ -1,0 +1,11 @@
+{
+  "ya_cargado": false,
+  "recetas": 41,
+  "semiterminados": 8,
+  "materias_nuevas": 55,
+  "productos_nuevos": 33,
+  "componentes": 190,
+  "enlaces_subrecetas": 23,
+  "database": "C:\\Users\\shazi\\Downloads\\ERP_NYDS_Materias_Primas\\instance\\erp.db",
+  "backup": "C:\\Users\\shazi\\Downloads\\ERP_NYDS_Materias_Primas\\backups\\erp-antes-recetario-20260911-100654-345664.db"
+}

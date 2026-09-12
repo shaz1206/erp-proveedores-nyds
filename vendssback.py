@@ -26,7 +26,10 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(MP_UPLOAD_FOLDER, exist_ok=True)
 
 app = Flask(__name__)
-app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "sqlite:///erp.db")
+# Misma base al iniciar como script o como módulo de Flask.
+DEFAULT_DATABASE = os.path.abspath(os.path.join(BASE_DIR, "..", "instance", "erp.db"))
+os.makedirs(os.path.dirname(DEFAULT_DATABASE), exist_ok=True)
+app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "sqlite:///" + DEFAULT_DATABASE.replace("\\", "/"))
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "clave_secreta_nyds_admin_2026")
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
@@ -1593,6 +1596,25 @@ else:
     from productos_terminados import registrar_productos_terminados
 
 ProductoTerminado = registrar_productos_terminados(app, db)
+if __package__:
+    from .abastecimiento import registrar_abastecimiento
+else:
+    from abastecimiento import registrar_abastecimiento
+OrdenCompra, CompraLinea, RecepcionMP, MovimientoMP = registrar_abastecimiento(
+    app, db, MateriaPrima, Proveedor, MateriaPrimaProveedor, usuario_actual)
+
+
+if __package__:
+    from .recetas import registrar_recetas
+else:
+    from recetas import registrar_recetas
+Receta, RecetaIngrediente, RecetaRevision = registrar_recetas(app, db, MateriaPrima, ProductoTerminado, usuario_actual)
+
+if __package__:
+    from .inventario import registrar_inventario
+else:
+    from inventario import registrar_inventario
+AjusteInventario = registrar_inventario(app, db, MateriaPrima, MovimientoMP, usuario_actual)
 
 with app.app_context():
     db.create_all()

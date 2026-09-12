@@ -1,0 +1,3579 @@
+{
+  "archivo": "Recetario_NYDS.docx",
+  "sha256": "6c92e8c3ea7d5e1ed72456da6bced72e82eba1780ab924c70807a60e8f09a3f0",
+  "secciones": 31,
+  "recetas": [
+    {
+      "clave": "01-01",
+      "nombre": "Color Amarillo Huevo Líquido",
+      "tipo": "Semiterminado",
+      "seccion": 1,
+      "tabla": 3,
+      "componentes": [
+        {
+          "nombre": "Polvo color Amarillo Huevo",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "10",
+          "unidad": "g",
+          "observaciones": "Por lote de 1000 ml",
+          "tabla": 3,
+          "fila": 3,
+          "original": [
+            "Polvo color Amarillo Huevo",
+            "LA FÓRMULA",
+            "10",
+            "g",
+            "Por lote de 1000 ml"
+          ]
+        },
+        {
+          "nombre": "Agua",
+          "proveedor": "PROPIO",
+          "cantidad": "990",
+          "unidad": "ml",
+          "observaciones": "Por lote de 1000 ml",
+          "tabla": 3,
+          "fila": 4,
+          "original": [
+            "Agua",
+            "PROPIO",
+            "990",
+            "ml",
+            "Por lote de 1000 ml"
+          ]
+        }
+      ],
+      "notas": [
+        "• Regla base: 1 litro de color líquido = 10 g de polvo de color + 990 ml de agua.",
+        "• ERP: cada color líquido debe manejarse como semiterminado en unidad ml.",
+        "• La receta final consume color líquido; al producirlo/explosionarlo se descuenta polvo + agua."
+      ],
+      "rendimiento": "1000",
+      "unidad_rendimiento": "mL"
+    },
+    {
+      "clave": "01-02",
+      "nombre": "Color Azul Líquido",
+      "tipo": "Semiterminado",
+      "seccion": 1,
+      "tabla": 3,
+      "componentes": [
+        {
+          "nombre": "Polvo color Azul",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "10",
+          "unidad": "g",
+          "observaciones": "Por lote de 1000 ml",
+          "tabla": 3,
+          "fila": 6,
+          "original": [
+            "Polvo color Azul",
+            "LA FÓRMULA",
+            "10",
+            "g",
+            "Por lote de 1000 ml"
+          ]
+        },
+        {
+          "nombre": "Agua",
+          "proveedor": "PROPIO",
+          "cantidad": "990",
+          "unidad": "ml",
+          "observaciones": "Por lote de 1000 ml",
+          "tabla": 3,
+          "fila": 7,
+          "original": [
+            "Agua",
+            "PROPIO",
+            "990",
+            "ml",
+            "Por lote de 1000 ml"
+          ]
+        }
+      ],
+      "notas": [
+        "• Regla base: 1 litro de color líquido = 10 g de polvo de color + 990 ml de agua.",
+        "• ERP: cada color líquido debe manejarse como semiterminado en unidad ml.",
+        "• La receta final consume color líquido; al producirlo/explosionarlo se descuenta polvo + agua."
+      ],
+      "rendimiento": "1000",
+      "unidad_rendimiento": "mL"
+    },
+    {
+      "clave": "01-03",
+      "nombre": "Color Morado Líquido",
+      "tipo": "Semiterminado",
+      "seccion": 1,
+      "tabla": 3,
+      "componentes": [
+        {
+          "nombre": "Polvo color Morado",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "10",
+          "unidad": "g",
+          "observaciones": "Por lote de 1000 ml",
+          "tabla": 3,
+          "fila": 9,
+          "original": [
+            "Polvo color Morado",
+            "LA FÓRMULA",
+            "10",
+            "g",
+            "Por lote de 1000 ml"
+          ]
+        },
+        {
+          "nombre": "Agua",
+          "proveedor": "PROPIO",
+          "cantidad": "990",
+          "unidad": "ml",
+          "observaciones": "Por lote de 1000 ml",
+          "tabla": 3,
+          "fila": 10,
+          "original": [
+            "Agua",
+            "PROPIO",
+            "990",
+            "ml",
+            "Por lote de 1000 ml"
+          ]
+        }
+      ],
+      "notas": [
+        "• Regla base: 1 litro de color líquido = 10 g de polvo de color + 990 ml de agua.",
+        "• ERP: cada color líquido debe manejarse como semiterminado en unidad ml.",
+        "• La receta final consume color líquido; al producirlo/explosionarlo se descuenta polvo + agua."
+      ],
+      "rendimiento": "1000",
+      "unidad_rendimiento": "mL"
+    },
+    {
+      "clave": "01-04",
+      "nombre": "Color Negro Líquido",
+      "tipo": "Semiterminado",
+      "seccion": 1,
+      "tabla": 3,
+      "componentes": [
+        {
+          "nombre": "Polvo color Negro",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "10",
+          "unidad": "g",
+          "observaciones": "Por lote de 1000 ml",
+          "tabla": 3,
+          "fila": 12,
+          "original": [
+            "Polvo color Negro",
+            "LA FÓRMULA",
+            "10",
+            "g",
+            "Por lote de 1000 ml"
+          ]
+        },
+        {
+          "nombre": "Agua",
+          "proveedor": "PROPIO",
+          "cantidad": "990",
+          "unidad": "ml",
+          "observaciones": "Por lote de 1000 ml",
+          "tabla": 3,
+          "fila": 13,
+          "original": [
+            "Agua",
+            "PROPIO",
+            "990",
+            "ml",
+            "Por lote de 1000 ml"
+          ]
+        }
+      ],
+      "notas": [
+        "• Regla base: 1 litro de color líquido = 10 g de polvo de color + 990 ml de agua.",
+        "• ERP: cada color líquido debe manejarse como semiterminado en unidad ml.",
+        "• La receta final consume color líquido; al producirlo/explosionarlo se descuenta polvo + agua."
+      ],
+      "rendimiento": "1000",
+      "unidad_rendimiento": "mL"
+    },
+    {
+      "clave": "01-05",
+      "nombre": "Color Rosa Líquido",
+      "tipo": "Semiterminado",
+      "seccion": 1,
+      "tabla": 3,
+      "componentes": [
+        {
+          "nombre": "Polvo color Rosa",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "10",
+          "unidad": "g",
+          "observaciones": "Por lote de 1000 ml",
+          "tabla": 3,
+          "fila": 15,
+          "original": [
+            "Polvo color Rosa",
+            "LA FÓRMULA",
+            "10",
+            "g",
+            "Por lote de 1000 ml"
+          ]
+        },
+        {
+          "nombre": "Agua",
+          "proveedor": "PROPIO",
+          "cantidad": "990",
+          "unidad": "ml",
+          "observaciones": "Por lote de 1000 ml",
+          "tabla": 3,
+          "fila": 16,
+          "original": [
+            "Agua",
+            "PROPIO",
+            "990",
+            "ml",
+            "Por lote de 1000 ml"
+          ]
+        }
+      ],
+      "notas": [
+        "• Regla base: 1 litro de color líquido = 10 g de polvo de color + 990 ml de agua.",
+        "• ERP: cada color líquido debe manejarse como semiterminado en unidad ml.",
+        "• La receta final consume color líquido; al producirlo/explosionarlo se descuenta polvo + agua."
+      ],
+      "rendimiento": "1000",
+      "unidad_rendimiento": "mL"
+    },
+    {
+      "clave": "01-06",
+      "nombre": "Color Rojo Líquido",
+      "tipo": "Semiterminado",
+      "seccion": 1,
+      "tabla": 3,
+      "componentes": [
+        {
+          "nombre": "Polvo color Rojo",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "10",
+          "unidad": "g",
+          "observaciones": "Por lote de 1000 ml",
+          "tabla": 3,
+          "fila": 18,
+          "original": [
+            "Polvo color Rojo",
+            "LA FÓRMULA",
+            "10",
+            "g",
+            "Por lote de 1000 ml"
+          ]
+        },
+        {
+          "nombre": "Agua",
+          "proveedor": "PROPIO",
+          "cantidad": "990",
+          "unidad": "ml",
+          "observaciones": "Por lote de 1000 ml",
+          "tabla": 3,
+          "fila": 19,
+          "original": [
+            "Agua",
+            "PROPIO",
+            "990",
+            "ml",
+            "Por lote de 1000 ml"
+          ]
+        }
+      ],
+      "notas": [
+        "• Regla base: 1 litro de color líquido = 10 g de polvo de color + 990 ml de agua.",
+        "• ERP: cada color líquido debe manejarse como semiterminado en unidad ml.",
+        "• La receta final consume color líquido; al producirlo/explosionarlo se descuenta polvo + agua."
+      ],
+      "rendimiento": "1000",
+      "unidad_rendimiento": "mL"
+    },
+    {
+      "clave": "01-07",
+      "nombre": "Color Verde Líquido",
+      "tipo": "Semiterminado",
+      "seccion": 1,
+      "tabla": 3,
+      "componentes": [
+        {
+          "nombre": "Polvo color Verde",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "10",
+          "unidad": "g",
+          "observaciones": "Por lote de 1000 ml",
+          "tabla": 3,
+          "fila": 21,
+          "original": [
+            "Polvo color Verde",
+            "LA FÓRMULA",
+            "10",
+            "g",
+            "Por lote de 1000 ml"
+          ]
+        },
+        {
+          "nombre": "Agua",
+          "proveedor": "PROPIO",
+          "cantidad": "990",
+          "unidad": "ml",
+          "observaciones": "Por lote de 1000 ml",
+          "tabla": 3,
+          "fila": 22,
+          "original": [
+            "Agua",
+            "PROPIO",
+            "990",
+            "ml",
+            "Por lote de 1000 ml"
+          ]
+        }
+      ],
+      "notas": [
+        "• Regla base: 1 litro de color líquido = 10 g de polvo de color + 990 ml de agua.",
+        "• ERP: cada color líquido debe manejarse como semiterminado en unidad ml.",
+        "• La receta final consume color líquido; al producirlo/explosionarlo se descuenta polvo + agua."
+      ],
+      "rendimiento": "1000",
+      "unidad_rendimiento": "mL"
+    },
+    {
+      "clave": "02-01",
+      "nombre": "DTK (Subreceta)",
+      "tipo": "Semiterminado",
+      "seccion": 2,
+      "tabla": 6,
+      "componentes": [
+        {
+          "nombre": "ABDS",
+          "proveedor": "POCHTECA/ LA FÓRMULA",
+          "cantidad": "140",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 6,
+          "fila": 2,
+          "original": [
+            "ABDS",
+            "POCHTECA/ LA FÓRMULA",
+            "140",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "NAOH (Sosa Líquida)",
+          "proveedor": "",
+          "cantidad": "42.5",
+          "unidad": "g",
+          "observaciones": "SE PESA EN VEZ DE MEDIR CON JARRA",
+          "tabla": 6,
+          "fila": 3,
+          "original": [
+            "NAOH (Sosa Líquida)",
+            "",
+            "42.5",
+            "g",
+            "SE PESA EN VEZ DE MEDIR CON JARRA"
+          ]
+        },
+        {
+          "nombre": "Agua",
+          "proveedor": "PROPIO",
+          "cantidad": "817.5",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 6,
+          "fila": 4,
+          "original": [
+            "Agua",
+            "PROPIO",
+            "817.5",
+            "ml",
+            ""
+          ]
+        }
+      ],
+      "notas": [
+        "• SUBRECETA QUE SOLO SE USA EN EL LAVATRASTES"
+      ],
+      "rendimiento": null,
+      "unidad_rendimiento": null
+    },
+    {
+      "clave": "03-01",
+      "nombre": "Ropa color",
+      "tipo": "Producto terminado",
+      "seccion": 3,
+      "tabla": 9,
+      "componentes": [
+        {
+          "nombre": "Less 28%",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "130",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 9,
+          "fila": 2,
+          "original": [
+            "Less 28%",
+            "LA FÓRMULA",
+            "130",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Amida de coco",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "30",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 9,
+          "fila": 3,
+          "original": [
+            "Amida de coco",
+            "LA FÓRMULA",
+            "30",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Esencia COLORMAX",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "5",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 9,
+          "fila": 4,
+          "original": [
+            "Esencia COLORMAX",
+            "LA FÓRMULA",
+            "5",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "NACL",
+          "proveedor": "DEPARTAMENTAL",
+          "cantidad": "10",
+          "unidad": "g",
+          "observaciones": "",
+          "tabla": 9,
+          "fila": 5,
+          "original": [
+            "NACL",
+            "DEPARTAMENTAL",
+            "10",
+            "g",
+            ""
+          ]
+        },
+        {
+          "nombre": "Formol",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "1",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 9,
+          "fila": 6,
+          "original": [
+            "Formol",
+            "LA FÓRMULA",
+            "1",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Agua",
+          "proveedor": "PROPIO",
+          "cantidad": "819",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 9,
+          "fila": 7,
+          "original": [
+            "Agua",
+            "PROPIO",
+            "819",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Color Azul Líquido",
+          "proveedor": "PROPIO (subreceta)",
+          "cantidad": "5",
+          "unidad": "ml",
+          "observaciones": "Ver hoja COLORES: color líquido producido internamente.",
+          "tabla": 9,
+          "fila": 8,
+          "original": [
+            "Color Azul Líquido",
+            "PROPIO (subreceta)",
+            "5",
+            "ml",
+            "Ver hoja COLORES: color líquido producido internamente."
+          ]
+        }
+      ],
+      "notas": [],
+      "rendimiento": null,
+      "unidad_rendimiento": null
+    },
+    {
+      "clave": "04-01",
+      "nombre": "Ropa oscura",
+      "tipo": "Producto terminado",
+      "seccion": 4,
+      "tabla": 12,
+      "componentes": [
+        {
+          "nombre": "Less 28%",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "130",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 12,
+          "fila": 2,
+          "original": [
+            "Less 28%",
+            "LA FÓRMULA",
+            "130",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Amida de coco",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "30",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 12,
+          "fila": 3,
+          "original": [
+            "Amida de coco",
+            "LA FÓRMULA",
+            "30",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Esencia COLORMAX",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "5",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 12,
+          "fila": 4,
+          "original": [
+            "Esencia COLORMAX",
+            "LA FÓRMULA",
+            "5",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "NACL",
+          "proveedor": "DEPARTAMENTAL",
+          "cantidad": "10",
+          "unidad": "g",
+          "observaciones": "",
+          "tabla": 12,
+          "fila": 5,
+          "original": [
+            "NACL",
+            "DEPARTAMENTAL",
+            "10",
+            "g",
+            ""
+          ]
+        },
+        {
+          "nombre": "Formol",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "1",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 12,
+          "fila": 6,
+          "original": [
+            "Formol",
+            "LA FÓRMULA",
+            "1",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Agua",
+          "proveedor": "PROPIO",
+          "cantidad": "819",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 12,
+          "fila": 7,
+          "original": [
+            "Agua",
+            "PROPIO",
+            "819",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Color Negro Líquido",
+          "proveedor": "PROPIO (subreceta)",
+          "cantidad": "5",
+          "unidad": "ml",
+          "observaciones": "Ver hoja COLORES: color líquido producido internamente.",
+          "tabla": 12,
+          "fila": 8,
+          "original": [
+            "Color Negro Líquido",
+            "PROPIO (subreceta)",
+            "5",
+            "ml",
+            "Ver hoja COLORES: color líquido producido internamente."
+          ]
+        }
+      ],
+      "notas": [],
+      "rendimiento": null,
+      "unidad_rendimiento": null
+    },
+    {
+      "clave": "05-01",
+      "nombre": "Ropa blanca",
+      "tipo": "Producto terminado",
+      "seccion": 5,
+      "tabla": 15,
+      "componentes": [
+        {
+          "nombre": "Less 28%",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "130",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 15,
+          "fila": 2,
+          "original": [
+            "Less 28%",
+            "LA FÓRMULA",
+            "130",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Amida de coco",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "30",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 15,
+          "fila": 3,
+          "original": [
+            "Amida de coco",
+            "LA FÓRMULA",
+            "30",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Esencia COLORMAX",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "5",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 15,
+          "fila": 4,
+          "original": [
+            "Esencia COLORMAX",
+            "LA FÓRMULA",
+            "5",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "NACL",
+          "proveedor": "DEPARTAMENTAL",
+          "cantidad": "10",
+          "unidad": "g",
+          "observaciones": "",
+          "tabla": 15,
+          "fila": 5,
+          "original": [
+            "NACL",
+            "DEPARTAMENTAL",
+            "10",
+            "g",
+            ""
+          ]
+        },
+        {
+          "nombre": "Formol",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "1",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 15,
+          "fila": 6,
+          "original": [
+            "Formol",
+            "LA FÓRMULA",
+            "1",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Agua",
+          "proveedor": "PROPIO",
+          "cantidad": "824",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 15,
+          "fila": 7,
+          "original": [
+            "Agua",
+            "PROPIO",
+            "824",
+            "ml",
+            ""
+          ]
+        }
+      ],
+      "notas": [],
+      "rendimiento": null,
+      "unidad_rendimiento": null
+    },
+    {
+      "clave": "06-01",
+      "nombre": "Lavatrastes & Cocina Limón",
+      "tipo": "Producto terminado",
+      "seccion": 6,
+      "tabla": 18,
+      "componentes": [
+        {
+          "nombre": "Less 28%",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "190",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 18,
+          "fila": 2,
+          "original": [
+            "Less 28%",
+            "LA FÓRMULA",
+            "190",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Amida de coco",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "30",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 18,
+          "fila": 3,
+          "original": [
+            "Amida de coco",
+            "LA FÓRMULA",
+            "30",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Esencia Limón Californiano",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "8",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 18,
+          "fila": 4,
+          "original": [
+            "Esencia Limón Californiano",
+            "LA FÓRMULA",
+            "8",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "NACL",
+          "proveedor": "DEPARTAMENTAL",
+          "cantidad": "10",
+          "unidad": "g",
+          "observaciones": "",
+          "tabla": 18,
+          "fila": 5,
+          "original": [
+            "NACL",
+            "DEPARTAMENTAL",
+            "10",
+            "g",
+            ""
+          ]
+        },
+        {
+          "nombre": "Formol (Conservador)",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "1",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 18,
+          "fila": 6,
+          "original": [
+            "Formol (Conservador)",
+            "LA FÓRMULA",
+            "1",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Agua",
+          "proveedor": "PROPIO",
+          "cantidad": "347",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 18,
+          "fila": 7,
+          "original": [
+            "Agua",
+            "PROPIO",
+            "347",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Color Verde Líquido",
+          "proveedor": "PROPIO (subreceta)",
+          "cantidad": "14",
+          "unidad": "ml",
+          "observaciones": "Ver hoja COLORES: color líquido producido internamente.",
+          "tabla": 18,
+          "fila": 8,
+          "original": [
+            "Color Verde Líquido",
+            "PROPIO (subreceta)",
+            "14",
+            "ml",
+            "Ver hoja COLORES: color líquido producido internamente."
+          ]
+        },
+        {
+          "nombre": "DTK",
+          "proveedor": "SUBRECETA",
+          "cantidad": "400",
+          "unidad": "g",
+          "observaciones": "Subreceta: al producir/explosionar DTK se descuentan ABDS + NAOH + Agua.",
+          "tabla": 18,
+          "fila": 9,
+          "original": [
+            "DTK",
+            "SUBRECETA",
+            "400",
+            "g",
+            "Subreceta: al producir/explosionar DTK se descuentan ABDS + NAOH + Agua."
+          ]
+        }
+      ],
+      "notas": [],
+      "rendimiento": null,
+      "unidad_rendimiento": null
+    },
+    {
+      "clave": "07-01",
+      "nombre": "Suavizante & Libre Enjuague",
+      "tipo": "Producto terminado",
+      "seccion": 7,
+      "tabla": 21,
+      "componentes": [
+        {
+          "nombre": "TETRA SOFT 85 (Pasta Vegetal)",
+          "proveedor": "POWER CLEAN",
+          "cantidad": "60",
+          "unidad": "g",
+          "observaciones": "",
+          "tabla": 21,
+          "fila": 2,
+          "original": [
+            "TETRA SOFT 85 (Pasta Vegetal)",
+            "POWER CLEAN",
+            "60",
+            "g",
+            ""
+          ]
+        },
+        {
+          "nombre": "Anti espumante (gel)",
+          "proveedor": "DCC Esencias",
+          "cantidad": "2",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 21,
+          "fila": 3,
+          "original": [
+            "Anti espumante (gel)",
+            "DCC Esencias",
+            "2",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Formol (Conservador)",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "1",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 21,
+          "fila": 4,
+          "original": [
+            "Formol (Conservador)",
+            "LA FÓRMULA",
+            "1",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Agua",
+          "proveedor": "PROPIO",
+          "cantidad": "926",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 21,
+          "fila": 5,
+          "original": [
+            "Agua",
+            "PROPIO",
+            "926",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Color Azul Líquido",
+          "proveedor": "PROPIO (subreceta)",
+          "cantidad": "0.15",
+          "unidad": "ml",
+          "observaciones": "Ver hoja COLORES: color líquido producido internamente.",
+          "tabla": 21,
+          "fila": 6,
+          "original": [
+            "Color Azul Líquido",
+            "PROPIO (subreceta)",
+            "0.15",
+            "ml",
+            "Ver hoja COLORES: color líquido producido internamente."
+          ]
+        },
+        {
+          "nombre": "Esencia Downy Suavizante",
+          "proveedor": "DCC ESENCIAS",
+          "cantidad": "10",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 21,
+          "fila": 7,
+          "original": [
+            "Esencia Downy Suavizante",
+            "DCC ESENCIAS",
+            "10",
+            "ml",
+            ""
+          ]
+        }
+      ],
+      "notas": [
+        "• JARRA ESPECÍFICA PARA 180 litros por sus propiedades químicas que se adhieren al plástico de la jarra"
+      ],
+      "rendimiento": null,
+      "unidad_rendimiento": null
+    },
+    {
+      "clave": "08-01",
+      "nombre": "Pisos & Superficies Lavanda — CONCENTRADO",
+      "tipo": "Producto terminado",
+      "seccion": 8,
+      "tabla": 24,
+      "componentes": [
+        {
+          "nombre": "Less 28%",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "200",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 24,
+          "fila": 2,
+          "original": [
+            "Less 28%",
+            "LA FÓRMULA",
+            "200",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Nonifenol 10 moles",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "180",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 24,
+          "fila": 3,
+          "original": [
+            "Nonifenol 10 moles",
+            "LA FÓRMULA",
+            "180",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Butil",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "100",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 24,
+          "fila": 4,
+          "original": [
+            "Butil",
+            "LA FÓRMULA",
+            "100",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Formol (Conservador)",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "80",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 24,
+          "fila": 5,
+          "original": [
+            "Formol (Conservador)",
+            "LA FÓRMULA",
+            "80",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Esencia Lavanda Fresh Premium",
+          "proveedor": "DCC Esencias",
+          "cantidad": "300",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 24,
+          "fila": 6,
+          "original": [
+            "Esencia Lavanda Fresh Premium",
+            "DCC Esencias",
+            "300",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Color Morado Líquido",
+          "proveedor": "PROPIO (subreceta)",
+          "cantidad": "140",
+          "unidad": "ml",
+          "observaciones": "Ver hoja COLORES: color líquido producido internamente.",
+          "tabla": 24,
+          "fila": 7,
+          "original": [
+            "Color Morado Líquido",
+            "PROPIO (subreceta)",
+            "140",
+            "ml",
+            "Ver hoja COLORES: color líquido producido internamente."
+          ]
+        }
+      ],
+      "notas": [],
+      "rendimiento": null,
+      "unidad_rendimiento": null
+    },
+    {
+      "clave": "08-02",
+      "nombre": "Pisos & Superficies Lavanda — PRODUCTO FINAL (1 litro)",
+      "tipo": "Producto terminado",
+      "seccion": 8,
+      "tabla": 24,
+      "componentes": [
+        {
+          "nombre": "Pisos & Superficies Lavanda Concentrado",
+          "proveedor": "PROPIO",
+          "cantidad": "40",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 24,
+          "fila": 9,
+          "original": [
+            "Pisos & Superficies Lavanda Concentrado",
+            "PROPIO",
+            "40",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Agua",
+          "proveedor": "PROPIO",
+          "cantidad": "960",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 24,
+          "fila": 10,
+          "original": [
+            "Agua",
+            "PROPIO",
+            "960",
+            "ml",
+            ""
+          ]
+        }
+      ],
+      "notas": [],
+      "rendimiento": "1",
+      "unidad_rendimiento": "L"
+    },
+    {
+      "clave": "09-01",
+      "nombre": "Pisos & Superficies Mar Fresco — CONCENTRADO",
+      "tipo": "Producto terminado",
+      "seccion": 9,
+      "tabla": 27,
+      "componentes": [
+        {
+          "nombre": "Less 28%",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "200",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 27,
+          "fila": 2,
+          "original": [
+            "Less 28%",
+            "LA FÓRMULA",
+            "200",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Nonifenol 10 moles",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "180",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 27,
+          "fila": 3,
+          "original": [
+            "Nonifenol 10 moles",
+            "LA FÓRMULA",
+            "180",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Butil",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "100",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 27,
+          "fila": 4,
+          "original": [
+            "Butil",
+            "LA FÓRMULA",
+            "100",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Formol (Conservador)",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "80",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 27,
+          "fila": 5,
+          "original": [
+            "Formol (Conservador)",
+            "LA FÓRMULA",
+            "80",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Esencia Mar Fresco Premium",
+          "proveedor": "DCC Esencias",
+          "cantidad": "300",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 27,
+          "fila": 6,
+          "original": [
+            "Esencia Mar Fresco Premium",
+            "DCC Esencias",
+            "300",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Color Azul Líquido",
+          "proveedor": "PROPIO (subreceta)",
+          "cantidad": "140",
+          "unidad": "ml",
+          "observaciones": "Ver hoja COLORES: color líquido producido internamente.",
+          "tabla": 27,
+          "fila": 7,
+          "original": [
+            "Color Azul Líquido",
+            "PROPIO (subreceta)",
+            "140",
+            "ml",
+            "Ver hoja COLORES: color líquido producido internamente."
+          ]
+        }
+      ],
+      "notas": [],
+      "rendimiento": null,
+      "unidad_rendimiento": null
+    },
+    {
+      "clave": "09-02",
+      "nombre": "Pisos & Superficies Mar Fresco — PRODUCTO FINAL (1 litro)",
+      "tipo": "Producto terminado",
+      "seccion": 9,
+      "tabla": 27,
+      "componentes": [
+        {
+          "nombre": "Pisos & Superficies Mar Fresco Concentrado",
+          "proveedor": "PROPIO",
+          "cantidad": "40",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 27,
+          "fila": 9,
+          "original": [
+            "Pisos & Superficies Mar Fresco Concentrado",
+            "PROPIO",
+            "40",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Agua",
+          "proveedor": "PROPIO",
+          "cantidad": "960",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 27,
+          "fila": 10,
+          "original": [
+            "Agua",
+            "PROPIO",
+            "960",
+            "ml",
+            ""
+          ]
+        }
+      ],
+      "notas": [],
+      "rendimiento": "1",
+      "unidad_rendimiento": "L"
+    },
+    {
+      "clave": "10-01",
+      "nombre": "Pisos & Superficies Manzana Canela — CONCENTRADO",
+      "tipo": "Producto terminado",
+      "seccion": 10,
+      "tabla": 30,
+      "componentes": [
+        {
+          "nombre": "Less 28%",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "200",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 30,
+          "fila": 2,
+          "original": [
+            "Less 28%",
+            "LA FÓRMULA",
+            "200",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Nonifenol 10 moles",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "180",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 30,
+          "fila": 3,
+          "original": [
+            "Nonifenol 10 moles",
+            "LA FÓRMULA",
+            "180",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Esencia Canela",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "150",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 30,
+          "fila": 4,
+          "original": [
+            "Esencia Canela",
+            "LA FÓRMULA",
+            "150",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Esencia Manzana",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "150",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 30,
+          "fila": 5,
+          "original": [
+            "Esencia Manzana",
+            "LA FÓRMULA",
+            "150",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Formol (Conservador)",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "80",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 30,
+          "fila": 6,
+          "original": [
+            "Formol (Conservador)",
+            "LA FÓRMULA",
+            "80",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Butil",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "100",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 30,
+          "fila": 7,
+          "original": [
+            "Butil",
+            "LA FÓRMULA",
+            "100",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Color Rojo Líquido",
+          "proveedor": "PROPIO (subreceta)",
+          "cantidad": "140",
+          "unidad": "ml",
+          "observaciones": "Ver hoja COLORES: color líquido producido internamente.",
+          "tabla": 30,
+          "fila": 8,
+          "original": [
+            "Color Rojo Líquido",
+            "PROPIO (subreceta)",
+            "140",
+            "ml",
+            "Ver hoja COLORES: color líquido producido internamente."
+          ]
+        }
+      ],
+      "notas": [],
+      "rendimiento": null,
+      "unidad_rendimiento": null
+    },
+    {
+      "clave": "10-02",
+      "nombre": "Pisos & Superficies Manzana Canela — PRODUCTO FINAL (1 litro)",
+      "tipo": "Producto terminado",
+      "seccion": 10,
+      "tabla": 30,
+      "componentes": [
+        {
+          "nombre": "Pisos & Superficies Manzana Canela Concentrado",
+          "proveedor": "PROPIO",
+          "cantidad": "40",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 30,
+          "fila": 10,
+          "original": [
+            "Pisos & Superficies Manzana Canela Concentrado",
+            "PROPIO",
+            "40",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Agua",
+          "proveedor": "PROPIO",
+          "cantidad": "960",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 30,
+          "fila": 11,
+          "original": [
+            "Agua",
+            "PROPIO",
+            "960",
+            "ml",
+            ""
+          ]
+        }
+      ],
+      "notas": [],
+      "rendimiento": "1",
+      "unidad_rendimiento": "L"
+    },
+    {
+      "clave": "11-01",
+      "nombre": "Pisos & Superficies Maracuya — CONCENTRADO",
+      "tipo": "Producto terminado",
+      "seccion": 11,
+      "tabla": 33,
+      "componentes": [
+        {
+          "nombre": "Less 28%",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "200",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 33,
+          "fila": 2,
+          "original": [
+            "Less 28%",
+            "LA FÓRMULA",
+            "200",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Nonifenol 10 moles",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "180",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 33,
+          "fila": 3,
+          "original": [
+            "Nonifenol 10 moles",
+            "LA FÓRMULA",
+            "180",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Butil",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "100",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 33,
+          "fila": 4,
+          "original": [
+            "Butil",
+            "LA FÓRMULA",
+            "100",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Formol (Conservador)",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "80",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 33,
+          "fila": 5,
+          "original": [
+            "Formol (Conservador)",
+            "LA FÓRMULA",
+            "80",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Color Amarillo Huevo Líquido",
+          "proveedor": "PROPIO (subreceta)",
+          "cantidad": "140",
+          "unidad": "ml",
+          "observaciones": "Ver hoja COLORES: color líquido producido internamente.",
+          "tabla": 33,
+          "fila": 6,
+          "original": [
+            "Color Amarillo Huevo Líquido",
+            "PROPIO (subreceta)",
+            "140",
+            "ml",
+            "Ver hoja COLORES: color líquido producido internamente."
+          ]
+        },
+        {
+          "nombre": "Esencia Maracuyá",
+          "proveedor": "Clean Chemical",
+          "cantidad": "300",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 33,
+          "fila": 7,
+          "original": [
+            "Esencia Maracuyá",
+            "Clean Chemical",
+            "300",
+            "ml",
+            ""
+          ]
+        }
+      ],
+      "notas": [],
+      "rendimiento": null,
+      "unidad_rendimiento": null
+    },
+    {
+      "clave": "11-02",
+      "nombre": "Pisos & Superficies Maracuyá — PRODUCTO FINAL (1 litro)",
+      "tipo": "Producto terminado",
+      "seccion": 11,
+      "tabla": 33,
+      "componentes": [
+        {
+          "nombre": "Pisos & Superficies Maracuyá Concentrado",
+          "proveedor": "PROPIO",
+          "cantidad": "40",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 33,
+          "fila": 9,
+          "original": [
+            "Pisos & Superficies Maracuyá Concentrado",
+            "PROPIO",
+            "40",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Agua",
+          "proveedor": "PROPIO",
+          "cantidad": "960",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 33,
+          "fila": 10,
+          "original": [
+            "Agua",
+            "PROPIO",
+            "960",
+            "ml",
+            ""
+          ]
+        }
+      ],
+      "notas": [],
+      "rendimiento": "1",
+      "unidad_rendimiento": "L"
+    },
+    {
+      "clave": "12-01",
+      "nombre": "Jabón Líquido Antibacterial Manos Coco Vainilla",
+      "tipo": "Producto terminado",
+      "seccion": 12,
+      "tabla": 36,
+      "componentes": [
+        {
+          "nombre": "Less 28%",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "200",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 36,
+          "fila": 2,
+          "original": [
+            "Less 28%",
+            "LA FÓRMULA",
+            "200",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Amida de Coco",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "30",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 36,
+          "fila": 3,
+          "original": [
+            "Amida de Coco",
+            "LA FÓRMULA",
+            "30",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "NACL",
+          "proveedor": "DEPARTAMENTAL",
+          "cantidad": "13",
+          "unidad": "g",
+          "observaciones": "",
+          "tabla": 36,
+          "fila": 4,
+          "original": [
+            "NACL",
+            "DEPARTAMENTAL",
+            "13",
+            "g",
+            ""
+          ]
+        },
+        {
+          "nombre": "Esencia Coco",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "10",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 36,
+          "fila": 5,
+          "original": [
+            "Esencia Coco",
+            "LA FÓRMULA",
+            "10",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Esencia Vainilla",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "10",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 36,
+          "fila": 6,
+          "original": [
+            "Esencia Vainilla",
+            "LA FÓRMULA",
+            "10",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Formol (Conservador)",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "1",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 36,
+          "fila": 7,
+          "original": [
+            "Formol (Conservador)",
+            "LA FÓRMULA",
+            "1",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Nacarante/Aperlante",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "15",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 36,
+          "fila": 8,
+          "original": [
+            "Nacarante/Aperlante",
+            "LA FÓRMULA",
+            "15",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Agua",
+          "proveedor": "PROPIO",
+          "cantidad": "720",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 36,
+          "fila": 9,
+          "original": [
+            "Agua",
+            "PROPIO",
+            "720",
+            "ml",
+            ""
+          ]
+        }
+      ],
+      "notas": [],
+      "rendimiento": null,
+      "unidad_rendimiento": null
+    },
+    {
+      "clave": "13-01",
+      "nombre": "Pino Vendss (Transparente/Lechoso)",
+      "tipo": "Producto terminado",
+      "seccion": 13,
+      "tabla": 39,
+      "componentes": [
+        {
+          "nombre": "Less 28%",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "20",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 39,
+          "fila": 2,
+          "original": [
+            "Less 28%",
+            "LA FÓRMULA",
+            "20",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Nonifenol 10 moles",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "20",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 39,
+          "fila": 3,
+          "original": [
+            "Nonifenol 10 moles",
+            "LA FÓRMULA",
+            "20",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Agua",
+          "proveedor": "PROPIO",
+          "cantidad": "940",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 39,
+          "fila": 4,
+          "original": [
+            "Agua",
+            "PROPIO",
+            "940",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Esencia Aceite de Pino",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "20",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 39,
+          "fila": 5,
+          "original": [
+            "Esencia Aceite de Pino",
+            "LA FÓRMULA",
+            "20",
+            "ml",
+            ""
+          ]
+        }
+      ],
+      "notas": [
+        "Dependiendo de cómo se hecha el Less 28%, y sea rápido (Lechoso) o lento (transparente) es cómo quedará el producto final."
+      ],
+      "rendimiento": null,
+      "unidad_rendimiento": null
+    },
+    {
+      "clave": "14-01",
+      "nombre": "Pino Vendss (Transparente/Lechoso) VERDE",
+      "tipo": "Producto terminado",
+      "seccion": 14,
+      "tabla": 42,
+      "componentes": [
+        {
+          "nombre": "Less 28%",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "20",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 42,
+          "fila": 2,
+          "original": [
+            "Less 28%",
+            "LA FÓRMULA",
+            "20",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Nonifenol 10 moles",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "20",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 42,
+          "fila": 3,
+          "original": [
+            "Nonifenol 10 moles",
+            "LA FÓRMULA",
+            "20",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Agua",
+          "proveedor": "PROPIO",
+          "cantidad": "940",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 42,
+          "fila": 4,
+          "original": [
+            "Agua",
+            "PROPIO",
+            "940",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Esencia Aceite de Pino",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "20",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 42,
+          "fila": 5,
+          "original": [
+            "Esencia Aceite de Pino",
+            "LA FÓRMULA",
+            "20",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Color verde líquido",
+          "proveedor": "PROPIO (Subreceta)",
+          "cantidad": "5",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 42,
+          "fila": 6,
+          "original": [
+            "Color verde líquido",
+            "PROPIO (Subreceta)",
+            "5",
+            "ml",
+            ""
+          ]
+        }
+      ],
+      "notas": [
+        "Dependiendo de cómo se hecha el Less 28%, y sea rápido (Lechoso) o lento (transparente) es cómo quedará el producto final."
+      ],
+      "rendimiento": null,
+      "unidad_rendimiento": null
+    },
+    {
+      "clave": "15-01",
+      "nombre": "Vidrios & Cristales",
+      "tipo": "Producto terminado",
+      "seccion": 15,
+      "tabla": 45,
+      "componentes": [
+        {
+          "nombre": "Alcohol Etílico",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "15",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 45,
+          "fila": 2,
+          "original": [
+            "Alcohol Etílico",
+            "LA FÓRMULA",
+            "15",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Less 28%",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "15",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 45,
+          "fila": 3,
+          "original": [
+            "Less 28%",
+            "LA FÓRMULA",
+            "15",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Formol (Conservador)",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "1",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 45,
+          "fila": 4,
+          "original": [
+            "Formol (Conservador)",
+            "LA FÓRMULA",
+            "1",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Agua",
+          "proveedor": "PROPIO",
+          "cantidad": "957",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 45,
+          "fila": 5,
+          "original": [
+            "Agua",
+            "PROPIO",
+            "957",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Amoniaco",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "10",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 45,
+          "fila": 6,
+          "original": [
+            "Amoniaco",
+            "LA FÓRMULA",
+            "10",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Color Azul Líquido",
+          "proveedor": "PROPIO (subreceta)",
+          "cantidad": "2",
+          "unidad": "ml",
+          "observaciones": "Ver hoja COLORES: color líquido producido internamente.",
+          "tabla": 45,
+          "fila": 7,
+          "original": [
+            "Color Azul Líquido",
+            "PROPIO (subreceta)",
+            "2",
+            "ml",
+            "Ver hoja COLORES: color líquido producido internamente."
+          ]
+        }
+      ],
+      "notas": [],
+      "rendimiento": null,
+      "unidad_rendimiento": null
+    },
+    {
+      "clave": "16-01",
+      "nombre": "Quita Manchas Textiles",
+      "tipo": "Producto terminado",
+      "seccion": 16,
+      "tabla": 48,
+      "componentes": [
+        {
+          "nombre": "Less 28%",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "20",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 48,
+          "fila": 2,
+          "original": [
+            "Less 28%",
+            "LA FÓRMULA",
+            "20",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Nonifenol 10 moles",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "10",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 48,
+          "fila": 3,
+          "original": [
+            "Nonifenol 10 moles",
+            "LA FÓRMULA",
+            "10",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "ABDS",
+          "proveedor": "POCHTECA/FRESNO",
+          "cantidad": "3",
+          "unidad": "g",
+          "observaciones": "",
+          "tabla": 48,
+          "fila": 4,
+          "original": [
+            "ABDS",
+            "POCHTECA/FRESNO",
+            "3",
+            "g",
+            ""
+          ]
+        },
+        {
+          "nombre": "Peroxido 50%",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "100",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 48,
+          "fila": 5,
+          "original": [
+            "Peroxido 50%",
+            "LA FÓRMULA",
+            "100",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Agua",
+          "proveedor": "PROPIO",
+          "cantidad": "862",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 48,
+          "fila": 6,
+          "original": [
+            "Agua",
+            "PROPIO",
+            "862",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Esencia Vanish Floral Premium",
+          "proveedor": "DCC Esencias",
+          "cantidad": "3",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 48,
+          "fila": 7,
+          "original": [
+            "Esencia Vanish Floral Premium",
+            "DCC Esencias",
+            "3",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "NAOH (Sosa Líquida)",
+          "proveedor": "",
+          "cantidad": "0.5",
+          "unidad": "g",
+          "observaciones": "",
+          "tabla": 48,
+          "fila": 8,
+          "original": [
+            "NAOH (Sosa Líquida)",
+            "",
+            "0.5",
+            "g",
+            ""
+          ]
+        },
+        {
+          "nombre": "Color Rosa Líquido",
+          "proveedor": "PROPIO (subreceta)",
+          "cantidad": "2",
+          "unidad": "ml",
+          "observaciones": "Ver hoja COLORES: color líquido producido internamente.",
+          "tabla": 48,
+          "fila": 9,
+          "original": [
+            "Color Rosa Líquido",
+            "PROPIO (subreceta)",
+            "2",
+            "ml",
+            "Ver hoja COLORES: color líquido producido internamente."
+          ]
+        },
+        {
+          "nombre": "Abrillantador óptico",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "0.5",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 48,
+          "fila": 10,
+          "original": [
+            "Abrillantador óptico",
+            "LA FÓRMULA",
+            "0.5",
+            "ml",
+            ""
+          ]
+        }
+      ],
+      "notas": [
+        "• EL ABRILLANTADOR ÓPTIMO NO SE CONTABILIZA BIEN PORQUE SOLO SE LE PONE MANUALMENTE UNA PIZCA. LO DILUYE EN UN TRASTE POR AHORA YA QUE TENEMOS MP EN POLVO PERO AHORA EL PROVEEDOR SOLO VENDE LÍQUIDO."
+      ],
+      "rendimiento": null,
+      "unidad_rendimiento": null
+    },
+    {
+      "clave": "17-01",
+      "nombre": "Cloro",
+      "tipo": "Producto terminado",
+      "seccion": 17,
+      "tabla": 51,
+      "componentes": [
+        {
+          "nombre": "Hipoclorito",
+          "proveedor": "",
+          "cantidad": "350",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 51,
+          "fila": 2,
+          "original": [
+            "Hipoclorito",
+            "",
+            "350",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Agua",
+          "proveedor": "PROPIO",
+          "cantidad": "645",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 51,
+          "fila": 3,
+          "original": [
+            "Agua",
+            "PROPIO",
+            "645",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "NAOH (Sosa Líquida)",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "5",
+          "unidad": "g",
+          "observaciones": "",
+          "tabla": 51,
+          "fila": 4,
+          "original": [
+            "NAOH (Sosa Líquida)",
+            "LA FÓRMULA",
+            "5",
+            "g",
+            ""
+          ]
+        }
+      ],
+      "notas": [],
+      "rendimiento": null,
+      "unidad_rendimiento": null
+    },
+    {
+      "clave": "18-01",
+      "nombre": "Ácido Muriático",
+      "tipo": "Producto terminado",
+      "seccion": 18,
+      "tabla": 54,
+      "componentes": [
+        {
+          "nombre": "Acido Muriático Industrial (Ácido Clorhídrico)",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "200",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 54,
+          "fila": 2,
+          "original": [
+            "Acido Muriático Industrial (Ácido Clorhídrico)",
+            "LA FÓRMULA",
+            "200",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Agua",
+          "proveedor": "PROPIO",
+          "cantidad": "800",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 54,
+          "fila": 3,
+          "original": [
+            "Agua",
+            "PROPIO",
+            "800",
+            "ml",
+            ""
+          ]
+        }
+      ],
+      "notas": [],
+      "rendimiento": null,
+      "unidad_rendimiento": null
+    },
+    {
+      "clave": "19-01",
+      "nombre": "Bio Acción Sarro",
+      "tipo": "Producto terminado",
+      "seccion": 19,
+      "tabla": 57,
+      "componentes": [
+        {
+          "nombre": "Acido Fosfórico",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "40",
+          "unidad": "g",
+          "observaciones": "",
+          "tabla": 57,
+          "fila": 2,
+          "original": [
+            "Acido Fosfórico",
+            "LA FÓRMULA",
+            "40",
+            "g",
+            ""
+          ]
+        },
+        {
+          "nombre": "Peroxido 50%",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "40",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 57,
+          "fila": 3,
+          "original": [
+            "Peroxido 50%",
+            "LA FÓRMULA",
+            "40",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Agua",
+          "proveedor": "PROPIO",
+          "cantidad": "889",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 57,
+          "fila": 4,
+          "original": [
+            "Agua",
+            "PROPIO",
+            "889",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Ácido Oxálico",
+          "proveedor": "Clean Chemical",
+          "cantidad": "2",
+          "unidad": "g",
+          "observaciones": "",
+          "tabla": 57,
+          "fila": 5,
+          "original": [
+            "Ácido Oxálico",
+            "Clean Chemical",
+            "2",
+            "g",
+            ""
+          ]
+        },
+        {
+          "nombre": "Esencia D Limonello",
+          "proveedor": "Clean Chemical",
+          "cantidad": "4",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 57,
+          "fila": 6,
+          "original": [
+            "Esencia D Limonello",
+            "Clean Chemical",
+            "4",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Acido Clorhídrico",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "25",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 57,
+          "fila": 7,
+          "original": [
+            "Acido Clorhídrico",
+            "LA FÓRMULA",
+            "25",
+            "ml",
+            ""
+          ]
+        }
+      ],
+      "notas": [],
+      "rendimiento": null,
+      "unidad_rendimiento": null
+    },
+    {
+      "clave": "20-01",
+      "nombre": "Bio Acción Moho",
+      "tipo": "Producto terminado",
+      "seccion": 20,
+      "tabla": 60,
+      "componentes": [
+        {
+          "nombre": "Peroxido 50%",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "200",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 60,
+          "fila": 2,
+          "original": [
+            "Peroxido 50%",
+            "LA FÓRMULA",
+            "200",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Acido Cítrico",
+          "proveedor": "Clean Chemical",
+          "cantidad": "10",
+          "unidad": "g",
+          "observaciones": "",
+          "tabla": 60,
+          "fila": 3,
+          "original": [
+            "Acido Cítrico",
+            "Clean Chemical",
+            "10",
+            "g",
+            ""
+          ]
+        },
+        {
+          "nombre": "Acido Fosfórico (denso)",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "40",
+          "unidad": "g",
+          "observaciones": "",
+          "tabla": 60,
+          "fila": 4,
+          "original": [
+            "Acido Fosfórico (denso)",
+            "LA FÓRMULA",
+            "40",
+            "g",
+            ""
+          ]
+        },
+        {
+          "nombre": "Agua",
+          "proveedor": "PROPIO",
+          "cantidad": "750",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 60,
+          "fila": 5,
+          "original": [
+            "Agua",
+            "PROPIO",
+            "750",
+            "ml",
+            ""
+          ]
+        }
+      ],
+      "notas": [],
+      "rendimiento": null,
+      "unidad_rendimiento": null
+    },
+    {
+      "clave": "21-01",
+      "nombre": "Shampoo Vehículos Negro N Zematic CONCENTRADO (SE VENDE EL CONCENTRADO)",
+      "tipo": "Producto terminado",
+      "seccion": 21,
+      "tabla": 63,
+      "componentes": [
+        {
+          "nombre": "Less 28%",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "425",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 63,
+          "fila": 2,
+          "original": [
+            "Less 28%",
+            "LA FÓRMULA",
+            "425",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Nonifenol 10 moles",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "200",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 63,
+          "fila": 3,
+          "original": [
+            "Nonifenol 10 moles",
+            "LA FÓRMULA",
+            "200",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Trietanolamina (TA)",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "195",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 63,
+          "fila": 4,
+          "original": [
+            "Trietanolamina (TA)",
+            "LA FÓRMULA",
+            "195",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Alcohol Laurico",
+          "proveedor": "Clean Chemical",
+          "cantidad": "175",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 63,
+          "fila": 5,
+          "original": [
+            "Alcohol Laurico",
+            "Clean Chemical",
+            "175",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Color Negro Líquido",
+          "proveedor": "PROPIO (subreceta)",
+          "cantidad": "40",
+          "unidad": "ml",
+          "observaciones": "Ver hoja COLORES: color líquido producido internamente.",
+          "tabla": 63,
+          "fila": 6,
+          "original": [
+            "Color Negro Líquido",
+            "PROPIO (subreceta)",
+            "40",
+            "ml",
+            "Ver hoja COLORES: color líquido producido internamente."
+          ]
+        }
+      ],
+      "notas": [],
+      "rendimiento": null,
+      "unidad_rendimiento": null
+    },
+    {
+      "clave": "22-01",
+      "nombre": "Shampoo Vehículos Blanco N Zematic CONCENTRADO",
+      "tipo": "Producto terminado",
+      "seccion": 22,
+      "tabla": 66,
+      "componentes": [
+        {
+          "nombre": "Less 28%",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "425",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 66,
+          "fila": 2,
+          "original": [
+            "Less 28%",
+            "LA FÓRMULA",
+            "425",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Nonifenol 10 moles",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "200",
+          "unidad": "g",
+          "observaciones": "",
+          "tabla": 66,
+          "fila": 3,
+          "original": [
+            "Nonifenol 10 moles",
+            "LA FÓRMULA",
+            "200",
+            "g",
+            ""
+          ]
+        },
+        {
+          "nombre": "Trietanolamina",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "195",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 66,
+          "fila": 4,
+          "original": [
+            "Trietanolamina",
+            "LA FÓRMULA",
+            "195",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Alcohol Laurico",
+          "proveedor": "Clean Chemical",
+          "cantidad": "175",
+          "unidad": "g",
+          "observaciones": "",
+          "tabla": 66,
+          "fila": 5,
+          "original": [
+            "Alcohol Laurico",
+            "Clean Chemical",
+            "175",
+            "g",
+            ""
+          ]
+        },
+        {
+          "nombre": "Color Verde Líquido",
+          "proveedor": "PROPIO (subreceta)",
+          "cantidad": "40",
+          "unidad": "ml",
+          "observaciones": "Ver hoja COLORES: color líquido producido internamente.",
+          "tabla": 66,
+          "fila": 6,
+          "original": [
+            "Color Verde Líquido",
+            "PROPIO (subreceta)",
+            "40",
+            "ml",
+            "Ver hoja COLORES: color líquido producido internamente."
+          ]
+        }
+      ],
+      "notas": [],
+      "rendimiento": null,
+      "unidad_rendimiento": null
+    },
+    {
+      "clave": "23-01",
+      "nombre": "Multiusos N Zematic CONCENTRADO",
+      "tipo": "Producto terminado",
+      "seccion": 23,
+      "tabla": 69,
+      "componentes": [
+        {
+          "nombre": "Alcohol Laurico",
+          "proveedor": "",
+          "cantidad": "175",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 69,
+          "fila": 2,
+          "original": [
+            "Alcohol Laurico",
+            "",
+            "175",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Less 28%",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "425",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 69,
+          "fila": 3,
+          "original": [
+            "Less 28%",
+            "LA FÓRMULA",
+            "425",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Nonifenol 10 moles",
+          "proveedor": "",
+          "cantidad": "200",
+          "unidad": "g",
+          "observaciones": "",
+          "tabla": 69,
+          "fila": 4,
+          "original": [
+            "Nonifenol 10 moles",
+            "",
+            "200",
+            "g",
+            ""
+          ]
+        },
+        {
+          "nombre": "Trietanolamina TEA",
+          "proveedor": "",
+          "cantidad": "195",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 69,
+          "fila": 5,
+          "original": [
+            "Trietanolamina TEA",
+            "",
+            "195",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Color Verde Líquido",
+          "proveedor": "PROPIO (subreceta)",
+          "cantidad": "30",
+          "unidad": "ml",
+          "observaciones": "Ver hoja COLORES: color líquido producido internamente.",
+          "tabla": 69,
+          "fila": 6,
+          "original": [
+            "Color Verde Líquido",
+            "PROPIO (subreceta)",
+            "30",
+            "ml",
+            "Ver hoja COLORES: color líquido producido internamente."
+          ]
+        }
+      ],
+      "notas": [
+        "• MULTIUSOS N ZEMATIC Y SHAMPOO VEHÍCULOS BLANCO SON LA MISMA RECETA"
+      ],
+      "rendimiento": null,
+      "unidad_rendimiento": null
+    },
+    {
+      "clave": "24-01",
+      "nombre": "Multiusos 3 en 1",
+      "tipo": "Producto terminado",
+      "seccion": 24,
+      "tabla": 72,
+      "componentes": [
+        {
+          "nombre": "Less 28%",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "160",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 72,
+          "fila": 2,
+          "original": [
+            "Less 28%",
+            "LA FÓRMULA",
+            "160",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Amida de coco",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "40",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 72,
+          "fila": 3,
+          "original": [
+            "Amida de coco",
+            "LA FÓRMULA",
+            "40",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "ABDS",
+          "proveedor": "Clean Chemical",
+          "cantidad": "30",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 72,
+          "fila": 4,
+          "original": [
+            "ABDS",
+            "Clean Chemical",
+            "30",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Butil",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "20",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 72,
+          "fila": 5,
+          "original": [
+            "Butil",
+            "LA FÓRMULA",
+            "20",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Trietalonamina",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "20",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 72,
+          "fila": 6,
+          "original": [
+            "Trietalonamina",
+            "LA FÓRMULA",
+            "20",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "NACL",
+          "proveedor": "DEPARTAMENTAL",
+          "cantidad": "18",
+          "unidad": "g",
+          "observaciones": "",
+          "tabla": 72,
+          "fila": 7,
+          "original": [
+            "NACL",
+            "DEPARTAMENTAL",
+            "18",
+            "g",
+            ""
+          ]
+        },
+        {
+          "nombre": "Formol",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "1",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 72,
+          "fila": 8,
+          "original": [
+            "Formol",
+            "LA FÓRMULA",
+            "1",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Esencia Frutos Rojos",
+          "proveedor": "Clean Chemical",
+          "cantidad": "1",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 72,
+          "fila": 9,
+          "original": [
+            "Esencia Frutos Rojos",
+            "Clean Chemical",
+            "1",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Agua",
+          "proveedor": "PROPIO",
+          "cantidad": "710",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 72,
+          "fila": 10,
+          "original": [
+            "Agua",
+            "PROPIO",
+            "710",
+            "ml",
+            ""
+          ]
+        }
+      ],
+      "notas": [],
+      "rendimiento": null,
+      "unidad_rendimiento": null
+    },
+    {
+      "clave": "25-01",
+      "nombre": "OxiVendss (Quita óxido telas)",
+      "tipo": "Producto terminado",
+      "seccion": 25,
+      "tabla": 75,
+      "componentes": [
+        {
+          "nombre": "Ácido Hidrofluorico",
+          "proveedor": "MERCADO LIBRE",
+          "cantidad": "200",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 75,
+          "fila": 2,
+          "original": [
+            "Ácido Hidrofluorico",
+            "MERCADO LIBRE",
+            "200",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Esencia D Limonello",
+          "proveedor": "Clean Chemical",
+          "cantidad": "10",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 75,
+          "fila": 3,
+          "original": [
+            "Esencia D Limonello",
+            "Clean Chemical",
+            "10",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Agua",
+          "proveedor": "PROPIO",
+          "cantidad": "790",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 75,
+          "fila": 4,
+          "original": [
+            "Agua",
+            "PROPIO",
+            "790",
+            "ml",
+            ""
+          ]
+        }
+      ],
+      "notas": [],
+      "rendimiento": null,
+      "unidad_rendimiento": null
+    },
+    {
+      "clave": "26-01",
+      "nombre": "Desengrasante A+",
+      "tipo": "Producto terminado",
+      "seccion": 26,
+      "tabla": 78,
+      "componentes": [
+        {
+          "nombre": "Less 28%",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "20",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 78,
+          "fila": 2,
+          "original": [
+            "Less 28%",
+            "LA FÓRMULA",
+            "20",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Trietanolamina",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "20",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 78,
+          "fila": 3,
+          "original": [
+            "Trietanolamina",
+            "LA FÓRMULA",
+            "20",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "ABDS",
+          "proveedor": "Clean Chemical",
+          "cantidad": "50",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 78,
+          "fila": 4,
+          "original": [
+            "ABDS",
+            "Clean Chemical",
+            "50",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Butil",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "20",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 78,
+          "fila": 5,
+          "original": [
+            "Butil",
+            "LA FÓRMULA",
+            "20",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Esencia Limón Californiano",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "4",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 78,
+          "fila": 6,
+          "original": [
+            "Esencia Limón Californiano",
+            "LA FÓRMULA",
+            "4",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Agua",
+          "proveedor": "PROPIO",
+          "cantidad": "871",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 78,
+          "fila": 7,
+          "original": [
+            "Agua",
+            "PROPIO",
+            "871",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "NAOH (Sosa Líquida)",
+          "proveedor": "",
+          "cantidad": "15",
+          "unidad": "g",
+          "observaciones": "",
+          "tabla": 78,
+          "fila": 8,
+          "original": [
+            "NAOH (Sosa Líquida)",
+            "",
+            "15",
+            "g",
+            ""
+          ]
+        }
+      ],
+      "notas": [],
+      "rendimiento": null,
+      "unidad_rendimiento": null
+    },
+    {
+      "clave": "27-01",
+      "nombre": "Desinfectante N Zematic CONCENTRADO",
+      "tipo": "Producto terminado",
+      "seccion": 27,
+      "tabla": 81,
+      "componentes": [
+        {
+          "nombre": "Cloruro de Benzalconio",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "50",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 81,
+          "fila": 2,
+          "original": [
+            "Cloruro de Benzalconio",
+            "LA FÓRMULA",
+            "50",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Nonifenol 10 moles",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "67",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 81,
+          "fila": 3,
+          "original": [
+            "Nonifenol 10 moles",
+            "LA FÓRMULA",
+            "67",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Trietanolamina",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "115",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 81,
+          "fila": 4,
+          "original": [
+            "Trietanolamina",
+            "LA FÓRMULA",
+            "115",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Alcohol Etílico",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "2",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 81,
+          "fila": 5,
+          "original": [
+            "Alcohol Etílico",
+            "LA FÓRMULA",
+            "2",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Agua",
+          "proveedor": "PROPIO",
+          "cantidad": "753",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 81,
+          "fila": 6,
+          "original": [
+            "Agua",
+            "PROPIO",
+            "753",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Esencia Frutos rojos",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "2",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 81,
+          "fila": 7,
+          "original": [
+            "Esencia Frutos rojos",
+            "LA FÓRMULA",
+            "2",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Color Rosa Líquido",
+          "proveedor": "PROPIO (subreceta)",
+          "cantidad": "8",
+          "unidad": "ml",
+          "observaciones": "Ver hoja COLORES: color líquido producido internamente.",
+          "tabla": 81,
+          "fila": 8,
+          "original": [
+            "Color Rosa Líquido",
+            "PROPIO (subreceta)",
+            "8",
+            "ml",
+            "Ver hoja COLORES: color líquido producido internamente."
+          ]
+        },
+        {
+          "nombre": "Peroxido 50%",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "3",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 81,
+          "fila": 9,
+          "original": [
+            "Peroxido 50%",
+            "LA FÓRMULA",
+            "3",
+            "ml",
+            ""
+          ]
+        }
+      ],
+      "notas": [],
+      "rendimiento": null,
+      "unidad_rendimiento": null
+    },
+    {
+      "clave": "28-01",
+      "nombre": "N Zematic Baños CONCENTRADO",
+      "tipo": "Producto terminado",
+      "seccion": 28,
+      "tabla": 84,
+      "componentes": [
+        {
+          "nombre": "Less 28%",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "450",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 84,
+          "fila": 2,
+          "original": [
+            "Less 28%",
+            "LA FÓRMULA",
+            "450",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Nonifenol 10 moles",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "100",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 84,
+          "fila": 3,
+          "original": [
+            "Nonifenol 10 moles",
+            "LA FÓRMULA",
+            "100",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Trietanolamina",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "250",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 84,
+          "fila": 4,
+          "original": [
+            "Trietanolamina",
+            "LA FÓRMULA",
+            "250",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Ácido Oxálico",
+          "proveedor": "Clean Chemical",
+          "cantidad": "0.002",
+          "unidad": "g",
+          "observaciones": "",
+          "tabla": 84,
+          "fila": 5,
+          "original": [
+            "Ácido Oxálico",
+            "Clean Chemical",
+            "0.002",
+            "g",
+            ""
+          ]
+        },
+        {
+          "nombre": "Alcohol Láurico",
+          "proveedor": "",
+          "cantidad": "100",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 84,
+          "fila": 6,
+          "original": [
+            "Alcohol Láurico",
+            "",
+            "100",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Esencia Mar Fresco",
+          "proveedor": "",
+          "cantidad": "5",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 84,
+          "fila": 7,
+          "original": [
+            "Esencia Mar Fresco",
+            "",
+            "5",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Color Morado Líquido",
+          "proveedor": "PROPIO (subreceta)",
+          "cantidad": "95",
+          "unidad": "ml",
+          "observaciones": "Ver hoja COLORES: color líquido producido internamente.",
+          "tabla": 84,
+          "fila": 8,
+          "original": [
+            "Color Morado Líquido",
+            "PROPIO (subreceta)",
+            "95",
+            "ml",
+            "Ver hoja COLORES: color líquido producido internamente."
+          ]
+        }
+      ],
+      "notas": [],
+      "rendimiento": null,
+      "unidad_rendimiento": null
+    },
+    {
+      "clave": "29-01",
+      "nombre": "Limpiador de Planchas Grasas & Quita Cochambre K9",
+      "tipo": "Producto terminado",
+      "seccion": 29,
+      "tabla": 87,
+      "componentes": [
+        {
+          "nombre": "Agua",
+          "proveedor": "PROPIO",
+          "cantidad": "800",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 87,
+          "fila": 2,
+          "original": [
+            "Agua",
+            "PROPIO",
+            "800",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "NAOH (Sosa Líquida)",
+          "proveedor": "",
+          "cantidad": "200",
+          "unidad": "g",
+          "observaciones": "",
+          "tabla": 87,
+          "fila": 3,
+          "original": [
+            "NAOH (Sosa Líquida)",
+            "",
+            "200",
+            "g",
+            ""
+          ]
+        }
+      ],
+      "notas": [],
+      "rendimiento": null,
+      "unidad_rendimiento": null
+    },
+    {
+      "clave": "30-01",
+      "nombre": "Abrillantador Cauchos",
+      "tipo": "Producto terminado",
+      "seccion": 30,
+      "tabla": 90,
+      "componentes": [
+        {
+          "nombre": "Glicerina",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "266",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 90,
+          "fila": 2,
+          "original": [
+            "Glicerina",
+            "LA FÓRMULA",
+            "266",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Agua",
+          "proveedor": "PROPIO",
+          "cantidad": "718",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 90,
+          "fila": 3,
+          "original": [
+            "Agua",
+            "PROPIO",
+            "718",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Color Azul Líquido",
+          "proveedor": "PROPIO (subreceta)",
+          "cantidad": "16",
+          "unidad": "ml",
+          "observaciones": "Ver hoja COLORES: color líquido producido internamente.",
+          "tabla": 90,
+          "fila": 4,
+          "original": [
+            "Color Azul Líquido",
+            "PROPIO (subreceta)",
+            "16",
+            "ml",
+            "Ver hoja COLORES: color líquido producido internamente."
+          ]
+        }
+      ],
+      "notas": [],
+      "rendimiento": null,
+      "unidad_rendimiento": null
+    },
+    {
+      "clave": "31-01",
+      "nombre": "Abrillantador 3 en 1 (Vinil, Piel y Caucho)",
+      "tipo": "Producto terminado",
+      "seccion": 31,
+      "tabla": 93,
+      "componentes": [
+        {
+          "nombre": "Glicerina",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "110",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 93,
+          "fila": 2,
+          "original": [
+            "Glicerina",
+            "LA FÓRMULA",
+            "110",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Emulsión de Silicon 80",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "150",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 93,
+          "fila": 3,
+          "original": [
+            "Emulsión de Silicon 80",
+            "LA FÓRMULA",
+            "150",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Trietanolamina TEA",
+          "proveedor": "LA FÓRMULA",
+          "cantidad": "5",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 93,
+          "fila": 4,
+          "original": [
+            "Trietanolamina TEA",
+            "LA FÓRMULA",
+            "5",
+            "ml",
+            ""
+          ]
+        },
+        {
+          "nombre": "Color Azul Líquido",
+          "proveedor": "PROPIO (subreceta)",
+          "cantidad": "2",
+          "unidad": "ml",
+          "observaciones": "Ver hoja COLORES: color líquido producido internamente.",
+          "tabla": 93,
+          "fila": 5,
+          "original": [
+            "Color Azul Líquido",
+            "PROPIO (subreceta)",
+            "2",
+            "ml",
+            "Ver hoja COLORES: color líquido producido internamente."
+          ]
+        },
+        {
+          "nombre": "Agua",
+          "proveedor": "PROPIO",
+          "cantidad": "733",
+          "unidad": "ml",
+          "observaciones": "",
+          "tabla": 93,
+          "fila": 6,
+          "original": [
+            "Agua",
+            "PROPIO",
+            "733",
+            "ml",
+            ""
+          ]
+        }
+      ],
+      "notas": [],
+      "rendimiento": null,
+      "unidad_rendimiento": null
+    }
+  ]
+}
