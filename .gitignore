@@ -1,2 +1,15 @@
 __pycache__/
 *.py[cod]
+
+# Datos reales del ERP: nunca deben vivir en el historial de git.
+instance/
+uploads/
+!uploads/.gitkeep
+*.db
+*.sqlite3
+
+# Dependencias vendorizadas para poder correr las pruebas sin acceso a pip.
+.test-deps/
+
+# Respaldos locales de la base de datos.
+backups/
