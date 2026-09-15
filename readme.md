@@ -26,12 +26,15 @@ Después abre:
 - Catálogo de proveedores: `http://127.0.0.1:5000/admin/catalogo`
 - Catálogo de materias primas: `http://127.0.0.1:5000/admin/materias-primas`
 
-Credenciales actuales del prototipo:
+Credenciales del prototipo:
 
-- Usuario: `compras.nyds`
-- Contraseña: `nyds2026*`
+- Usuario admin por omisión: `compras.nyds`
+- Contraseña admin: variable de entorno `NYDS_ADMIN_PASSWORD`
+- `SECRET_KEY`: variable de entorno `SECRET_KEY`
 
-> Para producción, mueve `SECRET_KEY` y las credenciales a variables de entorno y sustituye el login fijo por usuarios con contraseñas cifradas.
+El CRM usa variables de entorno por rol: `NYDS_CRM_ADMIN_PASSWORD`, `NYDS_CRM_VENTAS_PASSWORD`, `NYDS_CRM_PREPARACION_PASSWORD`, `NYDS_CRM_REPARTO_PASSWORD` y `NYDS_CRM_CAJA_PASSWORD`.
+
+> Para producción, sustituye el login fijo por usuarios en base de datos con contraseñas cifradas.
 
 ## Módulo de Materias Primas incluido
 

@@ -1,0 +1,16 @@
+<header class="erp-header"><div class="erp-header-inner">
+    <a class="erp-brand" href="/crm/pedidos"><span class="nyds-logo"><img src="{{ url_for('static', filename='nyds-logo.png') }}" alt="NYDS" width="1600" height="900"></span><span><strong>CRM de pedidos</strong><small>Clientes, pedidos y entregas</small></span></a>
+    <nav class="erp-nav" aria-label="Módulos del CRM">
+        <a href="/crm/pedidos" aria-current="page">Pedidos</a>
+        <a href="/crm/pedidos">Clientes</a>
+        <a href="/crm/pedidos">Ruta</a>
+        <a href="/crm/pedidos">Pagos</a>
+        <a href="/crm/logout" class="erp-logout">Salir</a>
+    </nav>
+</div></header>
+<div class="erp-toolbar">
+    <span class="erp-context">CRM / {{ session.get('crm_nombre', 'Administrador ERP') }} / {{ rol or session.get('crm_rol', 'supervisor') }}</span>
+    {% if session.get('admin_logueado') %}
+    <a href="/admin/catalogo" class="btn btn-outline-secondary btn-sm">Volver al ERP</a>
+    {% endif %}
+</div>

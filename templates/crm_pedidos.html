@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <title>CRM de pedidos - NYDS</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20260914-crm') }}">
+    <style>
+        .nyds-modal-backdrop{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(19,36,65,.52);z-index:1050;padding:24px}
+        .nyds-modal-backdrop[data-open="true"]{display:flex}
+        .nyds-modal{width:min(520px,100%);background:#fff;border:1px solid #d9e3e8;border-radius:16px;box-shadow:0 24px 70px rgba(19,36,65,.28);overflow:hidden}
+        .nyds-modal-header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:20px 22px;border-bottom:1px solid #edf2f5;background:#132441;color:#fff}
+        .nyds-modal-header h5{color:#fff;margin:0;font-size:1rem}.nyds-modal-header small{display:block;color:#b8cbe4;margin-top:4px}
+        .nyds-modal-body{padding:22px}.nyds-modal-actions{display:flex;justify-content:flex-end;gap:10px;padding:0 22px 22px}
+        .nyds-toast{position:fixed;right:24px;bottom:24px;z-index:1060;display:none;max-width:420px;border-radius:14px;padding:14px 16px;background:#132441;color:#fff;box-shadow:0 18px 45px rgba(19,36,65,.22)}
+        .nyds-toast[data-open="true"]{display:block}.nyds-toast[data-kind="error"]{background:#97334c}.nyds-toast[data-kind="success"]{background:#286a4e}
+    </style>
+</head>
+<body class="bg-light">
+    {% include 'crm_header.html' %}
+    <main class="container-fluid px-4 mb-5">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+            <div>
+                <h2>Pedidos y entregas</h2>
+                <p class="text-muted mb-0">Reservas, llenado, pagos, ruta y evidencia conectados al ERP.</p>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            {% if rol in ['supervisor', 'ventas'] %}
+            <section class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Nuevo pedido</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="pedidoForm" class="row g-3">
+                            <div class="col-md-3">
+                                <label class="form-label">Cliente</label>
+                                <input class="form-control" name="cliente_nombre" required placeholder="Nombre del cliente">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Teléfono</label>
+                                <input class="form-control" name="cliente_telefono" required placeholder="998...">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Dirección</label>
+                                <input class="form-control" name="direccion" required placeholder="Calle, número, colonia">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Canal</label>
+                                <select class="form-select" name="canal">
+                                    <option>WhatsApp</option>
+                                    <option>Instagram</option>
+                                    <option>Facebook</option>
+                                    <option>Manual</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Pago</label>
+                                <select class="form-select" name="forma_pago">
+                                    <option>Contra entrega</option>
+                                    <option>Transferencia</option>
+                                    <option>Efectivo</option>
+                                    <option>Tarjeta</option>
+                                </select>
+                            </div>
+                            <div class="col-md-5">
+                                <label class="form-label">Producto</label>
+                                <select class="form-select" name="producto_id" required>
+                                    <option value="">Selecciona producto terminado</option>
+                                    {% for producto in productos %}
+                                    <option value="{{ producto.id }}">{{ producto.sku }} · {{ producto.nombre }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Cantidad</label>
+                                <input class="form-control" name="cantidad" type="number" min="0.000001" step="0.000001" required value="1">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Precio unitario</label>
+                                <input class="form-control" name="precio_unitario" type="number" min="0" step="0.01" required placeholder="0.00">
+                            </div>
+                            <div class="col-md-3 d-flex align-items-end gap-2">
+                                <label class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" name="entrega_propia">
+                                    <span class="form-check-label">Entregar yo mismo</span>
+                                </label>
+                            </div>
+                            <div class="col-12 d-flex justify-content-end gap-2">
+                                <button class="btn btn-outline-primary" type="button" id="crearSinConfirmar">Crear pedido</button>
+                                <button class="btn btn-primary" type="submit">Crear y reservar ERP</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </section>
+            {% endif %}
+
+            <section class="col-xl-8">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Pedidos CRM</h5>
+                        <span class="badge bg-primary">{{ pedidos | length }} pedidos</span>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Folio</th>
+                                    <th>Cliente</th>
+                                    <th>Estado</th>
+                                    <th>Reserva ERP</th>
+                                    <th>Total</th>
+                                    <th>Saldo</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for p in pedidos %}
+                                <tr>
+                                    <td><strong>{{ p.folio }}</strong><div class="text-muted small">{{ p.canal }}</div></td>
+                                    <td>{{ p.cliente.nombre }}<div class="text-muted small">{{ p.cliente.telefono }}</div></td>
+                                    <td><span class="badge {{ 'bg-success' if p.estado == 'Entregado' else 'bg-warning text-dark' if p.estado in ['Pendiente de pago','Pendiente de produccion','Intento fallido'] else 'bg-primary' if p.estado in ['Confirmado','En ruta'] else 'bg-secondary' }}">{{ p.estado }}</span></td>
+                                    <td>
+                                        {% for l in p.lineas %}
+                                        <div><strong>{{ l.cantidad | float }}</strong> {{ l.producto.nombre if l.producto else 'Producto' }}</div>
+                                        <div class="text-muted small">{{ l.modo_reserva }}</div>
+                                        {% endfor %}
+                                    </td>
+                                    <td>${{ '%.2f' | format(p.importe_total) }}</td>
+                                    <td>${{ '%.2f' | format(p.saldo) }}</td>
+                                    <td>
+                                        <div class="d-flex flex-wrap gap-2">
+                                            {% if rol in ['supervisor', 'ventas'] and p.estado in ['Recibido', 'Pendiente de pago', 'Pendiente de produccion', 'Confirmado'] %}
+                                            <button class="btn btn-outline-primary btn-sm" data-action="confirmar" data-pedido="{{ p.id }}">Reservar</button>
+                                            {% endif %}
+                                            {% if rol in ['supervisor', 'cobranza'] and p.saldo > 0 %}
+                                            <button class="btn btn-outline-primary btn-sm" data-action="pago" data-pedido="{{ p.id }}" data-saldo="{{ '%.2f' | format(p.saldo) }}">Pago</button>
+                                            {% endif %}
+                                            {% if rol in ['supervisor', 'preparacion'] and p.estado == 'Confirmado' %}
+                                            <button class="btn btn-outline-primary btn-sm" data-action="estado" data-estado="Listo para entrega" data-pedido="{{ p.id }}">Listo</button>
+                                            {% endif %}
+                                            {% if rol in ['supervisor', 'reparto'] and p.estado in ['Confirmado', 'Listo para entrega'] %}
+                                            <button class="btn btn-outline-primary btn-sm" data-action="estado" data-estado="En ruta" data-pedido="{{ p.id }}">En ruta</button>
+                                            {% endif %}
+                                            {% if rol in ['supervisor', 'reparto'] and p.estado in ['Confirmado', 'Listo para entrega', 'En ruta'] %}
+                                            <button class="btn btn-success btn-sm" data-action="entrega" data-pedido="{{ p.id }}">Entregar</button>
+                                            {% endif %}
+                                            {% if rol in ['supervisor', 'reparto'] and p.estado == 'En ruta' %}
+                                            <button class="btn btn-outline-danger btn-sm" data-action="fallo" data-pedido="{{ p.id }}">Incidencia</button>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="7" class="text-center py-5">
+                                        <strong>Aún no hay pedidos CRM</strong>
+                                        <p class="text-muted mt-2 mb-0">Captura el primer pedido desde el formulario superior.</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <aside class="col-xl-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Órdenes de llenado</h5>
+                    </div>
+                    <div class="card-body">
+                        {% for o in ordenes %}
+                        <div class="d-flex justify-content-between gap-3 py-3 border-bottom">
+                            <div>
+                                <strong>LL-{{ '%05d' | format(o.id) }}</strong>
+                                <div>{{ o.producto.nombre if o.producto else 'Producto terminado' }}</div>
+                                <div class="text-muted small">Pedido {{ o.pedido_id }} · {{ o.cantidad | float }} pieza(s)</div>
+                                {% if rol in ['supervisor', 'preparacion'] and o.estado == 'Pendiente' %}
+                                <button class="btn btn-outline-primary btn-sm mt-2" data-action="llenado" data-orden="{{ o.id }}">Completar llenado</button>
+                                {% endif %}
+                            </div>
+                            <span class="badge {{ 'bg-success' if o.estado == 'Completada' else 'bg-warning text-dark' if o.estado == 'Pendiente' else 'bg-secondary' }}">{{ o.estado }}</span>
+                        </div>
+                        {% else %}
+                        <p class="text-muted mb-0">No hay llenados pendientes.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </main>
+    <div class="nyds-modal-backdrop" id="nydsModalBackdrop" aria-hidden="true">
+        <div class="nyds-modal" role="dialog" aria-modal="true" aria-labelledby="nydsModalTitle">
+            <div class="nyds-modal-header">
+                <div>
+                    <h5 id="nydsModalTitle">Acción</h5>
+                    <small id="nydsModalSubtitle"></small>
+                </div>
+                <button class="btn btn-outline-light btn-sm" type="button" id="nydsModalClose">Cerrar</button>
+            </div>
+            <form id="nydsModalForm">
+                <div class="nyds-modal-body" id="nydsModalFields"></div>
+                <div class="nyds-modal-actions">
+                    <button class="btn btn-outline-secondary" type="button" id="nydsModalCancel">Cancelar</button>
+                    <button class="btn btn-primary" type="submit" id="nydsModalSubmit">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div class="nyds-toast" id="nydsToast" role="status"></div>
+    <script>
+        const pedidoForm = document.getElementById('pedidoForm');
+        const modalBackdrop = document.getElementById('nydsModalBackdrop');
+        const modalTitle = document.getElementById('nydsModalTitle');
+        const modalSubtitle = document.getElementById('nydsModalSubtitle');
+        const modalFields = document.getElementById('nydsModalFields');
+        const modalForm = document.getElementById('nydsModalForm');
+        const modalSubmit = document.getElementById('nydsModalSubmit');
+        const modalCancel = document.getElementById('nydsModalCancel');
+        const modalClose = document.getElementById('nydsModalClose');
+        const toast = document.getElementById('nydsToast');
+        let modalResolver = null;
+
+        function token(prefix) {
+            return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+        }
+
+        async function jsonFetch(url, options = {}) {
+            const response = await fetch(url, {
+                ...options,
+                headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(data.error || 'No se pudo completar la acción.');
+            }
+            return data;
+        }
+
+        function showToast(message, kind = 'error') {
+            toast.textContent = message;
+            toast.dataset.kind = kind;
+            toast.dataset.open = 'true';
+            window.setTimeout(() => { toast.dataset.open = 'false'; }, 4200);
+        }
+
+        function closeModal(result = null) {
+            modalBackdrop.dataset.open = 'false';
+            modalBackdrop.setAttribute('aria-hidden', 'true');
+            if (modalResolver) {
+                modalResolver(result);
+                modalResolver = null;
+            }
+        }
+
+        function openModal({ title, subtitle = '', submitText = 'Guardar', fields = [] }) {
+            modalTitle.textContent = title;
+            modalSubtitle.textContent = subtitle;
+            modalSubmit.textContent = submitText;
+            modalFields.innerHTML = fields.map((field) => {
+                const value = field.value || '';
+                const required = field.required ? 'required' : '';
+                const step = field.step ? `step="${field.step}"` : '';
+                const min = field.min !== undefined ? `min="${field.min}"` : '';
+                if (field.type === 'textarea') {
+                    return `<div class="mb-3"><label class="form-label">${field.label}</label><textarea class="form-control" name="${field.name}" rows="${field.rows || 3}" ${required}>${value}</textarea></div>`;
+                }
+                if (field.type === 'select') {
+                    return `<div class="mb-3"><label class="form-label">${field.label}</label><select class="form-select" name="${field.name}" ${required}>${field.options.map(option => `<option ${option === value ? 'selected' : ''}>${option}</option>`).join('')}</select></div>`;
+                }
+                return `<div class="mb-3"><label class="form-label">${field.label}</label><input class="form-control" type="${field.type || 'text'}" name="${field.name}" value="${value}" ${required} ${step} ${min}></div>`;
+            }).join('');
+            modalBackdrop.dataset.open = 'true';
+            modalBackdrop.setAttribute('aria-hidden', 'false');
+            const firstInput = modalFields.querySelector('input, select, textarea');
+            if (firstInput) firstInput.focus();
+            return new Promise((resolve) => { modalResolver = resolve; });
+        }
+
+        modalCancel.addEventListener('click', () => closeModal(null));
+        modalClose.addEventListener('click', () => closeModal(null));
+        modalBackdrop.addEventListener('click', (event) => {
+            if (event.target === modalBackdrop) closeModal(null);
+        });
+        modalForm.addEventListener('submit', (event) => {
+            event.preventDefault();
+            const data = Object.fromEntries(new FormData(modalForm).entries());
+            closeModal(data);
+        });
+
+        async function crearPedido(confirmar) {
+            const form = new FormData(pedidoForm);
+            const pedido = await jsonFetch('/api/crm/pedidos', {
+                method: 'POST',
+                body: JSON.stringify({
+                    token: token('pedido'),
+                    canal: form.get('canal'),
+                    forma_pago: form.get('forma_pago'),
+                    entrega_propia: form.has('entrega_propia'),
+                    cliente: {
+                        nombre: form.get('cliente_nombre'),
+                        telefono: form.get('cliente_telefono'),
+                    },
+                    domicilio: {
+                        direccion: form.get('direccion'),
+                        zona: 'Cancun',
+                        cobertura: true,
+                    },
+                    lineas: [{
+                        producto_id: Number(form.get('producto_id')),
+                        cantidad: form.get('cantidad'),
+                        precio_unitario: form.get('precio_unitario'),
+                    }],
+                }),
+            });
+            if (confirmar) {
+                await jsonFetch(`/api/crm/pedidos/${pedido.id}/confirmar`, { method: 'POST', body: '{}' });
+            }
+            window.location.reload();
+        }
+
+        if (pedidoForm) {
+            pedidoForm.addEventListener('submit', async (event) => {
+                event.preventDefault();
+                try {
+                    await crearPedido(true);
+                } catch (error) {
+                    showToast(error.message);
+                }
+            });
+            document.getElementById('crearSinConfirmar').addEventListener('click', async () => {
+                try {
+                    await crearPedido(false);
+                } catch (error) {
+                    showToast(error.message);
+                }
+            });
+        }
+
+        document.addEventListener('click', async (event) => {
+            const button = event.target.closest('[data-action]');
+            if (!button) return;
+            const action = button.dataset.action;
+            const pedido = button.dataset.pedido;
+            try {
+                if (action === 'confirmar') {
+                    await jsonFetch(`/api/crm/pedidos/${pedido}/confirmar`, { method: 'POST', body: '{}' });
+                }
+                if (action === 'pago') {
+                    const pago = await openModal({
+                        title: 'Registrar pago',
+                        subtitle: 'El pago actualiza el saldo del pedido sin mover inventario.',
+                        submitText: 'Registrar pago',
+                        fields: [
+                            { name: 'monto', label: 'Monto recibido', type: 'number', value: button.dataset.saldo || '', min: '0.01', step: '0.01', required: true },
+                            { name: 'metodo', label: 'Metodo de pago', type: 'select', value: 'Transferencia', options: ['Transferencia', 'Efectivo', 'Tarjeta', 'Contra entrega'], required: true },
+                            { name: 'referencia', label: 'Referencia', value: 'Pago registrado', required: true },
+                        ],
+                    });
+                    if (!pago) return;
+                    await jsonFetch(`/api/crm/pedidos/${pedido}/pagos`, {
+                        method: 'POST',
+                        body: JSON.stringify({ token: token('pago'), monto: pago.monto, metodo: pago.metodo, referencia: pago.referencia }),
+                    });
+                }
+                if (action === 'estado') {
+                    await jsonFetch(`/api/crm/pedidos/${pedido}/estado`, {
+                        method: 'POST',
+                        body: JSON.stringify({ estado: button.dataset.estado }),
+                    });
+                }
+                if (action === 'entrega') {
+                    const entrega = await openModal({
+                        title: 'Confirmar entrega',
+                        subtitle: 'El ERP registrara la salida definitiva del producto.',
+                        submitText: 'Confirmar entrega',
+                        fields: [
+                            { name: 'receptor', label: 'Nombre de quien recibe', required: true },
+                            { name: 'otp', label: 'OTP o codigo de entrega' },
+                        ],
+                    });
+                    if (!entrega) return;
+                    await jsonFetch(`/api/crm/pedidos/${pedido}/entrega`, {
+                        method: 'POST',
+                        body: JSON.stringify({ entregado: true, receptor: entrega.receptor, otp: entrega.otp }),
+                    });
+                }
+                if (action === 'fallo') {
+                    const fallo = await openModal({
+                        title: 'Registrar incidencia',
+                        subtitle: 'El producto permanecera en transito hasta resolver el retorno o reintento.',
+                        submitText: 'Guardar incidencia',
+                        fields: [
+                            { name: 'incidencia', label: 'Describe la incidencia', type: 'textarea', required: true },
+                        ],
+                    });
+                    if (!fallo) return;
+                    await jsonFetch(`/api/crm/pedidos/${pedido}/entrega`, {
+                        method: 'POST',
+                        body: JSON.stringify({ entregado: false, incidencia: fallo.incidencia }),
+                    });
+                }
+                if (action === 'llenado') {
+                    await jsonFetch(`/api/crm/ordenes-llenado/${button.dataset.orden}/completar`, {
+                        method: 'POST',
+                        body: JSON.stringify({ token: token('llenado'), ubicacion_mp: 'Produccion' }),
+                    });
+                }
+                window.location.reload();
+            } catch (error) {
+                showToast(error.message);
+            }
+        });
+    </script>
+</body>
+</html>

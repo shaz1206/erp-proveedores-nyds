@@ -1,5 +1,6 @@
 import os
 import re
+import secrets
 import unicodedata
 from datetime import datetime, date
 from decimal import Decimal, InvalidOperation
@@ -31,7 +32,7 @@ DEFAULT_DATABASE = os.path.abspath(os.path.join(BASE_DIR, "..", "instance", "erp
 os.makedirs(os.path.dirname(DEFAULT_DATABASE), exist_ok=True)
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "sqlite:///" + DEFAULT_DATABASE.replace("\\", "/"))
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "clave_secreta_nyds_admin_2026")
+app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY") or os.urandom(32).hex()
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 app.config["MAX_CONTENT_LENGTH"] = 50 * 1024 * 1024
 
@@ -684,7 +685,9 @@ def login_admin():
         usuario = request.form.get("usuario") or (request.json.get("usuario") if request.is_json else None)
         password = request.form.get("password") or (request.json.get("password") if request.is_json else None)
 
-        if usuario == "compras.nyds" and password == "nyds2026*":
+        admin_usuario = os.environ.get("NYDS_ADMIN_USER", "compras.nyds")
+        admin_password = os.environ.get("NYDS_ADMIN_PASSWORD", "")
+        if usuario == admin_usuario and admin_password and secrets.compare_digest(admin_password, password or ""):
             session["admin_logueado"] = True
             session["usuario"] = usuario
             session.permanent = True
@@ -1615,6 +1618,57 @@ if __package__:
 else:
     from inventario import registrar_inventario
 AjusteInventario = registrar_inventario(app, db, MateriaPrima, MovimientoMP, usuario_actual)
+
+if __package__:
+    from .crm import registrar_crm
+else:
+    from crm import registrar_crm
+(
+    ClienteCRM,
+    ClienteDomicilio,
+    PedidoCRM,
+    PedidoLineaCRM,
+    PagoPedidoCRM,
+    ReservaERP,
+    OrdenLlenadoCRM,
+    MovimientoPT,
+    EventoCRM,
+    EvidenciaEntregaCRM,
+) = registrar_crm(
+    app,
+    db,
+    MateriaPrima,
+    ProductoTerminado,
+    Receta,
+    RecetaIngrediente,
+    MovimientoMP,
+    AjusteInventario,
+    usuario_actual,
+)
+
+if __package__:
+    from .operaciones import registrar_operaciones
+else:
+    from operaciones import registrar_operaciones
+
+registrar_operaciones(
+    app,
+    db,
+    Proveedor,
+    MateriaPrima,
+    MateriaPrimaProveedor,
+    ProductoTerminado,
+    Receta,
+    RecetaIngrediente,
+    OrdenCompra,
+    MovimientoMP,
+    AjusteInventario,
+    PedidoCRM,
+    PedidoLineaCRM,
+    ReservaERP,
+    OrdenLlenadoCRM,
+    MovimientoPT,
+)
 
 with app.app_context():
     db.create_all()

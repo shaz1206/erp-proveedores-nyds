@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Operaciones - ERP NYDS</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20260915-operaciones') }}">
+</head>
+<body class="bg-light">
+    {% include 'erp_header.html' %}
+    <main class="container-fluid px-4 mb-5">
+        <section class="ops-workbar mb-4">
+            <div>
+                <span class="ops-kicker">NYDS operaciones</span>
+                <h1>Trabajo pendiente</h1>
+                <p>Accesos y alertas del ERP/CRM. Aqui solo aparece lo que ayuda a avanzar la operacion.</p>
+            </div>
+            <div class="ops-actions">
+                <a class="btn btn-primary" href="/crm/pedidos">Nuevo pedido</a>
+                <a class="btn btn-outline-primary" href="/admin/compras/nueva">Orden de compra</a>
+                <a class="btn btn-outline-primary" href="/admin/inventario-mp/registrar">Movimiento MP</a>
+                <a class="btn btn-outline-secondary" href="/api/operaciones/salud">JSON</a>
+            </div>
+        </section>
+
+        <section class="ops-grid mb-4">
+            <a class="ops-metric" href="/admin/catalogo"><span>Proveedores</span><strong>{{ diagnostico.metricas.proveedores }}</strong><small>Catálogo</small></a>
+            <a class="ops-metric" href="/admin/materias-primas"><span>MP activas</span><strong>{{ diagnostico.metricas.materias_primas_activas }}</strong><small>Materia prima</small></a>
+            <a class="ops-metric" href="/admin/productos-terminados"><span>PT activos</span><strong>{{ diagnostico.metricas.productos_terminados_activos }}</strong><small>Producto terminado</small></a>
+            <a class="ops-metric" href="/admin/recetas"><span>Recetas</span><strong>{{ diagnostico.metricas.recetas }}</strong><small>Formulas</small></a>
+            <a class="ops-metric" href="/crm/pedidos"><span>Pedidos CRM</span><strong>{{ diagnostico.metricas.pedidos_crm }}</strong><small>Ventas</small></a>
+            <a class="ops-metric" href="/crm/pedidos"><span>Llenados</span><strong>{{ diagnostico.metricas.ordenes_llenado_pendientes }}</strong><small>Pendientes</small></a>
+        </section>
+
+        <div class="row g-4">
+            <section class="col-xl-7">
+                <div class="card h-100">
+                    <div class="card-header d-flex justify-content-between align-items-center gap-3">
+                        <div>
+                            <h5 class="mb-0">Pendientes accionables</h5>
+                            <small class="text-muted">Bloqueos y alertas que conectan con su pantalla de correccion.</small>
+                        </div>
+                        <span class="ops-pill ops-pill-{{ diagnostico.estado_general }}">{{ diagnostico.bloqueos }} bloqueos / {{ diagnostico.alertas }} alertas</span>
+                    </div>
+                    <div class="card-body">
+                        {% if diagnostico.incidencias %}
+                        <div class="ops-issues">
+                            {% for i in diagnostico.incidencias %}
+                            <a class="ops-issue ops-issue-{{ i.severidad }}" href="{{ i.href or '/admin/operaciones' }}">
+                                <span>{{ 'Bloqueo' if i.severidad == 'bloqueo' else 'Alerta' if i.severidad == 'alerta' else 'Info' }}</span>
+                                <strong>{{ i.titulo }}</strong>
+                                <small>{{ i.detalle }}</small>
+                            </a>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="ops-empty">
+                            <h5>Sin pendientes estructurales</h5>
+                            <p>El flujo ERP/CRM no tiene bloqueos detectados. Sigue con la operacion diaria.</p>
+                            <a class="btn btn-primary" href="/crm/pedidos">Abrir pedidos</a>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </section>
+
+            <section class="col-xl-5">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h5 class="mb-0">Continuar flujo</h5>
+                        <small class="text-muted">Entradas rápidas al proceso real de NYDS.</small>
+                    </div>
+                    <div class="card-body">
+                        <div class="ops-flow">
+                            <a href="/admin/catalogo"><span>1</span><strong>Proveedores</strong><small>Expedientes y condiciones</small></a>
+                            <a href="/admin/materias-primas"><span>2</span><strong>Materias primas</strong><small>Unidad base, ubicacion y precios</small></a>
+                            <a href="/admin/productos-terminados"><span>3</span><strong>Productos</strong><small>Catalogo que vende CRM</small></a>
+                            <a href="/admin/recetas"><span>4</span><strong>Recetas</strong><small>Componentes para llenar</small></a>
+                            <a href="/admin/compras"><span>5</span><strong>Compras</strong><small>Ordenes y recepcion</small></a>
+                            <a href="/admin/inventario-mp"><span>6</span><strong>Inventario</strong><small>Saldos reales y ajustes</small></a>
+                            <a href="/crm/pedidos"><span>7</span><strong>CRM</strong><small>Pedido, reserva y ruta</small></a>
+                            <a href="/admin/productos-entregados"><span>8</span><strong>Entregas</strong><small>Evidencia y salida final</small></a>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+</body>
+</html>

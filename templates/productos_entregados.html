@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <title>Productos entregados - ERP NYDS</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20260914-entregados') }}">
+</head>
+<body class="bg-light">
+    {% include 'erp_header.html' %}
+    <main class="container-fluid px-4 mb-5">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+            <div>
+                <h2>Productos entregados</h2>
+                <p class="text-muted mb-0">Salidas definitivas confirmadas desde el CRM con evidencia de entrega.</p>
+            </div>
+            <span class="badge bg-primary">{{ entregas | length }} entregas</span>
+        </div>
+        <div class="card">
+            <div class="table-responsive">
+                <table class="table align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Producto</th>
+                            <th>Cantidad</th>
+                            <th>Pedido</th>
+                            <th>Cliente</th>
+                            <th>Evidencia</th>
+                            <th>Usuario</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in entregas %}
+                        {% set movimiento = row.movimiento %}
+                        {% set pedido = row.pedido %}
+                        {% set evidencia = row.evidencia %}
+                        <tr>
+                            <td>{{ movimiento.fecha.strftime('%d/%m/%Y %H:%M') }}</td>
+                            <td>
+                                <strong>{{ movimiento.producto.nombre if movimiento.producto else 'Producto eliminado' }}</strong>
+                                <div class="text-muted small">{{ movimiento.producto.sku if movimiento.producto else '' }}</div>
+                            </td>
+                            <td>{{ '%g' | format(-movimiento.cantidad) }} {{ movimiento.unidad }}</td>
+                            <td>{{ pedido.folio if pedido else movimiento.referencia }}</td>
+                            <td>
+                                {% if pedido %}
+                                {{ pedido.cliente.nombre }}
+                                <div class="text-muted small">{{ pedido.cliente.telefono }}</div>
+                                {% else %}
+                                <span class="text-muted">Sin pedido vinculado</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if evidencia %}
+                                <div>{{ evidencia.receptor or 'Receptor no capturado' }}</div>
+                                <div class="text-muted small">
+                                    OTP: {{ evidencia.otp or 'No aplica' }}
+                                    {% if evidencia.lat and evidencia.lng %} · {{ evidencia.lat }}, {{ evidencia.lng }}{% endif %}
+                                </div>
+                                {% else %}
+                                <span class="text-muted">Sin evidencia</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ movimiento.usuario }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="7" class="text-center py-5">
+                                <strong>Aún no hay productos entregados</strong>
+                                <p class="text-muted mt-2 mb-0">Cuando reparto confirme una entrega en el CRM aparecerá aquí.</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+</body>
+</html>
