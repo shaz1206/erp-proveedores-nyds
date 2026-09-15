@@ -8,6 +8,7 @@ from functools import wraps
 
 from flask import (
     Flask,
+    has_request_context,
     request,
     jsonify,
     render_template,
@@ -94,7 +95,30 @@ def admin_required_json(fn):
 
 
 def usuario_actual():
+    if not has_request_context():
+        return "sistema"
     return session.get("usuario", "compras.nyds")
+
+
+def dividir_proveedores_recetario(referencia):
+    """Convierte la referencia textual del recetario en nombres de proveedor externos."""
+    texto = (referencia or "").strip()
+    if not texto:
+        return []
+    partes = re.split(r"\s*/\s*|\s+/\s+", texto)
+    proveedores = []
+    vistos = set()
+    for parte in partes:
+        nombre = re.sub(r"\s+", " ", parte).strip(" .,-")
+        if not nombre:
+            continue
+        normal = normalizar_texto(nombre)
+        if normal.startswith("PROPIO") or normal.startswith("SUBRECETA"):
+            continue
+        if normal not in vistos:
+            proveedores.append(nombre)
+            vistos.add(normal)
+    return proveedores
 
 
 # ==========================================
@@ -374,6 +398,102 @@ def registrar_bitacora_mp(mp, evento, anterior=None, nuevo=None, motivo=None):
 def generar_sku_mp():
     ultimo_id = db.session.query(func.max(MateriaPrima.id_mp)).scalar() or 0
     return f"MP-{ultimo_id + 1:06d}"
+
+
+def generar_codigo_proveedor_recetario():
+    n = 1
+    while Proveedor.query.filter_by(codigo_proveedor=f"REC-{n:05d}").first():
+        n += 1
+    return f"REC-{n:05d}"
+
+
+def generar_rfc_proveedor_recetario():
+    n = 1
+    while Proveedor.query.filter_by(rfc=f"REC{n:010d}").first():
+        n += 1
+    return f"REC{n:010d}"
+
+
+def proveedor_por_nombre_o_crear(nombre):
+    normal = normalizar_texto(nombre)
+    for proveedor in Proveedor.query.all():
+        if normalizar_texto(proveedor.razon_social) == normal:
+            return proveedor, False
+    proveedor = Proveedor(
+        codigo_proveedor=generar_codigo_proveedor_recetario(),
+        razon_social=nombre.strip(),
+        rfc=generar_rfc_proveedor_recetario(),
+        tipo_proveedor="Materia Prima",
+        estatus="Pendiente",
+        calle_numero="Por confirmar",
+        colonia="Por confirmar",
+        ciudad="Cancún",
+        estado="Quintana Roo",
+        codigo_postal="00000",
+        condicion_pago="Por confirmar",
+        tiempo_entrega_normal=Decimal("0"),
+    )
+    db.session.add(proveedor)
+    db.session.flush()
+    db.session.add(
+        Bitacora(
+            id_proveedor=proveedor.id_proveedor,
+            accion="Referencia de recetario",
+            descripcion="Proveedor provisional creado desde referencias del recetario; datos fiscales y comerciales pendientes.",
+        )
+    )
+    return proveedor, True
+
+
+def sincronizar_proveedores_desde_recetario(RecetaIngrediente):
+    creados = 0
+    relaciones = 0
+    ingredientes = RecetaIngrediente.query.filter(RecetaIngrediente.mp_id.isnot(None)).all()
+    for ingrediente in ingredientes:
+        mp = db.session.get(MateriaPrima, ingrediente.mp_id)
+        if not mp:
+            continue
+        for nombre_proveedor in dividir_proveedores_recetario(ingrediente.proveedor_referencia):
+            proveedor, creado = proveedor_por_nombre_o_crear(nombre_proveedor)
+            creados += 1 if creado else 0
+            existente = MateriaPrimaProveedor.query.filter_by(
+                id_mp=mp.id_mp,
+                id_proveedor=proveedor.id_proveedor,
+                activo=True,
+            ).first()
+            if existente:
+                continue
+            tiene_principal = MateriaPrimaProveedor.query.filter_by(id_mp=mp.id_mp, activo=True, principal=True).first()
+            db.session.add(
+                MateriaPrimaProveedor(
+                    id_mp=mp.id_mp,
+                    id_proveedor=proveedor.id_proveedor,
+                    principal=tiene_principal is None,
+                    presentacion_compra="Referencia recetario",
+                    contenido_presentacion=Decimal("1"),
+                    unidad_contenido=mp.unidad_base,
+                    factor_a_unidad_base=Decimal("1"),
+                    precio_vigente=Decimal("0"),
+                    tipo_precio="Por presentación",
+                    moneda="MXN",
+                    iva_tasa=Decimal("0"),
+                    compra_minima=Decimal("1"),
+                    unidad_compra_minima="Presentación",
+                    lead_time_dias=0,
+                    creado_por="Sincronización recetario",
+                )
+            )
+            registrar_bitacora_mp(
+                mp,
+                "Proveedor referenciado en recetario",
+                nuevo=f"{proveedor.razon_social} (pendiente de validar condiciones comerciales)",
+            )
+            relaciones += 1
+    if creados or relaciones:
+        db.session.commit()
+    else:
+        db.session.rollback()
+    return {"proveedores_creados": creados, "relaciones_creadas": relaciones}
 
 
 def proveedor_principal_vigente(mp):
@@ -1672,6 +1792,7 @@ registrar_operaciones(
 
 with app.app_context():
     db.create_all()
+    sincronizar_proveedores_desde_recetario(RecetaIngrediente)
 
 if __name__ == "__main__":
     app.run(debug=True)
