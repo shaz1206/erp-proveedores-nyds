@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <title>Tablero de pedidos - CRM NYDS</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20260917-tablero') }}">
+    <style>
+        body.crm-tablero-body{background:#fff;overflow-x:hidden}
+        .tab-shell{display:flex;min-height:100vh}
+        .tab-side{width:216px;flex-shrink:0;border-right:3px solid var(--nyds-powder);padding:22px 14px;display:flex;flex-direction:column;background:var(--nyds-midnight)}
+        .tab-logo{position:relative;overflow:hidden;width:132px;height:72px;margin:0 auto 22px}
+        .tab-logo img{position:absolute;width:230%;max-width:none;height:auto;left:-65%;top:-69%;filter:grayscale(1) invert(1) contrast(12);mix-blend-mode:screen}
+        .tab-side-kicker{color:#7086a8;font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;padding:0 12px 10px}
+        .sidenav{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;color:#dce5f3;text-decoration:none;font-size:13.5px;font-weight:600;border:1px solid transparent}
+        .sidenav:hover{background:#263956;color:#fff}
+        .sidenav-active{background:var(--nyds-chartreuse);color:var(--nyds-midnight);font-weight:700}
+        .sidenav svg{width:17px;height:17px;flex-shrink:0}
+        .tab-main{flex:1;display:flex;flex-direction:column;min-width:0;background:#f4f6fa}
+        .tab-head{padding:22px 30px 18px;display:flex;align-items:flex-end;justify-content:space-between;gap:20px;border-bottom:1px solid #e9edf1;background:#fff;flex-wrap:wrap}
+        .tab-head h1{margin:5px 0 0;font-size:25px;font-weight:800;color:var(--nyds-midnight)}
+        .tab-metrics{display:flex;gap:12px;padding:18px 30px 4px;flex-wrap:wrap}
+        .metric{background:#fff;border:1px solid #e4e9f1;border-radius:12px;padding:14px 16px;box-shadow:0 3px 12px rgba(19,36,65,.03);flex:1;min-width:150px}
+        .metric span{display:block;color:#607086;font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em}
+        .metric strong{display:block;color:var(--nyds-midnight);font-size:1.3rem;line-height:1.15;margin-top:6px;font-variant-numeric:tabular-nums}
+        .metric small{display:block;color:var(--nyds-lapis);font-weight:700;margin-top:4px;font-size:11.5px}
+        .tab-board{flex:1;display:flex;gap:14px;padding:16px 30px 26px;overflow-x:auto}
+        .tab-col{width:216px;flex-shrink:0;display:flex;flex-direction:column}
+        .colhead{display:flex;align-items:baseline;justify-content:space-between;padding:0 2px 10px}
+        .colhead b{font-size:11.5px;font-weight:800;color:var(--nyds-midnight);text-transform:uppercase;letter-spacing:.03em}
+        .colhead .sub{font-size:11px;color:#607086;margin-top:2px}
+        .tag{display:inline-flex;align-items:center;border-radius:999px;padding:4px 10px;font-size:10.5px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;line-height:1}
+        .tag-wa{background:#def3e7;color:#216b48}
+        .tag-ig{background:#fce3e9;color:#a82a48}
+        .tag-fb{background:#e7edf9;color:#3451a3}
+        .tag-mn{background:#edf1f5;color:#596d7e}
+        .avatar{display:grid;place-items:center;width:26px;height:26px;border-radius:8px;font-size:10.5px;font-weight:800;flex-shrink:0}
+        .av-ventas{background:var(--nyds-lapis);color:#fff}
+        .av-prep{background:var(--nyds-powder);color:var(--nyds-midnight)}
+        .av-reparto{background:var(--nyds-chartreuse);color:var(--nyds-midnight)}
+        .av-caja{background:var(--nyds-midnight);color:#fff}
+        .pcard{background:#fff;border:1px solid #e4e9f1;border-radius:14px;padding:13px 14px 13px 12px;box-shadow:0 3px 10px rgba(19,36,65,.05);display:flex;flex-direction:column;gap:7px;text-decoration:none;color:inherit;margin-bottom:10px}
+        .pcard:hover{border-color:var(--nyds-powder);color:inherit}
+        .pcard-wa{border-left:3px solid #216b48}
+        .pcard-ig{border-left:3px solid #a82a48}
+        .pcard-fb{border-left:3px solid #3451a3}
+        .pcard-mn{border-left:3px solid #adbac6}
+        .pcard.cerrado{opacity:.85}
+        .bartrack{height:6px;background:#edf2f5;border-radius:999px;overflow:hidden}
+        .barfill{height:100%;border-radius:999px;background:var(--nyds-lapis)}
+        .note{border-radius:8px;padding:6px 9px;font-size:11.5px;font-weight:600;line-height:1.35;background:var(--nyds-chartreuse);color:var(--nyds-midnight)}
+        .note.alerta{background:#fce3e9;color:#a82a48}
+        .tab-empty{color:#8fa2b3;font-size:12px;padding:16px 2px;text-align:center;border:1px dashed #dfe6ec;border-radius:12px}
+        @media(max-width:900px){.tab-shell{flex-direction:column}.tab-side{width:100%;flex-direction:row;flex-wrap:wrap;align-items:center}.tab-logo{margin:0 12px 0 0}}
+    </style>
+</head>
+<body class="crm-tablero-body">
+<div class="tab-shell">
+
+    <!-- Sidebar -->
+    <div class="tab-side">
+        <div class="tab-logo"><img src="{{ url_for('static', filename='nyds-logo.png') }}" alt="NYDS"></div>
+        <div class="tab-side-kicker">CRM de pedidos</div>
+        <a class="sidenav" href="/crm/pedidos">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            Clientes
+        </a>
+        <a class="sidenav sidenav-active" href="/crm/tablero" aria-current="page">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            Tablero
+        </a>
+        <a class="sidenav" href="/crm/pedidos">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg>
+            Pedidos
+        </a>
+        <a class="sidenav" href="/crm/pedidos">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg>
+            Ruta
+        </a>
+        <a class="sidenav" href="/crm/pedidos">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+            Pagos
+        </a>
+        <a class="sidenav" href="/crm/pedidos">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg>
+            Reportes
+        </a>
+        <a class="sidenav" href="/crm/logout" style="margin-top:auto;border-color:#455570">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+            Salir
+        </a>
+    </div>
+
+    <!-- Contenido -->
+    <div class="tab-main">
+        <div class="tab-head">
+            <div>
+                <div style="font-size:11.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--nyds-lapis)">Hola, {{ nombre_usuario }}</div>
+                <h1>Flujo de pedidos</h1>
+                <div style="color:#607086;font-size:13px;margin-top:2px">Hoy es {{ hoy_es }} &middot; {{ metricas.activos }} pedidos activos</div>
+            </div>
+            <div style="display:flex;gap:10px;align-items:center">
+                <input id="buscadorTablero" placeholder="Buscar cliente" style="border:1px solid #d9e3e8;border-radius:12px;padding:11px 14px;font-size:13px;min-width:190px;color:#132441;background:#fff">
+                <a href="/crm/pedidos" style="background:var(--nyds-lapis);color:#fff;border-radius:11px;padding:11px 18px;font-size:13px;font-weight:700;text-decoration:none;white-space:nowrap">+ Nuevo pedido</a>
+            </div>
+        </div>
+
+        <div class="tab-metrics">
+            <div class="metric">
+                <span>Pedidos activos</span>
+                <strong>{{ metricas.activos }}</strong>
+                {% if metricas.nuevos_semana > 0 %}
+                <small>+{{ metricas.nuevos_semana }} esta semana</small>
+                {% else %}
+                <small style="color:#607086">Sin pedidos nuevos esta semana</small>
+                {% endif %}
+            </div>
+            <div class="metric">
+                <span>Valor en gesti&oacute;n</span>
+                <strong>{{ metricas.valor_gestion_fmt }}</strong>
+                <small>MXN</small>
+            </div>
+            <div class="metric">
+                <span>Entregas de hoy</span>
+                <strong>{{ metricas.entregas_hoy }}</strong>
+                <small>{{ metricas.en_ruta_ahora }} en ruta ahora</small>
+            </div>
+            <div class="metric">
+                <span>Por cobrar</span>
+                <strong>{{ metricas.por_cobrar_fmt }}</strong>
+                {% if metricas.por_cobrar_cuenta > 0 %}
+                <small style="color:#a82a48">{{ metricas.por_cobrar_cuenta }} pedido(s)</small>
+                {% else %}
+                <small style="color:#607086">Al corriente</small>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="tab-board">
+            {% for col in columnas %}
+            <div class="tab-col">
+                <div class="colhead">
+                    <div>
+                        <b>{{ col.etiqueta }}</b>
+                        <div class="sub">{{ col.cuenta }} &middot; {{ col.total_fmt }}</div>
+                    </div>
+                </div>
+                {% if col.tarjetas %}
+                    {% for t in col.tarjetas %}
+                    <a class="pcard pcard-{{ t.canal_clase }}{{ ' cerrado' if col.clave == 'entregado' and t.nota_alerta else '' }}" href="/crm/pedidos#pedido-{{ t.id }}" data-cliente="{{ t.cliente | lower }}">
+                        <div style="display:flex;justify-content:space-between;align-items:center">
+                            <span class="tag tag-{{ t.canal_clase }}">{{ t.canal }}</span>
+                            <span style="color:#c3d0d9;font-size:13px">&#8942;</span>
+                        </div>
+                        <div style="font-weight:700;font-size:13px">{{ t.cliente }}</div>
+                        <div style="font-size:12px;color:#455774;font-variant-numeric:tabular-nums">{{ t.total_fmt }}</div>
+                        {% if t.progreso is not none %}
+                        <div style="display:flex;justify-content:space-between;font-size:10px;color:#607086;font-weight:700"><span>LLENADO</span><span>{{ t.progreso }}%</span></div>
+                        <div class="bartrack"><div class="barfill" style="width:{{ t.progreso }}%"></div></div>
+                        {% endif %}
+                        {% if t.nota %}
+                        <div class="note{{ ' alerta' if t.nota_alerta else '' }}">{{ '&#9873; ' | safe if not t.nota_alerta else '' }}{{ t.nota }}</div>
+                        {% endif %}
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:2px">
+                            <span class="avatar {{ t.avatar_clase }}">{{ t.avatar }}</span>
+                            <span style="font-size:11px;color:#8496a6">{{ t.hace }}</span>
+                        </div>
+                    </a>
+                    {% endfor %}
+                {% else %}
+                <div class="tab-empty">Sin pedidos aqu&iacute;</div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+<script>
+    const buscador = document.getElementById('buscadorTablero');
+    if (buscador) {
+        buscador.addEventListener('input', () => {
+            const q = buscador.value.trim().toLowerCase();
+            document.querySelectorAll('.pcard').forEach((tarjeta) => {
+                const cliente = tarjeta.getAttribute('data-cliente') || '';
+                tarjeta.style.display = !q || cliente.includes(q) ? '' : 'none';
+            });
+        });
+    }
+</script>
+</body>
+</html>

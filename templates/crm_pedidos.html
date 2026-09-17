@@ -120,7 +120,7 @@
                             </thead>
                             <tbody>
                                 {% for p in pedidos %}
-                                <tr>
+                                <tr id="pedido-{{ p.id }}">
                                     <td><strong>{{ p.folio }}</strong><div class="text-muted small">{{ p.canal }}</div></td>
                                     <td>{{ p.cliente.nombre }}<div class="text-muted small">{{ p.cliente.telefono }}</div></td>
                                     <td><span class="badge {{ 'bg-success' if p.estado == 'Entregado' else 'bg-warning text-dark' if p.estado in ['Pendiente de pago','Pendiente de produccion','Intento fallido'] else 'bg-primary' if p.estado in ['Confirmado','En ruta'] else 'bg-secondary' }}">{{ p.estado }}</span></td>

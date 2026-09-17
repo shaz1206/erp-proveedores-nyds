@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Ciclo del pedido - ERP NYDS</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20260917-ciclo-pedido') }}">
+</head>
+<body class="bg-light">
+{% include 'erp_header.html' %}
+<main class="container-fluid px-4 mb-5" style="max-width: 1100px;">
+
+    <section class="ciclo-intro">
+        <span class="ops-kicker">ERP + CRM en una sola transacción</span>
+        <h1>Ciclo de un pedido</h1>
+        <p>Cada paso indica el rol del CRM que lo ejecuta y lo que realmente se escribe en las tablas del ERP. Haz clic en cualquier paso para ver el detalle.</p>
+        <div class="ciclo-roles">
+            <span class="ciclo-rol">ventas.nyds</span>
+            <span class="ciclo-rol">preparacion.nyds</span>
+            <span class="ciclo-rol">reparto.nyds</span>
+            <span class="ciclo-rol">caja.nyds</span>
+            <span class="ciclo-rol ciclo-rol-supervisor">crm.admin supervisa todo</span>
+        </div>
+    </section>
+
+    <h2 class="ciclo-seccion">Camino principal</h2>
+    <ol class="ciclo-camino">
+        {% for paso in pasos %}
+        <li>
+            <details class="ciclo-paso">
+                <summary>
+                    <span class="ciclo-numero">{{ paso.numero }}</span>
+                    <span class="ciclo-resumen">
+                        <strong>{{ paso.titulo }}</strong>
+                        <small>{{ paso.resumen }}</small>
+                    </span>
+                    <span class="ciclo-chips">
+                        <span class="ciclo-chip">{{ paso.rol }}</span>
+                        <span class="ciclo-chip ciclo-chip-erp">{{ paso.ejecucion }}</span>
+                        {% if paso.estado %}<span class="badge bg-primary">estado: {{ paso.estado }}</span>{% endif %}
+                    </span>
+                </summary>
+                <div class="ciclo-detalle">
+                    {% if paso.ramas %}
+                    <div class="ciclo-subramas">
+                        {% for r in paso.ramas %}
+                        <div class="ciclo-subrama">
+                            <span class="ciclo-subrama-letra">{{ r.letra }}</span>
+                            <div><strong>{{ r.titulo }}</strong><p>{{ r.texto }}</p></div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    <h6>Qué hace</h6>
+                    <p>{{ paso.que_hace }}</p>
+                    <h6>Qué se actualiza en el ERP</h6>
+                    <div class="ciclo-tablas">
+                        {% for tabla, detalle in paso.tablas %}
+                        <div class="ciclo-tabla"><code>{{ tabla }}</code><p>{{ detalle }}</p></div>
+                        {% endfor %}
+                    </div>
+                    <h6>Reglas y validaciones</h6>
+                    <ul class="ciclo-reglas">
+                        {% for regla in paso.reglas %}<li>{{ regla }}</li>{% endfor %}
+                    </ul>
+                    <h6>Dónde vive en el código</h6>
+                    <p class="ciclo-codigo"><span class="badge bg-secondary">{{ paso.metodo }}</span> <code>{{ paso.ruta }}</code><br><small class="text-muted">{{ paso.archivo_funcion }}</small></p>
+                </div>
+            </details>
+        </li>
+        {% endfor %}
+    </ol>
+
+    <h2 class="ciclo-seccion">Paso lateral</h2>
+    <details class="ciclo-paso ciclo-paso-lateral">
+        <summary>
+            <span class="ciclo-numero">{{ paso_lateral.numero }}</span>
+            <span class="ciclo-resumen">
+                <strong>{{ paso_lateral.titulo }}</strong>
+                <small>{{ paso_lateral.resumen }}</small>
+            </span>
+            <span class="ciclo-chips">
+                <span class="ciclo-chip">{{ paso_lateral.rol }}</span>
+                <span class="ciclo-chip ciclo-chip-erp">{{ paso_lateral.ejecucion }}</span>
+            </span>
+        </summary>
+        <div class="ciclo-detalle">
+            <h6>Qué hace</h6>
+            <p>{{ paso_lateral.que_hace }}</p>
+            <h6>Qué se actualiza en el ERP</h6>
+            <div class="ciclo-tablas">
+                {% for tabla, detalle in paso_lateral.tablas %}
+                <div class="ciclo-tabla"><code>{{ tabla }}</code><p>{{ detalle }}</p></div>
+                {% endfor %}
+            </div>
+            <h6>Reglas y validaciones</h6>
+            <ul class="ciclo-reglas">
+                {% for regla in paso_lateral.reglas %}<li>{{ regla }}</li>{% endfor %}
+            </ul>
+            <h6>Dónde vive en el código</h6>
+            <p class="ciclo-codigo"><span class="badge bg-secondary">{{ paso_lateral.metodo }}</span> <code>{{ paso_lateral.ruta }}</code><br><small class="text-muted">{{ paso_lateral.archivo_funcion }}</small></p>
+        </div>
+    </details>
+
+    <h2 class="ciclo-seccion">Rama aparte — fuera del camino principal</h2>
+    <p class="text-muted">Desde cualquier estado previo al cierre, el pedido puede salir del flujo. En ambos casos <code>liberar_reservas()</code> marca toda reserva activa como Liberada y el inventario vuelve a estar disponible para otros pedidos.</p>
+    <div class="ciclo-ramas-alternas">
+        {% for rama in ramas %}
+        <details class="ciclo-paso ciclo-paso-rama">
+            <summary>
+                <span class="ciclo-numero">{{ rama.simbolo }}</span>
+                <span class="ciclo-resumen">
+                    <strong>{{ rama.titulo }}</strong>
+                    <small>{{ rama.resumen }}</small>
+                </span>
+                <span class="ciclo-chips">
+                    <span class="ciclo-chip">{{ rama.rol }}</span>
+                </span>
+            </summary>
+            <div class="ciclo-detalle">
+                <h6>Qué hace</h6>
+                <p>{{ rama.que_hace }}</p>
+                <h6>Qué se actualiza en el ERP</h6>
+                <div class="ciclo-tablas">
+                    {% for tabla, detalle in rama.tablas %}
+                    <div class="ciclo-tabla"><code>{{ tabla }}</code><p>{{ detalle }}</p></div>
+                    {% endfor %}
+                </div>
+                <h6>Reglas y validaciones</h6>
+                <ul class="ciclo-reglas">
+                    {% for regla in rama.reglas %}<li>{{ regla }}</li>{% endfor %}
+                </ul>
+                <h6>Dónde vive en el código</h6>
+                <p class="ciclo-codigo"><span class="badge bg-secondary">{{ rama.metodo }}</span> <code>{{ rama.ruta }}</code><br><small class="text-muted">{{ rama.archivo_funcion }}</small></p>
+            </div>
+        </details>
+        {% endfor %}
+    </div>
+</main>
+</body>
+</html>

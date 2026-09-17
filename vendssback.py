@@ -18,7 +18,7 @@ from flask import (
     url_for,
 )
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import func
+from sqlalchemy import func, inspect
 from werkzeug.utils import secure_filename
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -44,6 +44,55 @@ db = SQLAlchemy(app)
 
 def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+RFC_REGEX = re.compile(r"^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$")
+
+ESTATUS_PROVEEDOR_VALIDOS = {"Borrador", "Activo", "Bloqueado", "Inactivo", "Pendiente"}
+ESTADOS_OC_ABIERTOS = ("Emitida", "Parcial")
+
+
+def rfc_valido(rfc):
+    return bool(RFC_REGEX.match(rfc or ""))
+
+
+def normalizar_rfc(valor):
+    return re.sub(r"\s+", "", (valor or "").strip().upper())
+
+
+def siguiente_codigo_proveedor():
+    """Genera PROV-0001, PROV-0002, ... sin reutilizar códigos."""
+    ultimo = 0
+    for (codigo,) in db.session.query(Proveedor.codigo_proveedor).all():
+        m = re.match(r"^PROV-(\d+)$", codigo or "")
+        if m:
+            ultimo = max(ultimo, int(m.group(1)))
+    return f"PROV-{ultimo + 1:04d}"
+
+
+def migrar_columnas_faltantes():
+    """Migración ligera: agrega columnas nuevas a tablas ya existentes sin borrar datos.
+
+    db.create_all() solo crea tablas que faltan; no altera tablas existentes. Como esta
+    versión agrega columnas a 'proveedores', 'proveedor_contactos' y 'proveedor_documentos'
+    (tablas que ya existían en instalaciones previas), se revisan aquí con ALTER TABLE ...
+    ADD COLUMN. Todas las columnas se agregan NULL-ables a nivel de base de datos; las
+    reglas de obligatoriedad funcional se validan en el código de las rutas.
+    """
+    inspector = inspect(db.engine)
+    nombres_tablas_existentes = set(inspector.get_table_names())
+    for tabla in db.metadata.sorted_tables:
+        if tabla.name not in nombres_tablas_existentes:
+            continue  # tabla nueva: la crea db.create_all()
+        columnas_actuales = {c["name"] for c in inspector.get_columns(tabla.name)}
+        for columna in tabla.columns:
+            if columna.name in columnas_actuales:
+                continue
+            tipo_columna = columna.type.compile(db.engine.dialect)
+            with db.engine.begin() as conexion:
+                conexion.exec_driver_sql(
+                    f'ALTER TABLE "{tabla.name}" ADD COLUMN "{columna.name}" {tipo_columna}'
+                )
 
 
 def normalizar_texto(valor):
@@ -129,9 +178,13 @@ class Proveedor(db.Model):
     id_proveedor = db.Column(db.Integer, primary_key=True, autoincrement=True)
     codigo_proveedor = db.Column(db.String(20), unique=True, nullable=False)
     razon_social = db.Column(db.String(180), nullable=False)
+    nombre_comercial = db.Column(db.String(180))
     rfc = db.Column(db.String(13), unique=True, nullable=False)
     tipo_proveedor = db.Column(db.String(50), nullable=False)
-    estatus = db.Column(db.String(20), default="Pendiente", nullable=False)
+    estatus = db.Column(db.String(20), default="Borrador", nullable=False)
+    sitio_web = db.Column(db.String(255))
+    notas_generales = db.Column(db.Text)
+    motivo_bloqueo = db.Column(db.String(300))
 
     calle_numero = db.Column(db.String(200), nullable=False)
     colonia = db.Column(db.String(100), nullable=False)
@@ -139,14 +192,66 @@ class Proveedor(db.Model):
     estado = db.Column(db.String(100), nullable=False, default="Quintana Roo")
     codigo_postal = db.Column(db.String(5), nullable=False)
 
+    # Datos fiscales y administrativos (sección 4.2 de la especificación).
+    regimen_fiscal = db.Column(db.String(150))
+    correo_facturacion = db.Column(db.String(150))
+    forma_pago_habitual = db.Column(db.String(50))
+    metodo_pago_habitual = db.Column(db.String(10))
+    banco = db.Column(db.String(100))
+    beneficiario = db.Column(db.String(180))
+    cuenta_bancaria = db.Column(db.String(30))
+    clabe = db.Column(db.String(18))
+
+    # Condiciones comerciales y logísticas generales (sección 4.4).
     condicion_pago = db.Column(db.String(50), nullable=False)
+    dias_credito = db.Column(db.Integer, default=0)
     tiempo_entrega_normal = db.Column(db.Numeric(10, 2), nullable=False)
+    lead_time_maximo = db.Column(db.Numeric(10, 2))
+    politica_flete = db.Column(db.String(60))
+    zona_entrega = db.Column(db.String(200))
+    horario_atencion = db.Column(db.String(150))
+    compra_minima_general = db.Column(db.Numeric(18, 6))
+    moneda_compra_minima = db.Column(db.String(10))
+    vigencia_cotizacion_dias = db.Column(db.Integer)
+
+    creado_en = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    creado_por = db.Column(db.String(100))
+    actualizado_en = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    actualizado_por = db.Column(db.String(100))
 
     contactos = db.relationship("Contacto", backref="proveedor", lazy=True, cascade="all, delete-orphan")
     catalogo_items = db.relationship("ProveedorItem", backref="proveedor", lazy=True, cascade="all, delete-orphan")
     documentos = db.relationship("Documento", backref="proveedor", lazy=True, cascade="all, delete-orphan")
     bitacora = db.relationship("Bitacora", backref="proveedor", lazy=True, cascade="all, delete-orphan")
+    evaluaciones = db.relationship("ProveedorEvaluacion", backref="proveedor", lazy=True, cascade="all, delete-orphan")
     materias_primas = db.relationship("MateriaPrimaProveedor", back_populates="proveedor", lazy=True)
+
+    def contacto_principal(self):
+        return next((c for c in self.contactos if c.es_principal and c.activo), None)
+
+    def campos_minimos_faltantes(self):
+        """Regresa la lista de requisitos incumplidos para poder quedar Activo (sección 12)."""
+        faltantes = []
+        if not self.razon_social:
+            faltantes.append("razón social")
+        if not self.rfc or not rfc_valido(self.rfc):
+            faltantes.append("RFC válido")
+        if not self.tipo_proveedor:
+            faltantes.append("tipo de proveedor")
+        if not self.codigo_postal or len(self.codigo_postal) != 5:
+            faltantes.append("código postal fiscal (5 dígitos)")
+        if not self.condicion_pago:
+            faltantes.append("condiciones de pago")
+        if self.tiempo_entrega_normal is None:
+            faltantes.append("tiempo de entrega habitual")
+        principal = self.contacto_principal()
+        if not principal or not principal.correo or not (principal.telefono or principal.whatsapp):
+            faltantes.append("un contacto principal activo con correo y teléfono o WhatsApp")
+        if (self.tipo_proveedor or "").strip().lower() in ("materia prima", "mixto"):
+            relaciones_activas = [r for r in self.materias_primas if r.activo]
+            if not relaciones_activas:
+                faltantes.append("al menos una materia prima relacionada y activa")
+        return faltantes
 
 
 class Contacto(db.Model):
@@ -154,10 +259,13 @@ class Contacto(db.Model):
     id_contacto = db.Column(db.Integer, primary_key=True, autoincrement=True)
     id_proveedor = db.Column(db.Integer, db.ForeignKey("proveedores.id_proveedor"), nullable=False)
     nombre = db.Column(db.String(150), nullable=False)
+    puesto_area = db.Column(db.String(100))
     telefono = db.Column(db.String(25))
+    whatsapp = db.Column(db.String(25))
     correo = db.Column(db.String(150), nullable=False)
     tipo_contacto = db.Column(db.String(50), nullable=False)
     es_principal = db.Column(db.Boolean, default=False, nullable=False)
+    activo = db.Column(db.Boolean, default=True, nullable=False)
 
 
 class MaestroItem(db.Model):
@@ -186,6 +294,12 @@ class Documento(db.Model):
     tipo_documento = db.Column(db.String(100), nullable=False)
     nombre_original = db.Column(db.String(255), nullable=False)
     nombre_archivo_guardado = db.Column(db.String(255), nullable=False)
+    tamano_bytes = db.Column(db.Integer)
+    usuario = db.Column(db.String(100))
+    vigencia_desde = db.Column(db.Date)
+    vigencia_hasta = db.Column(db.Date)
+    version = db.Column(db.Integer, default=1, nullable=False)
+    activo = db.Column(db.Boolean, default=True, nullable=False)
     fecha_carga = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
 
@@ -195,7 +309,42 @@ class Bitacora(db.Model):
     id_proveedor = db.Column(db.Integer, db.ForeignKey("proveedores.id_proveedor"), nullable=False)
     accion = db.Column(db.String(100), nullable=False)
     descripcion = db.Column(db.String(255), nullable=False)
+    usuario = db.Column(db.String(100))
     fecha = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+
+class ProveedorEvaluacion(db.Model):
+    """Evaluación manual del proveedor (sección 4.8): ponderación configurable, escala 1-5."""
+    __tablename__ = "proveedor_evaluaciones"
+    id_evaluacion = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    id_proveedor = db.Column(db.Integer, db.ForeignKey("proveedores.id_proveedor"), nullable=False)
+    periodo = db.Column(db.String(20), nullable=False)
+    calif_precio = db.Column(db.Numeric(3, 1), nullable=False)
+    calif_calidad = db.Column(db.Numeric(3, 1), nullable=False)
+    calif_entrega = db.Column(db.Numeric(3, 1), nullable=False)
+    calif_atencion = db.Column(db.Numeric(3, 1), nullable=False)
+    ponderacion_precio = db.Column(db.Numeric(5, 2), nullable=False, default=Decimal("25"))
+    ponderacion_calidad = db.Column(db.Numeric(5, 2), nullable=False, default=Decimal("30"))
+    ponderacion_entrega = db.Column(db.Numeric(5, 2), nullable=False, default=Decimal("30"))
+    ponderacion_atencion = db.Column(db.Numeric(5, 2), nullable=False, default=Decimal("15"))
+    comentarios = db.Column(db.String(500))
+    usuario = db.Column(db.String(100), nullable=False)
+    fecha = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    @property
+    def calificacion_final(self):
+        total_ponderacion = (
+            self.ponderacion_precio + self.ponderacion_calidad + self.ponderacion_entrega + self.ponderacion_atencion
+        )
+        if not total_ponderacion:
+            return Decimal("0")
+        suma = (
+            self.calif_precio * self.ponderacion_precio
+            + self.calif_calidad * self.ponderacion_calidad
+            + self.calif_entrega * self.ponderacion_entrega
+            + self.calif_atencion * self.ponderacion_atencion
+        )
+        return (suma / total_ponderacion).quantize(Decimal("0.01"))
 
 
 # ==========================================
@@ -806,7 +955,7 @@ def login_admin():
         password = request.form.get("password") or (request.json.get("password") if request.is_json else None)
 
         admin_usuario = os.environ.get("NYDS_ADMIN_USER", "compras.nyds")
-        admin_password = os.environ.get("NYDS_ADMIN_PASSWORD", "")
+        admin_password = os.environ.get("NYDS_ADMIN_PASSWORD", "nyds2026")
         if usuario == admin_usuario and admin_password and secrets.compare_digest(admin_password, password or ""):
             session["admin_logueado"] = True
             session["usuario"] = usuario
@@ -817,7 +966,7 @@ def login_admin():
 
         if request.is_json:
             return jsonify({"error": "Credenciales incorrectas"}), 401
-        return render_template("login.html", error="Credenciales incorrectas")
+        return render_template("login.html", error="Credenciales incorrectas"), 401
 
     return render_template("login.html")
 
@@ -888,19 +1037,34 @@ def verificar_duplicado():
     if not campo or not valor:
         return jsonify({"existe": False})
 
-    # Portal público: el mensaje es intencionalmente genérico.
+    es_admin = bool(session.get("admin_logueado"))
+    # Portal público: el mensaje es intencionalmente genérico (RN-01 exige revelar
+    # el registro encontrado únicamente en el flujo interno de Compras/Administración).
     mensaje_generico = "Ya se encuentra registrado en el sistema."
 
+    def respuesta_duplicado(proveedor):
+        if es_admin:
+            return jsonify(
+                {
+                    "existe": True,
+                    "mensaje": f"Ya existe un proveedor con el RFC {proveedor.rfc}. Abra el registro existente o verifique la información.",
+                    "id_proveedor": proveedor.id_proveedor,
+                    "codigo_proveedor": proveedor.codigo_proveedor,
+                    "razon_social": proveedor.razon_social,
+                }
+            )
+        return jsonify({"existe": True, "mensaje": mensaje_generico})
+
     if campo == "rfc":
-        val_limpio = valor.upper().replace(" ", "")
+        val_limpio = normalizar_rfc(valor)
         p = Proveedor.query.filter_by(rfc=val_limpio).first()
         if p:
-            return jsonify({"existe": True, "mensaje": mensaje_generico})
+            return respuesta_duplicado(p)
 
     elif campo == "razon_social":
         p = Proveedor.query.filter(func.lower(Proveedor.razon_social) == valor).first()
         if p:
-            return jsonify({"existe": True, "mensaje": mensaje_generico})
+            return respuesta_duplicado(p)
 
     elif campo == "domicilio":
         cp = data.get("codigo_postal", "").strip()
@@ -908,7 +1072,7 @@ def verificar_duplicado():
             db.and_(func.lower(Proveedor.calle_numero) == valor, Proveedor.codigo_postal == cp)
         ).first()
         if p:
-            return jsonify({"existe": True, "mensaje": mensaje_generico})
+            return respuesta_duplicado(p)
 
     return jsonify({"existe": False})
 
@@ -916,93 +1080,185 @@ def verificar_duplicado():
 # ==========================================
 # APIs Generales de Proveedores
 # ==========================================
+def _construir_contactos(nuevo_proveedor, contactos_data):
+    """Crea los contactos de un proveedor aplicando RN-09 (un solo principal activo)."""
+    ya_hay_principal = False
+    contactos_creados = []
+    for c_data in contactos_data or []:
+        if not (c_data.get("nombre") and c_data.get("correo")):
+            continue
+        es_principal_solicitado = bool_value(c_data.get("es_principal"))
+        es_principal_final = es_principal_solicitado and not ya_hay_principal
+        if es_principal_solicitado and ya_hay_principal:
+            es_principal_final = False
+        if es_principal_final:
+            ya_hay_principal = True
+        contacto = Contacto(
+            id_proveedor=nuevo_proveedor.id_proveedor,
+            nombre=c_data["nombre"].strip(),
+            puesto_area=(c_data.get("puesto_area") or "").strip() or None,
+            telefono=(c_data.get("telefono") or "").strip() or None,
+            whatsapp=(c_data.get("whatsapp") or "").strip() or None,
+            correo=c_data["correo"].strip(),
+            tipo_contacto=c_data.get("tipo_contacto", "Principal"),
+            es_principal=es_principal_final,
+            activo=bool_value(c_data.get("activo"), default=True),
+        )
+        db.session.add(contacto)
+        contactos_creados.append(contacto)
+    return contactos_creados
+
+
 @app.route("/api/proveedores", methods=["GET", "POST"])
 def manejar_proveedores():
     if request.method == "GET":
         if not session.get("admin_logueado"):
             return jsonify({"error": "No autorizado"}), 403
         busqueda = request.args.get("q", "").strip()
+        estatus_filtro = request.args.get("estatus", "").strip()
         query = Proveedor.query
         if busqueda:
+            mp_ids_coincidentes = (
+                db.session.query(MateriaPrimaProveedor.id_proveedor)
+                .join(MateriaPrima, MateriaPrimaProveedor.id_mp == MateriaPrima.id_mp)
+                .filter(MateriaPrima.nombre_oficial.ilike(f"%{busqueda}%"))
+            )
             query = query.filter(
                 db.or_(
                     Proveedor.razon_social.ilike(f"%{busqueda}%"),
+                    Proveedor.nombre_comercial.ilike(f"%{busqueda}%"),
                     Proveedor.rfc.ilike(f"%{busqueda}%"),
                     Proveedor.codigo_proveedor.ilike(f"%{busqueda}%"),
+                    Proveedor.id_proveedor.in_(mp_ids_coincidentes),
                 )
             )
+        if estatus_filtro:
+            query = query.filter(Proveedor.estatus == estatus_filtro)
         proveedores = query.order_by(Proveedor.razon_social.asc()).all()
         lista = []
         for p in proveedores:
-            contacto_prin = Contacto.query.filter_by(id_proveedor=p.id_proveedor, es_principal=True).first()
+            contacto_prin = p.contacto_principal()
             lista.append(
                 {
                     "id_proveedor": p.id_proveedor,
                     "codigo_proveedor": p.codigo_proveedor,
                     "razon_social": p.razon_social,
+                    "nombre_comercial": p.nombre_comercial,
                     "rfc": p.rfc,
                     "tipo_proveedor": p.tipo_proveedor,
                     "estatus": p.estatus,
                     "domicilio": f"{p.calle_numero}, Col. {p.colonia}, {p.ciudad}, C.P. {p.codigo_postal}",
                     "contacto": contacto_prin.nombre if contacto_prin else "Sin contacto",
-                    "telefono": contacto_prin.telefono if contacto_prin else "N/A",
+                    "telefono": (contacto_prin.telefono or contacto_prin.whatsapp) if contacto_prin else "N/A",
+                    "materias_primas_relacionadas": len(p.materias_primas),
                 }
             )
         return jsonify(lista), 200
 
     data = request.json or {}
-    rfc_normalizado = data.get("rfc", "").strip().upper().replace(" ", "")
+    rfc_normalizado = normalizar_rfc(data.get("rfc", ""))
 
     if not rfc_normalizado or not data.get("razon_social") or not data.get("codigo_postal"):
-        return jsonify({"error": "Razón social, RFC y código postal son obligatorios."}), 400
+        return jsonify({"error": "Complete los campos obligatorios marcados antes de guardar."}), 400
 
-    if Proveedor.query.filter_by(rfc=rfc_normalizado).first():
-        # No revelar datos del proveedor existente.
+    if not rfc_valido(rfc_normalizado):
+        return jsonify({"error": "El RFC no tiene un formato válido."}), 400
+
+    existente = Proveedor.query.filter_by(rfc=rfc_normalizado).first()
+    if existente:
+        if session.get("admin_logueado"):
+            return jsonify(
+                {
+                    "error": f"Ya existe un proveedor con el RFC {rfc_normalizado}. Abra el registro existente o verifique la información.",
+                    "id_proveedor": existente.id_proveedor,
+                }
+            ), 400
+        # Portal público: no revelar datos del proveedor existente.
         return jsonify({"error": "Ya se encuentra registrado en el sistema."}), 400
 
-    nuevo_codigo = f"PROV-{int(datetime.utcnow().timestamp())}"
-    estatus_inicial = data.get("estatus_inicial", "Pendiente")
+    if data.get("codigo_postal", "").strip() and len(data["codigo_postal"].strip()) != 5:
+        return jsonify({"error": "El código postal fiscal debe tener 5 dígitos."}), 400
+
+    estatus_solicitado = data.get("estatus_inicial") or data.get("estatus") or "Borrador"
+    if estatus_solicitado not in ESTATUS_PROVEEDOR_VALIDOS:
+        estatus_solicitado = "Borrador"
     tiempo_entrega = data.get("tiempo_entrega_normal", data.get("lead_time_habitual", 0))
+    usuario = usuario_actual()
 
     nuevo_proveedor = Proveedor(
-        codigo_proveedor=nuevo_codigo,
+        codigo_proveedor=siguiente_codigo_proveedor(),
         razon_social=data["razon_social"].strip(),
+        nombre_comercial=(data.get("nombre_comercial") or "").strip() or None,
         rfc=rfc_normalizado,
-        tipo_proveedor=data.get("tipo_proveedor", "Materia Prima"),
-        estatus=estatus_inicial,
+        tipo_proveedor=data.get("tipo_proveedor", "Materia prima"),
+        estatus="Borrador",  # se activa más abajo solo si cumple los campos mínimos
+        sitio_web=(data.get("sitio_web") or "").strip() or None,
+        notas_generales=data.get("notas_generales"),
         calle_numero=data.get("calle_numero") or "S/N",
         colonia=data.get("colonia") or "Centro",
         ciudad=data.get("ciudad") or "Cancún",
         estado=data.get("estado") or "Quintana Roo",
         codigo_postal=data["codigo_postal"].strip(),
+        regimen_fiscal=data.get("regimen_fiscal"),
+        correo_facturacion=data.get("correo_facturacion"),
+        forma_pago_habitual=data.get("forma_pago_habitual"),
+        metodo_pago_habitual=data.get("metodo_pago_habitual"),
+        banco=data.get("banco"),
+        beneficiario=data.get("beneficiario"),
+        cuenta_bancaria=data.get("cuenta_bancaria"),
+        clabe=data.get("clabe"),
         condicion_pago=data.get("condicion_pago") or "Contado",
+        dias_credito=int(data.get("dias_credito") or 0),
         tiempo_entrega_normal=decimal_o_none(tiempo_entrega) or Decimal("0"),
+        lead_time_maximo=decimal_o_none(data.get("lead_time_maximo")),
+        politica_flete=data.get("politica_flete"),
+        zona_entrega=data.get("zona_entrega"),
+        horario_atencion=data.get("horario_atencion"),
+        compra_minima_general=decimal_o_none(data.get("compra_minima_general")),
+        moneda_compra_minima=data.get("moneda_compra_minima"),
+        vigencia_cotizacion_dias=int(data["vigencia_cotizacion_dias"]) if data.get("vigencia_cotizacion_dias") else None,
+        creado_por=usuario,
+        actualizado_por=usuario,
     )
     db.session.add(nuevo_proveedor)
     db.session.flush()
 
-    for c_data in data.get("contactos", []):
-        if c_data.get("nombre") and c_data.get("correo"):
-            db.session.add(
-                Contacto(
-                    id_proveedor=nuevo_proveedor.id_proveedor,
-                    nombre=c_data["nombre"].strip(),
-                    telefono=(c_data.get("telefono") or "").strip(),
-                    correo=c_data["correo"].strip(),
-                    tipo_contacto=c_data.get("tipo_contacto", "Comercial"),
-                    es_principal=bool_value(c_data.get("es_principal")),
-                )
-            )
+    _construir_contactos(nuevo_proveedor, data.get("contactos", []))
 
     db.session.add(
         Bitacora(
             id_proveedor=nuevo_proveedor.id_proveedor,
             accion="Alta",
-            descripcion=f"Registro inicial de proveedor ({estatus_inicial})",
+            descripcion="Registro inicial de proveedor (Borrador)",
+            usuario=usuario,
         )
     )
+
+    mensaje_extra = ""
+    if estatus_solicitado == "Activo":
+        faltantes = nuevo_proveedor.campos_minimos_faltantes()
+        if faltantes:
+            mensaje_extra = " Quedó en Borrador: faltan " + ", ".join(faltantes) + "."
+        else:
+            nuevo_proveedor.estatus = "Activo"
+            db.session.add(
+                Bitacora(
+                    id_proveedor=nuevo_proveedor.id_proveedor,
+                    accion="Activación",
+                    descripcion="Proveedor activado en la misma alta",
+                    usuario=usuario,
+                )
+            )
+
     db.session.commit()
-    return jsonify({"mensaje": "Registro de proveedor exitoso", "codigo": nuevo_codigo}), 201
+    return jsonify(
+        {
+            "mensaje": "Registro de proveedor exitoso." + mensaje_extra,
+            "codigo": nuevo_proveedor.codigo_proveedor,
+            "id_proveedor": nuevo_proveedor.id_proveedor,
+            "estatus": nuevo_proveedor.estatus,
+        }
+    ), 201
 
 
 @app.route("/api/proveedores/activos", methods=["GET"])
@@ -1030,20 +1286,116 @@ def cambiar_estatus_proveedor(id_proveedor):
         return jsonify({"error": "Proveedor no encontrado"}), 404
     data = request.json or {}
     nuevo_estatus = data.get("estatus")
+    motivo = (data.get("motivo") or "").strip()
 
     if not nuevo_estatus:
         nuevo_estatus = "Bloqueado" if proveedor.estatus == "Activo" else "Activo"
 
+    if nuevo_estatus not in ESTATUS_PROVEEDOR_VALIDOS:
+        return jsonify({"error": "Estatus no reconocido."}), 400
+
+    if nuevo_estatus == "Bloqueado":
+        if not motivo:
+            return jsonify({"error": "Bloquear un proveedor requiere un motivo."}), 400
+        ordenes_abiertas = OrdenCompra.query.filter(
+            OrdenCompra.proveedor_id == id_proveedor, OrdenCompra.estado.in_(ESTADOS_OC_ABIERTOS)
+        ).count()
+        if ordenes_abiertas:
+            return jsonify(
+                {"error": "Este proveedor tiene órdenes de compra abiertas. Revise las órdenes antes de bloquearlo."}
+            ), 400
+        proveedor.motivo_bloqueo = motivo
+    elif nuevo_estatus == "Activo":
+        # Reactivación o activación de un borrador: exige los campos mínimos (sección 12).
+        faltantes = proveedor.campos_minimos_faltantes()
+        if faltantes:
+            return jsonify(
+                {"error": "Complete los campos obligatorios marcados antes de guardar.", "faltantes": faltantes}
+            ), 400
+        proveedor.motivo_bloqueo = None
+
+    usuario = usuario_actual()
+    estatus_anterior = proveedor.estatus
     proveedor.estatus = nuevo_estatus
+    proveedor.actualizado_por = usuario
     db.session.add(
         Bitacora(
             id_proveedor=id_proveedor,
             accion="Cambio de Estatus",
-            descripcion=f"Estatus actualizado a {nuevo_estatus}",
+            descripcion=f"Estatus actualizado de {estatus_anterior} a {nuevo_estatus}" + (f" — motivo: {motivo}" if motivo else ""),
+            usuario=usuario,
         )
     )
     db.session.commit()
     return jsonify({"mensaje": f"Estatus actualizado a {nuevo_estatus}", "nuevo_estatus": proveedor.estatus}), 200
+
+
+@app.route("/api/proveedores/<int:id_proveedor>/evaluaciones", methods=["GET", "POST"])
+@admin_required_json
+def evaluaciones_proveedor(id_proveedor):
+    proveedor = db.session.get(Proveedor, id_proveedor)
+    if not proveedor:
+        return jsonify({"error": "Proveedor no encontrado"}), 404
+
+    if request.method == "GET":
+        evaluaciones = (
+            ProveedorEvaluacion.query.filter_by(id_proveedor=id_proveedor)
+            .order_by(ProveedorEvaluacion.fecha.desc())
+            .all()
+        )
+        return jsonify(
+            [
+                {
+                    "id_evaluacion": e.id_evaluacion,
+                    "periodo": e.periodo,
+                    "calif_precio": float(e.calif_precio),
+                    "calif_calidad": float(e.calif_calidad),
+                    "calif_entrega": float(e.calif_entrega),
+                    "calif_atencion": float(e.calif_atencion),
+                    "calificacion_final": float(e.calificacion_final),
+                    "comentarios": e.comentarios,
+                    "usuario": e.usuario,
+                    "fecha": e.fecha.strftime("%d/%m/%Y %H:%M"),
+                }
+                for e in evaluaciones
+            ]
+        )
+
+    data = request.json or {}
+    calif_precio = decimal_o_none(data.get("calif_precio"))
+    calif_calidad = decimal_o_none(data.get("calif_calidad"))
+    calif_entrega = decimal_o_none(data.get("calif_entrega"))
+    calif_atencion = decimal_o_none(data.get("calif_atencion"))
+
+    for calif in (calif_precio, calif_calidad, calif_entrega, calif_atencion):
+        if calif is None or calif < 1 or calif > 5:
+            return jsonify({"error": "Cada calificación debe estar entre 1 y 5."}), 400
+
+    evaluacion = ProveedorEvaluacion(
+        id_proveedor=id_proveedor,
+        periodo=(data.get("periodo") or "").strip() or datetime.utcnow().strftime("%Y-%m"),
+        calif_precio=calif_precio,
+        calif_calidad=calif_calidad,
+        calif_entrega=calif_entrega,
+        calif_atencion=calif_atencion,
+        ponderacion_precio=decimal_o_none(data.get("ponderacion_precio")) or Decimal("25"),
+        ponderacion_calidad=decimal_o_none(data.get("ponderacion_calidad")) or Decimal("30"),
+        ponderacion_entrega=decimal_o_none(data.get("ponderacion_entrega")) or Decimal("30"),
+        ponderacion_atencion=decimal_o_none(data.get("ponderacion_atencion")) or Decimal("15"),
+        comentarios=data.get("comentarios"),
+        usuario=usuario_actual(),
+    )
+    db.session.add(evaluacion)
+    db.session.add(
+        Bitacora(
+            id_proveedor=id_proveedor,
+            accion="Evaluación",
+            descripcion=f"Nueva evaluación del periodo {evaluacion.periodo}: {evaluacion.calificacion_final}",
+            usuario=usuario_actual(),
+        )
+    )
+    db.session.commit()
+    return jsonify({"mensaje": "Evaluación registrada", "calificacion_final": float(evaluacion.calificacion_final)}), 201
 
 
 @app.route("/api/proveedores/<int:id_proveedor>/documentos", methods=["GET", "POST"])
@@ -1054,13 +1406,22 @@ def documentos_proveedor(id_proveedor):
         return jsonify({"error": "Proveedor no encontrado"}), 404
 
     if request.method == "GET":
-        docs = Documento.query.filter_by(id_proveedor=id_proveedor).order_by(Documento.fecha_carga.desc()).all()
+        docs = (
+            Documento.query.filter_by(id_proveedor=id_proveedor, activo=True)
+            .order_by(Documento.fecha_carga.desc())
+            .all()
+        )
         return jsonify(
             [
                 {
                     "id_documento": d.id_documento,
                     "tipo_documento": d.tipo_documento,
                     "nombre_original": d.nombre_original,
+                    "tamano_bytes": d.tamano_bytes,
+                    "usuario": d.usuario,
+                    "version": d.version,
+                    "vigencia_desde": d.vigencia_desde.isoformat() if d.vigencia_desde else None,
+                    "vigencia_hasta": d.vigencia_hasta.isoformat() if d.vigencia_hasta else None,
                     "fecha": d.fecha_carga.strftime("%d/%m/%Y %H:%M"),
                     "url_descarga": url_for("descargar_documento_proveedor", id_documento=d.id_documento),
                 }
@@ -1078,17 +1439,38 @@ def documentos_proveedor(id_proveedor):
     nombre_original = archivo.filename
     ext = nombre_original.rsplit(".", 1)[1].lower()
     nombre_guardado = secure_filename(f"prov_{id_proveedor}_{int(datetime.utcnow().timestamp())}_{tipo}.{ext}")
-    archivo.save(os.path.join(UPLOAD_FOLDER, nombre_guardado))
+    ruta_guardado = os.path.join(UPLOAD_FOLDER, nombre_guardado)
+    archivo.save(ruta_guardado)
+    tamano_bytes = os.path.getsize(ruta_guardado)
+    usuario = usuario_actual()
+
+    # Reemplazar por nueva versión sin perder la anterior: el documento previo del
+    # mismo tipo queda inactivo (histórico), nunca se borra.
+    version_nueva = 1
+    anterior_activo = (
+        Documento.query.filter_by(id_proveedor=id_proveedor, tipo_documento=tipo, activo=True)
+        .order_by(Documento.version.desc())
+        .first()
+    )
+    if anterior_activo:
+        version_nueva = (anterior_activo.version or 1) + 1
+        anterior_activo.activo = False
+
     doc = Documento(
         id_proveedor=id_proveedor,
         tipo_documento=tipo,
         nombre_original=nombre_original,
         nombre_archivo_guardado=nombre_guardado,
+        tamano_bytes=tamano_bytes,
+        usuario=usuario,
+        vigencia_desde=fecha_o_none(request.form.get("vigencia_desde")),
+        vigencia_hasta=fecha_o_none(request.form.get("vigencia_hasta")),
+        version=version_nueva,
     )
     db.session.add(doc)
-    db.session.add(Bitacora(id_proveedor=id_proveedor, accion="Documento", descripcion=f"Carga: {tipo}"))
+    db.session.add(Bitacora(id_proveedor=id_proveedor, accion="Documento", descripcion=f"Carga: {tipo} (v{version_nueva})", usuario=usuario))
     db.session.commit()
-    return jsonify({"mensaje": "Documento cargado"}), 201
+    return jsonify({"mensaje": "Documento cargado", "version": version_nueva}), 201
 
 
 @app.route("/api/proveedores/documentos/<int:id_documento>/descargar", methods=["GET"])
@@ -1665,8 +2047,11 @@ def materias_primas_proveedor(id_proveedor):
     }
 
     # Validación/creación replicada para evitar una petición HTTP interna.
-    if proveedor.estatus != "Activo":
-        return jsonify({"error": "El proveedor debe estar Activo"}), 400
+    # Se permite relacionar materias primas mientras el proveedor está en Borrador
+    # (paso previo a la activación, según el flujo de alta); un proveedor Bloqueado
+    # o Inactivo no puede recibir nuevas relaciones (RN-08).
+    if proveedor.estatus not in ("Activo", "Borrador"):
+        return jsonify({"error": "El proveedor debe estar Activo o en Borrador para relacionar materias primas."}), 400
     contenido = decimal_o_none(payload["contenido_presentacion"])
     factor = decimal_o_none(payload["factor_a_unidad_base"])
     precio = decimal_o_none(payload["precio_vigente"])
@@ -1791,6 +2176,7 @@ registrar_operaciones(
 )
 
 with app.app_context():
+    migrar_columnas_faltantes()
     db.create_all()
     sincronizar_proveedores_desde_recetario(RecetaIngrediente)
 

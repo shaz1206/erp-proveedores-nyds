@@ -38,7 +38,7 @@
             formData.append('password', document.getElementById('password').value);
             const response = await fetch('/crm/login', { method: 'POST', body: formData });
             if (response.ok) {
-                window.location.href = '/crm/pedidos';
+                window.location.href = '/crm/tablero';
             } else {
                 const data = await response.json().catch(() => ({}));
                 const errorBox = document.getElementById('crmLoginError');

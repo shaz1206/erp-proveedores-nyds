@@ -1,5 +1,5 @@
 """CRM de pedidos y entregas conectado con inventario y producto terminado."""
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from functools import wraps
 import os
@@ -7,6 +7,38 @@ import secrets
 
 from flask import abort, jsonify, redirect, render_template, request, session, url_for
 from sqlalchemy.exc import IntegrityError
+
+
+DIAS_ES = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
+MESES_ES = [
+    "", "enero", "febrero", "marzo", "abril", "mayo", "junio", "julio",
+    "agosto", "septiembre", "octubre", "noviembre", "diciembre",
+]
+
+
+def fecha_larga_es(dt):
+    """'jueves 17 de septiembre', para encabezados del CRM."""
+    return f"{DIAS_ES[dt.weekday()]} {dt.day} de {MESES_ES[dt.month]}"
+
+
+def hace_texto(dt, ahora=None):
+    """Texto relativo tipo 'hace 3 h' / 'hace 2 días' a partir de una fecha real."""
+    ahora = ahora or datetime.utcnow()
+    segundos = max(0, (ahora - dt).total_seconds())
+    if segundos < 3600:
+        return f"hace {max(1, int(segundos // 60))} min"
+    if segundos < 86400:
+        return f"hace {int(segundos // 3600)} h"
+    dias = int(segundos // 86400)
+    return f"hace {dias} día" + ("" if dias == 1 else "s")
+
+
+def dinero(valor):
+    return "${:,.0f}".format(float(valor or 0))
+
+
+def canal_clase(canal):
+    return {"whatsapp": "wa", "instagram": "ig", "facebook": "fb"}.get((canal or "").strip().lower(), "mn")
 
 
 ESTADOS_PEDIDO = [
@@ -476,8 +508,8 @@ def registrar_crm(app, db, MP, PT, Receta, RecetaIngrediente, MovimientoMP, Ajus
                 session["crm_rol"] = cuenta["rol"]
                 session.permanent = True
                 if request.is_json:
-                    return jsonify({"exito": True, "redirect": "/crm/pedidos", "rol": cuenta["rol"]})
-                return redirect(url_for("crm_pedidos"))
+                    return jsonify({"exito": True, "redirect": "/crm/tablero", "rol": cuenta["rol"]})
+                return redirect(url_for("crm_tablero"))
             if request.is_json:
                 return jsonify({"error": "Credenciales incorrectas"}), 401
             return render_template("crm_login.html", error="Credenciales incorrectas")
@@ -492,7 +524,7 @@ def registrar_crm(app, db, MP, PT, Receta, RecetaIngrediente, MovimientoMP, Ajus
     @app.route("/crm")
     @protegido()
     def crm_inicio():
-        return redirect(url_for("crm_pedidos"))
+        return redirect(url_for("crm_tablero"))
 
     @app.route("/admin/crm/pedidos")
     def crm_admin_redirect():
@@ -817,6 +849,108 @@ def registrar_crm(app, db, MP, PT, Receta, RecetaIngrediente, MovimientoMP, Ajus
         except (ValueError, IntegrityError) as e:
             db.session.rollback()
             return jsonify({"error": str(e) if isinstance(e, ValueError) else "No se pudo registrar la entrega."}), 400
+
+    @app.route("/crm/tablero")
+    @protegido()
+    def crm_tablero():
+        ahora = datetime.utcnow()
+        pedidos = PedidoCRM.query.order_by(PedidoCRM.fecha_actualizacion.desc()).all()
+
+        ordenes_por_pedido = {}
+        for orden in OrdenLlenadoCRM.query.all():
+            ordenes_por_pedido.setdefault(orden.pedido_id, []).append(orden)
+
+        salida_ruta_por_pedido = {}
+        for mov in MovimientoPT.query.filter_by(tipo="Salida a ruta").order_by(MovimientoPT.fecha.asc()).all():
+            if mov.pedido_id:
+                salida_ruta_por_pedido[mov.pedido_id] = mov.fecha
+
+        avatar_clase = {"VN": "av-ventas", "PN": "av-prep", "RN": "av-reparto", "CN": "av-caja"}
+        definicion_columnas = [
+            ("recibido", "Recibido", {"Recibido"}, "VN"),
+            ("confirmado", "Confirmado", {"Confirmado", "Pendiente de pago"}, "VN"),
+            ("preparacion", "En preparación", {"En preparacion", "Pendiente de produccion"}, "PN"),
+            ("listo", "Listo", {"Listo para entrega"}, "PN"),
+            ("ruta", "En ruta", {"En ruta"}, "RN"),
+            ("entregado", "Entregado", {"Entregado", "Cancelado", "Devuelto", "Intento fallido"}, "CN"),
+        ]
+
+        def nota_para(p):
+            if p.estado == "Pendiente de pago":
+                return dinero(p.saldo) + " pendientes de anticipo antes de preparar", False
+            if p.estado == "Pendiente de produccion":
+                return "Insumos insuficientes: no se pudo reservar todo", False
+            if p.estado == "Cancelado":
+                return "Pedido cancelado", True
+            if p.estado == "Devuelto":
+                return "Pedido devuelto", True
+            if p.estado == "Intento fallido":
+                return "Intento de entrega fallido, reprogramar", True
+            return None, False
+
+        columnas = []
+        for clave, etiqueta, estados, avatar in definicion_columnas:
+            tarjetas = []
+            for p in pedidos:
+                if p.estado not in estados:
+                    continue
+                progreso = None
+                if clave in {"confirmado", "preparacion"}:
+                    # El llenado de componentes ocurre mientras el pedido sigue "Confirmado"
+                    # (o ya renombrado a mano a "En preparacion"): no hay un tercer estado
+                    # automatico para eso en el modelo de datos real.
+                    ordenes = ordenes_por_pedido.get(p.id, [])
+                    if ordenes:
+                        completadas = sum(1 for o in ordenes if o.estado == "Completada")
+                        progreso = round(completadas * 100 / len(ordenes))
+                marca_tiempo = salida_ruta_por_pedido.get(p.id) if clave == "ruta" else None
+                nota_texto, nota_alerta = nota_para(p)
+                tarjetas.append({
+                    "id": p.id,
+                    "folio": p.folio,
+                    "cliente": p.cliente.nombre if p.cliente else "Cliente",
+                    "canal": p.canal,
+                    "canal_clase": canal_clase(p.canal),
+                    "total_fmt": dinero(p.importe_total),
+                    "avatar": avatar,
+                    "avatar_clase": avatar_clase[avatar],
+                    "hace": hace_texto(marca_tiempo or p.fecha_actualizacion, ahora),
+                    "progreso": progreso,
+                    "nota": nota_texto,
+                    "nota_alerta": nota_alerta,
+                })
+            columnas.append({
+                "clave": clave,
+                "etiqueta": etiqueta,
+                "tarjetas": tarjetas,
+                "cuenta": len(tarjetas),
+                "total_fmt": dinero(sum(float(p.importe_total or 0) for p in pedidos if p.estado in estados)),
+            })
+
+        activos = [p for p in pedidos if p.estado not in {"Entregado", "Cancelado", "Devuelto"}]
+        nuevos_semana = sum(1 for p in pedidos if p.fecha >= ahora - timedelta(days=7))
+        entregas_hoy = sum(1 for p in pedidos if p.estado == "Entregado" and p.fecha_actualizacion.date() == ahora.date())
+        en_ruta_ahora = sum(1 for p in pedidos if p.estado == "En ruta")
+        pendientes_cobro = [p for p in activos if p.saldo > 0]
+
+        metricas = {
+            "activos": len(activos),
+            "nuevos_semana": nuevos_semana,
+            "valor_gestion_fmt": dinero(sum(float(p.importe_total or 0) for p in activos)),
+            "entregas_hoy": entregas_hoy,
+            "en_ruta_ahora": en_ruta_ahora,
+            "por_cobrar_fmt": dinero(sum(float(p.saldo or 0) for p in pendientes_cobro)),
+            "por_cobrar_cuenta": len(pendientes_cobro),
+        }
+
+        return render_template(
+            "crm_tablero.html",
+            columnas=columnas,
+            metricas=metricas,
+            hoy_es=fecha_larga_es(ahora),
+            nombre_usuario=session.get("crm_nombre") or ("Administrador ERP" if session.get("admin_logueado") else "Equipo NYDS"),
+            rol=rol_crm_actual(),
+        )
 
     return (
         ClienteCRM,
