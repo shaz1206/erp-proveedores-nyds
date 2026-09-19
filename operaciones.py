@@ -1,5 +1,6 @@
 """Panel de salud operativa para validar la columna vertebral ERP/CRM."""
 from collections import defaultdict
+from datetime import datetime, timedelta
 from decimal import Decimal
 from functools import wraps
 
@@ -326,6 +327,8 @@ def registrar_operaciones(
         for tabla in faltantes:
             incidencias.append(incidencia("bloqueo", "Tabla faltante", f"Falta crear la tabla {tabla}. Reinicia la app para ejecutar db.create_all()."))
 
+        hace_semana = datetime.utcnow() - timedelta(days=7)
+
         metricas = {
             "proveedores": contar(Proveedor),
             "materias_primas": contar(MP),
@@ -338,6 +341,13 @@ def registrar_operaciones(
             "reservas_erp": contar(ReservaERP),
             "ordenes_llenado_pendientes": OrdenLlenadoCRM.query.filter_by(estado="Pendiente").count(),
         }
+
+        metricas["proveedores_nuevos"] = Proveedor.query.filter(Proveedor.creado_en >= hace_semana).count()
+        metricas["materias_primas_nuevas"] = MP.query.filter(MP.activo.is_(True), MP.fecha_creacion >= hace_semana).count()
+        metricas["productos_terminados_nuevos"] = PT.query.filter(PT.estatus == "Activo", PT.creado_en >= hace_semana).count()
+        metricas["recetas_nuevas"] = Receta.query.filter(Receta.creado_en >= hace_semana).count()
+        metricas["pedidos_crm_nuevos"] = PedidoCRM.query.filter(PedidoCRM.fecha >= hace_semana).count()
+        metricas["llenados_nuevos"] = OrdenLlenadoCRM.query.filter(OrdenLlenadoCRM.fecha >= hace_semana).count()
 
         if metricas["materias_primas"] == 0:
             incidencias.append(incidencia("info", "Materias primas pendientes", "Todavia no hay catalogo maestro cargado. Esto no bloquea el desarrollo estructural."))

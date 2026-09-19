@@ -21,8 +21,14 @@
         .tab-head{padding:22px 30px 18px;display:flex;align-items:flex-end;justify-content:space-between;gap:20px;border-bottom:1px solid #e9edf1;background:#fff;flex-wrap:wrap}
         .tab-head h1{margin:5px 0 0;font-size:25px;font-weight:800;color:var(--nyds-midnight)}
         .tab-metrics{display:flex;gap:12px;padding:18px 30px 4px;flex-wrap:wrap}
-        .metric{background:#fff;border:1px solid #e4e9f1;border-radius:12px;padding:14px 16px;box-shadow:0 3px 12px rgba(19,36,65,.03);flex:1;min-width:150px}
+        .metric{position:relative;background:#fff;border:1px solid #e4e9f1;border-radius:12px;padding:14px 16px;box-shadow:0 3px 12px rgba(19,36,65,.03);flex:1;min-width:150px}
+        .metric-dot{position:absolute;top:15px;right:14px;width:10px;height:10px;border-radius:50%}
+        .metric-dot.dot-verde{background:#b6ecc9}
+        .metric-dot.dot-amarillo{background:#ffe8a3}
+        .metric-dot.dot-rojo{background:#f6b8c4}
+        .metric-dot.dot-azul{background:#bcd4f6}
         .metric span{display:block;color:#607086;font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em}
+        .metric .metric-label{padding-right:16px}
         .metric strong{display:block;color:var(--nyds-midnight);font-size:1.3rem;line-height:1.15;margin-top:6px;font-variant-numeric:tabular-nums}
         .metric small{display:block;color:var(--nyds-lapis);font-weight:700;margin-top:4px;font-size:11.5px}
         .tab-board{flex:1;display:flex;gap:14px;padding:16px 30px 26px;overflow-x:auto}
@@ -62,27 +68,27 @@
     <div class="tab-side">
         <div class="tab-logo"><img src="{{ url_for('static', filename='nyds-logo.png') }}" alt="NYDS"></div>
         <div class="tab-side-kicker">CRM de pedidos</div>
-        <a class="sidenav" href="/crm/pedidos">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-            Clientes
-        </a>
         <a class="sidenav sidenav-active" href="/crm/tablero" aria-current="page">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
             Tablero
+        </a>
+        <a class="sidenav" href="/crm/clientes">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            Clientes
         </a>
         <a class="sidenav" href="/crm/pedidos">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg>
             Pedidos
         </a>
-        <a class="sidenav" href="/crm/pedidos">
+        <a class="sidenav" href="/crm/rutas">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg>
             Ruta
         </a>
-        <a class="sidenav" href="/crm/pedidos">
+        <a class="sidenav" href="/crm/pagos">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
             Pagos
         </a>
-        <a class="sidenav" href="/crm/pedidos">
+        <a class="sidenav" href="/crm/reportes">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg>
             Reportes
         </a>
@@ -108,7 +114,8 @@
 
         <div class="tab-metrics">
             <div class="metric">
-                <span>Pedidos activos</span>
+                <span class="metric-dot {{ 'dot-verde' if metricas.nuevos_semana > 0 else 'dot-amarillo' }}"></span>
+                <span class="metric-label">Pedidos activos</span>
                 <strong>{{ metricas.activos }}</strong>
                 {% if metricas.nuevos_semana > 0 %}
                 <small>+{{ metricas.nuevos_semana }} esta semana</small>
@@ -117,17 +124,20 @@
                 {% endif %}
             </div>
             <div class="metric">
-                <span>Valor en gesti&oacute;n</span>
+                <span class="metric-dot dot-azul"></span>
+                <span class="metric-label">Valor en gesti&oacute;n</span>
                 <strong>{{ metricas.valor_gestion_fmt }}</strong>
                 <small>MXN</small>
             </div>
             <div class="metric">
-                <span>Entregas de hoy</span>
+                <span class="metric-dot {{ 'dot-verde' if metricas.entregas_hoy > 0 else 'dot-amarillo' }}"></span>
+                <span class="metric-label">Entregas de hoy</span>
                 <strong>{{ metricas.entregas_hoy }}</strong>
                 <small>{{ metricas.en_ruta_ahora }} en ruta ahora</small>
             </div>
             <div class="metric">
-                <span>Por cobrar</span>
+                <span class="metric-dot {{ 'dot-rojo' if metricas.por_cobrar_cuenta > 0 else 'dot-verde' }}"></span>
+                <span class="metric-label">Por cobrar</span>
                 <strong>{{ metricas.por_cobrar_fmt }}</strong>
                 {% if metricas.por_cobrar_cuenta > 0 %}
                 <small style="color:#a82a48">{{ metricas.por_cobrar_cuenta }} pedido(s)</small>

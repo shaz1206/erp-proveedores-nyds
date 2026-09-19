@@ -6,6 +6,7 @@
 {% set es_entregados = request.path.startswith('/admin/productos-entregados') %}
 {% set es_operaciones = request.path.startswith('/admin/operaciones') %}
 {% set es_ciclo_pedido = request.path.startswith('/admin/operaciones/ciclo-pedido') %}
+{% set es_personas = request.path.startswith('/admin/personas') %}
 <script>
 (function () {
     document.body.classList.add('has-app-sidebar');
@@ -32,6 +33,7 @@
         <a href="/admin/compras" {% if es_compras %}aria-current="page"{% endif %}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h15l-1.5 9h-12z"/><circle cx="9" cy="20" r="1"/><circle cx="18" cy="20" r="1"/><path d="M2 3h3l1 3"/></svg>Compras</a>
         <a href="/admin/inventario-mp" {% if es_inventario %}aria-current="page"{% endif %}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7l9-4 9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/></svg>Inventario MP</a>
         <a href="/admin/productos-entregados" {% if es_entregados %}aria-current="page"{% endif %}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg>Entregados</a>
+        <a href="/admin/personas" {% if es_personas %}aria-current="page"{% endif %}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Personas</a>
         <a href="/logout" class="app-sidebar-logout"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4H4v16h5m5-13 5 5-5 5m-6-5h11"/></svg>Salir</a>
     </nav>
     <button type="button" class="app-sidebar-toggle" onclick="nydsAlternarMenu()" aria-label="Ocultar menú">
@@ -43,7 +45,7 @@
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
 </button>
 <div class="erp-toolbar">
-    <span class="erp-context">Administración / {{ 'Operaciones / Ciclo de vida del pedido' if es_ciclo_pedido else 'Operaciones' if es_operaciones else 'Productos entregados' if es_entregados else 'Recetas' if es_recetas else 'Compras' if es_compras else 'Inventario MP' if es_inventario else 'Materias primas' if es_mp else 'Producto terminado' if es_pt else 'Proveedores' }}</span>
+    <span class="erp-context">Administración / {{ 'Operaciones / Ciclo de vida del pedido' if es_ciclo_pedido else 'Operaciones' if es_operaciones else 'Personas' if es_personas else 'Productos entregados' if es_entregados else 'Recetas' if es_recetas else 'Compras' if es_compras else 'Inventario MP' if es_inventario else 'Materias primas' if es_mp else 'Producto terminado' if es_pt else 'Proveedores' }}</span>
     <a href="/crm/tablero" class="btn btn-outline-secondary btn-sm">Abrir CRM</a>
     {% if es_ciclo_pedido %}
     <a href="/admin/operaciones" class="btn btn-outline-secondary btn-sm">← Operaciones</a><a href="/api/operaciones/salud" class="btn btn-outline-secondary btn-sm">Diagnostico JSON</a>

@@ -1,0 +1,216 @@
+<style>
+    .nyds-modal-backdrop{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(19,36,65,.52);z-index:1050;padding:24px}
+    .nyds-modal-backdrop[data-open="true"]{display:flex}
+    .nyds-modal{width:min(520px,100%);background:#fff;border:1px solid #d9e3e8;border-radius:16px;box-shadow:0 24px 70px rgba(19,36,65,.28);overflow:hidden}
+    .nyds-modal-header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:20px 22px;border-bottom:1px solid #edf2f5;background:#132441;color:#fff}
+    .nyds-modal-header h5{color:#fff;margin:0;font-size:1rem}.nyds-modal-header small{display:block;color:#b8cbe4;margin-top:4px}
+    .nyds-modal-body{padding:22px}.nyds-modal-actions{display:flex;justify-content:flex-end;gap:10px;padding:0 22px 22px}
+    .nyds-toast{position:fixed;right:24px;bottom:24px;z-index:1060;display:none;max-width:420px;border-radius:14px;padding:14px 16px;background:#132441;color:#fff;box-shadow:0 18px 45px rgba(19,36,65,.22)}
+    .nyds-toast[data-open="true"]{display:block}.nyds-toast[data-kind="error"]{background:#97334c}.nyds-toast[data-kind="success"]{background:#286a4e}
+    #nydsPromptBackdrop{z-index:1080}
+</style>
+<div class="nyds-modal-backdrop" id="nydsModalBackdrop" aria-hidden="true">
+    <div class="nyds-modal" role="dialog" aria-modal="true" aria-labelledby="nydsModalTitle">
+        <div class="nyds-modal-header">
+            <div>
+                <h5 id="nydsModalTitle">Acción</h5>
+                <small id="nydsModalSubtitle"></small>
+            </div>
+            <button class="btn btn-outline-light btn-sm" type="button" id="nydsModalClose">Cerrar</button>
+        </div>
+        <form id="nydsModalForm">
+            <div class="nyds-modal-body" id="nydsModalFields"></div>
+            <div class="nyds-modal-actions">
+                <button class="btn btn-outline-secondary" type="button" id="nydsModalCancel">Cancelar</button>
+                <button class="btn btn-primary" type="submit" id="nydsModalSubmit">Guardar</button>
+            </div>
+        </form>
+    </div>
+</div>
+<div class="nyds-toast" id="nydsToast" role="status"></div>
+<div class="nyds-modal-backdrop" id="nydsPromptBackdrop" aria-hidden="true">
+    <div class="nyds-modal" style="width:min(420px,100%)" role="dialog" aria-modal="true" aria-labelledby="nydsPromptTitle">
+        <div class="nyds-modal-header">
+            <div><h5 id="nydsPromptTitle">Nuevo valor</h5></div>
+        </div>
+        <form id="nydsPromptForm">
+            <div class="nyds-modal-body">
+                <label class="form-label" id="nydsPromptLabel" for="nydsPromptInput"></label>
+                <input class="form-control" id="nydsPromptInput" name="valor" required>
+            </div>
+            <div class="nyds-modal-actions">
+                <button class="btn btn-outline-secondary" type="button" id="nydsPromptCancel">Cancelar</button>
+                <button class="btn btn-primary" type="submit">Aceptar</button>
+            </div>
+        </form>
+    </div>
+</div>
+<script>
+    const modalBackdrop = document.getElementById('nydsModalBackdrop');
+    const modalTitle = document.getElementById('nydsModalTitle');
+    const modalSubtitle = document.getElementById('nydsModalSubtitle');
+    const modalFields = document.getElementById('nydsModalFields');
+    const modalForm = document.getElementById('nydsModalForm');
+    const modalSubmit = document.getElementById('nydsModalSubmit');
+    const modalCancel = document.getElementById('nydsModalCancel');
+    const modalClose = document.getElementById('nydsModalClose');
+    const toast = document.getElementById('nydsToast');
+    const promptBackdrop = document.getElementById('nydsPromptBackdrop');
+    const promptTitle = document.getElementById('nydsPromptTitle');
+    const promptLabel = document.getElementById('nydsPromptLabel');
+    const promptInput = document.getElementById('nydsPromptInput');
+    const promptForm = document.getElementById('nydsPromptForm');
+    const promptCancel = document.getElementById('nydsPromptCancel');
+    let modalResolver = null;
+    let promptResolver = null;
+
+    function closePrompt(result = null) {
+        promptBackdrop.dataset.open = 'false';
+        promptBackdrop.setAttribute('aria-hidden', 'true');
+        if (promptResolver) {
+            promptResolver(result);
+            promptResolver = null;
+        }
+    }
+
+    function promptModal(title, label, value = '') {
+        promptTitle.textContent = title;
+        promptLabel.textContent = label;
+        promptInput.value = value;
+        promptBackdrop.dataset.open = 'true';
+        promptBackdrop.setAttribute('aria-hidden', 'false');
+        window.setTimeout(() => promptInput.focus(), 0);
+        return new Promise((resolve) => { promptResolver = resolve; });
+    }
+
+    promptCancel.addEventListener('click', () => closePrompt(null));
+    promptBackdrop.addEventListener('click', (event) => {
+        if (event.target === promptBackdrop) closePrompt(null);
+    });
+    promptForm.addEventListener('submit', (event) => {
+        event.preventDefault();
+        closePrompt(promptInput.value);
+    });
+
+    function token(prefix) {
+        return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    }
+
+    async function jsonFetch(url, options = {}) {
+        const response = await fetch(url, {
+            ...options,
+            headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            throw new Error(data.error || 'No se pudo completar la acción.');
+        }
+        return data;
+    }
+
+    function showToast(message, kind = 'error') {
+        toast.textContent = message;
+        toast.dataset.kind = kind;
+        toast.dataset.open = 'true';
+        window.setTimeout(() => { toast.dataset.open = 'false'; }, 4200);
+    }
+
+    function closeModal(result = null) {
+        modalBackdrop.dataset.open = 'false';
+        modalBackdrop.setAttribute('aria-hidden', 'true');
+        if (modalResolver) {
+            modalResolver(result);
+            modalResolver = null;
+        }
+    }
+
+    function openModal({ title, subtitle = '', submitText = 'Guardar', fields = [], onFieldChange = null }) {
+        modalTitle.textContent = title;
+        modalSubtitle.textContent = subtitle;
+        modalSubmit.textContent = submitText;
+        modalFields.innerHTML = fields.map((field) => {
+            const value = field.value || '';
+            const required = field.required ? 'required' : '';
+            const step = field.step ? `step="${field.step}"` : '';
+            const min = field.min !== undefined ? `min="${field.min}"` : '';
+            const max = field.max !== undefined ? `max="${field.max}"` : '';
+            const showIfAttrs = field.showIf ? `data-show-if-field="${field.showIf.field}" data-show-if-equals="${field.showIf.equals}"` : '';
+            let control;
+            if (field.type === 'textarea') {
+                control = `<textarea class="form-control" name="${field.name}" rows="${field.rows || 3}" ${required}>${value}</textarea>`;
+            } else if (field.type === 'select') {
+                const opciones = field.optionsMap
+                    ? field.optionsMap.map(o => `<option value="${o.value}" ${String(o.value) === value ? 'selected' : ''}>${o.label}</option>`).join('')
+                    : field.options.map(option => `<option ${option === value ? 'selected' : ''}>${option}</option>`).join('');
+                control = `<select class="form-select" name="${field.name}" ${required}>${opciones}</select>`;
+            } else {
+                control = `<input class="form-control" type="${field.type || 'text'}" name="${field.name}" value="${value}" ${required} ${step} ${min} ${max}>`;
+            }
+            return `<div class="mb-3" ${showIfAttrs}><label class="form-label">${field.label}</label>${control}</div>`;
+        }).join('');
+
+        function actualizarVisibilidad() {
+            modalFields.querySelectorAll('[data-show-if-field]').forEach((contenedor) => {
+                const control = modalFields.querySelector(`[name="${contenedor.dataset.showIfField}"]`);
+                const visible = !!control && control.value === contenedor.dataset.showIfEquals;
+                contenedor.style.display = visible ? '' : 'none';
+                contenedor.querySelectorAll('input, select, textarea').forEach((el) => { el.disabled = !visible; });
+            });
+        }
+        actualizarVisibilidad();
+        modalFields.querySelectorAll('select, input').forEach((el) => {
+            el.addEventListener('change', (event) => {
+                actualizarVisibilidad();
+                if (onFieldChange) onFieldChange(event.target.name, event.target.value, modalFields);
+            });
+        });
+
+        modalBackdrop.dataset.open = 'true';
+        modalBackdrop.setAttribute('aria-hidden', 'false');
+        const firstInput = modalFields.querySelector('input, select, textarea');
+        if (firstInput) firstInput.focus();
+        return new Promise((resolve) => { modalResolver = resolve; });
+    }
+
+    async function opcionesCategoriasTrueque() {
+        const categorias = await jsonFetch('/api/crm/categorias-trueque');
+        return [
+            { value: '', label: 'Selecciona un giro...' },
+            ...categorias.map(c => ({ value: String(c.id), label: c.nombre })),
+            { value: '__nueva__', label: '+ Nuevo giro...' },
+        ];
+    }
+
+    async function alManejarNuevaCategoriaTrueque(name, value, formEl) {
+        if (name !== 'categoria_trueque_id' && name !== 'categoria_id') return;
+        if (value !== '__nueva__') return;
+        const select = formEl.querySelector(`[name="${name}"]`);
+        const nombre = ((await promptModal('Nuevo giro de intercambio', 'Nombre del giro (ej. Restaurante, Mecanico)')) || '').trim();
+        if (!nombre) {
+            select.value = '';
+            return;
+        }
+        try {
+            const nueva = await jsonFetch('/api/crm/categorias-trueque', { method: 'POST', body: JSON.stringify({ nombre }) });
+            const opcion = document.createElement('option');
+            opcion.value = String(nueva.id);
+            opcion.textContent = nueva.nombre;
+            select.insertBefore(opcion, select.lastElementChild);
+            select.value = String(nueva.id);
+        } catch (error) {
+            showToast(error.message);
+            select.value = '';
+        }
+    }
+
+    modalCancel.addEventListener('click', () => closeModal(null));
+    modalClose.addEventListener('click', () => closeModal(null));
+    modalBackdrop.addEventListener('click', (event) => {
+        if (event.target === modalBackdrop) closeModal(null);
+    });
+    modalForm.addEventListener('submit', (event) => {
+        event.preventDefault();
+        const data = Object.fromEntries(new FormData(modalForm).entries());
+        closeModal(data);
+    });
+</script>

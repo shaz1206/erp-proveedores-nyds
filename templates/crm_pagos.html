@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <title>Pagos - CRM NYDS</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20260919-crm') }}">
+</head>
+<body class="bg-light">
+    {% include 'crm_header.html' %}
+    <main class="container-fluid px-4 mb-5">
+        <div class="mb-4">
+            <h2>Pagos</h2>
+            <p class="text-muted mb-0">Historial de cobros registrados en los pedidos y movimientos de crédito por trueque.</p>
+        </div>
+
+        <div class="row g-3 mb-4">
+            {% for metodo, datos in total_por_metodo.items() %}
+            <div class="col-md-3 col-sm-6">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <div class="text-muted small text-uppercase fw-semibold">{{ metodo }}</div>
+                        <div class="fs-4 fw-bold">${{ '%.2f' | format(datos.total) }}</div>
+                        <div class="text-muted small">{{ datos.cantidad }} pago(s)</div>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="col-12"><div class="alert alert-secondary mb-0">Aún no hay pagos registrados.</div></div>
+            {% endfor %}
+        </div>
+
+        <section class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Pagos recientes</h5>
+                <span class="badge bg-primary">{{ pagos | length }} pago(s)</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Pedido</th>
+                            <th>Cliente</th>
+                            <th>Monto</th>
+                            <th>Método</th>
+                            <th>Detalle trueque</th>
+                            <th>Referencia</th>
+                            <th>Usuario</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for pago in pagos %}
+                        <tr>
+                            <td>{{ pago.fecha.strftime('%d/%m/%Y %H:%M') }}</td>
+                            <td>{{ pago.pedido.folio if pago.pedido else '—' }}</td>
+                            <td>{{ pago.pedido.cliente.nombre if pago.pedido and pago.pedido.cliente else '—' }}</td>
+                            <td>${{ '%.2f' | format(pago.monto) }}</td>
+                            <td><span class="badge {{ 'bg-success' if pago.metodo == 'Trueque' else 'bg-secondary' }}">{{ pago.metodo }}</span></td>
+                            <td>{% if pago.metodo == 'Trueque' %}{{ pago.categoria_trueque.nombre if pago.categoria_trueque else '—' }} · {{ pago.porcentaje_trueque }}%{% else %}—{% endif %}</td>
+                            <td>{{ pago.referencia }}</td>
+                            <td class="text-muted">{{ pago.usuario }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="8" class="text-center py-5">
+                                <strong>Aún no hay pagos registrados</strong>
+                                <p class="text-muted mt-2 mb-0">Los pagos se capturan desde el detalle de cada pedido.</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Movimientos de trueque</h5>
+                <span class="badge bg-primary">{{ trueque_movimientos | length }} movimiento(s)</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Cliente</th>
+                            <th>Giro</th>
+                            <th>Tipo</th>
+                            <th>Monto</th>
+                            <th>Pedido</th>
+                            <th>Descripción</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for mov in trueque_movimientos %}
+                        <tr>
+                            <td>{{ mov.fecha.strftime('%d/%m/%Y %H:%M') }}</td>
+                            <td>{{ mov.cliente.nombre if mov.cliente else '—' }}</td>
+                            <td>{{ mov.categoria.nombre if mov.categoria else '—' }}</td>
+                            <td><span class="badge {{ 'bg-success' if mov.tipo == 'credito' else 'bg-warning text-dark' }}">{{ 'Crédito generado' if mov.tipo == 'credito' else 'Crédito consumido' }}</span></td>
+                            <td>${{ '%.2f' | format(mov.monto) }}</td>
+                            <td>{{ mov.pedido.folio if mov.pedido else '—' }}</td>
+                            <td class="text-muted">{{ mov.descripcion }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="7" class="text-center py-5">
+                                <strong>Aún no hay movimientos de trueque</strong>
+                                <p class="text-muted mt-2 mb-0">Se generan desde Clientes o al pagar un pedido con Trueque.</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+</body>
+</html>

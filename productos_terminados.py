@@ -1,4 +1,5 @@
 """Catálogo de producto terminado, integrado con la sesión del ERP."""
+from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from io import BytesIO
 
@@ -25,6 +26,7 @@ def registrar_productos_terminados(app, db):
         puntos_venta = db.Column(db.JSON, nullable=False, default=list)
         imagen = db.Column(db.LargeBinary)
         imagen_tipo = db.Column(db.String(30))
+        creado_en = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     puntos = ['Ruta', 'Vendss Clean', 'Arpelab', 'Vending']
     estados = ['Borrador', 'Activo', 'Inactivo']
@@ -125,6 +127,15 @@ def registrar_productos_terminados(app, db):
         categorias = [c[0] for c in db.session.query(ProductoTerminado.categoria).distinct().order_by(ProductoTerminado.categoria)]
         return render_template('producto_terminado_form.html', producto=producto, valores=valores,
             errores=errores, puntos=puntos, estados=estados, biodegradabilidad=biodegradabilidad, categorias=categorias), (400 if errores else 200)
+
+    @app.route('/admin/productos-terminados/<int:id_producto>/ver')
+    def ver_producto_terminado(id_producto):
+        if not autorizado():
+            return redirect(url_for('login_admin'))
+        producto = db.session.get(ProductoTerminado, id_producto)
+        if not producto:
+            abort(404)
+        return render_template('producto_terminado_detalle.html', producto=producto)
 
     @app.route('/admin/productos-terminados/<int:id_producto>/imagen')
     def imagen_producto_terminado(id_producto):

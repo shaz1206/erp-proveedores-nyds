@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <title>Hoja de ruta - CRM NYDS</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20260918-rutas') }}">
+    <style>
+        .ruta-zona{margin-bottom:26px}
+        .ruta-zona-titulo{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+        .ruta-zona-titulo b{font-size:1.02rem;color:var(--nyds-midnight)}
+        .ruta-zona-titulo .badge{background:var(--nyds-lapis)}
+        .ruta-card{background:#fff;border:1px solid #e4e9f1;border-radius:14px;padding:14px 16px;margin-bottom:10px;box-shadow:0 3px 10px rgba(19,36,65,.04);display:grid;grid-template-columns:1fr auto;gap:6px 16px}
+        .ruta-card .folio{font-size:11px;font-weight:800;color:var(--nyds-lapis);text-transform:uppercase;letter-spacing:.04em}
+        .ruta-card .cliente{font-weight:700;color:var(--nyds-midnight);font-size:14px}
+        .ruta-card .direccion{color:#455774;font-size:13px;grid-column:1/2}
+        .ruta-card .telefono{color:#607086;font-size:12.5px}
+        .ruta-card .saldo{text-align:right;font-weight:800;color:var(--nyds-midnight);font-variant-numeric:tabular-nums}
+        .ruta-card .salio{text-align:right;color:#8496a6;font-size:11.5px}
+        @media print{
+            body.has-app-sidebar{padding-left:0!important}
+            .app-sidebar,.app-sidebar-reopen,.erp-toolbar,.no-imprimir{display:none!important}
+            .ruta-card{box-shadow:none;break-inside:avoid}
+        }
+    </style>
+</head>
+<body class="bg-light">
+    {% include 'crm_header.html' %}
+    <main class="container-fluid px-4 mb-5">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4 no-imprimir">
+            <div>
+                <h2>Hoja de ruta</h2>
+                <p class="text-muted mb-0">{{ hoy_es }} &middot; {{ total }} pedido(s) en ruta ahora.</p>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="/crm/rutas/pdf" target="_blank" class="btn btn-outline-secondary">&#8681; Descargar PDF</a>
+                <button type="button" class="btn btn-primary" onclick="window.print()">&#128424; Imprimir</button>
+            </div>
+        </div>
+        {% for grupo in grupos %}
+        <div class="ruta-zona">
+            <div class="ruta-zona-titulo"><b>Zona: {{ grupo.zona }}</b><span class="badge">{{ grupo.filas | length }}</span></div>
+            {% for fila in grupo.filas %}
+            {% set pedido = fila.pedido %}
+            <div class="ruta-card">
+                <div>
+                    <span class="folio">{{ pedido.folio }}</span>
+                    <div class="cliente">{{ pedido.cliente.nombre if pedido.cliente else 'Cliente' }}</div>
+                </div>
+                <div class="saldo">{{ '${:,.0f}'.format(pedido.saldo | float) }}</div>
+                <div class="direccion">{{ pedido.domicilio.direccion if pedido.domicilio else 'Sin dirección' }}{% if pedido.domicilio and pedido.domicilio.referencias %} &middot; {{ pedido.domicilio.referencias }}{% endif %}</div>
+                <div class="salio">{% if fila.salida %}Salió {{ fila.salida.strftime('%d/%m %H:%M') }}{% else %}Sin registro de salida{% endif %}</div>
+                <div class="telefono">{{ pedido.cliente.telefono if pedido.cliente else '' }}</div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center text-muted py-5">
+            <strong>No hay pedidos en ruta en este momento.</strong>
+            <p class="mt-2 mb-0">Cuando reparto marque un pedido como "En ruta" aparecer&aacute; aqu&iacute; agrupado por zona.</p>
+        </div>
+        {% endfor %}
+    </main>
+</body>
+</html>

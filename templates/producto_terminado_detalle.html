@@ -1,0 +1,50 @@
+{% extends 'productos_terminados_base.html' %}
+{% block contenido %}
+<div class="d-flex justify-content-between flex-wrap gap-2 mb-3">
+    <h3>{{ producto.nombre }}</h3>
+    <div class="d-flex gap-2">
+        <a class="btn btn-outline-secondary" href="/admin/productos-terminados">Volver al catálogo</a>
+        <a class="btn btn-primary" href="{{ url_for('formulario_producto_terminado', id_producto=producto.id) }}">Editar</a>
+    </div>
+</div>
+<div class="card border-0 shadow-sm pt-form">
+    <div class="card-body p-4">
+        <div class="row g-4">
+            <div class="col-md-3 text-center">
+                {% if producto.imagen %}
+                <img class="img-fluid rounded" style="max-height:220px;object-fit:contain" src="{{ url_for('imagen_producto_terminado', id_producto=producto.id) }}" alt="Imagen de {{ producto.nombre }}">
+                {% else %}
+                <div class="d-flex align-items-center justify-content-center rounded bg-light text-muted" style="height:180px">Sin imagen</div>
+                {% endif %}
+            </div>
+            <div class="col-md-9">
+                <div class="row g-3">
+                    <div class="col-md-3"><small class="text-muted d-block">SKU</small><strong>{{ producto.sku }}</strong></div>
+                    <div class="col-md-5"><small class="text-muted d-block">Categoría</small><strong>{{ producto.categoria }}</strong></div>
+                    <div class="col-md-4"><small class="text-muted d-block">Estatus</small><span class="badge {{ 'bg-success' if producto.estatus == 'Activo' else 'bg-secondary' if producto.estatus == 'Inactivo' else 'bg-warning text-dark' }}">{{ producto.estatus }}</span></div>
+                    <div class="col-md-4"><small class="text-muted d-block">Mínimo stock</small><strong>{{ producto.stock_minimo | float }}</strong></div>
+                </div>
+            </div>
+        </div>
+
+        <h5 class="pt-section"><span>♧</span>Características físicas</h5>
+        <div class="row g-3">
+            <div class="col-md-3"><small class="text-muted d-block">Color</small>{{ producto.color or '—' }}</div>
+            <div class="col-md-3"><small class="text-muted d-block">Olor</small>{{ producto.olor or '—' }}</div>
+            <div class="col-md-3"><small class="text-muted d-block">Viscosidad</small>{{ producto.viscosidad or '—' }}</div>
+            <div class="col-md-3"><small class="text-muted d-block">PPM</small>{{ producto.ppm | float if producto.ppm is not none else '—' }}</div>
+            <div class="col-md-4"><small class="text-muted d-block">Biodegradabilidad</small>{{ producto.biodegradabilidad or '—' }}</div>
+            <div class="col-md-8"><small class="text-muted d-block">Forma de uso</small>{{ producto.forma_uso or '—' }}</div>
+        </div>
+
+        <h5 class="pt-section"><span>▤</span>Puntos de venta</h5>
+        {% if producto.puntos_venta %}
+        <div class="d-flex flex-wrap gap-2">
+            {% for punto in producto.puntos_venta %}<span class="badge bg-primary">{{ punto }}</span>{% endfor %}
+        </div>
+        {% else %}
+        <p class="text-muted mb-0">Sin puntos de venta asignados.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

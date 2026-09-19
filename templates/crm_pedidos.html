@@ -6,16 +6,6 @@
     <title>CRM de pedidos - NYDS</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20260914-crm') }}">
-    <style>
-        .nyds-modal-backdrop{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(19,36,65,.52);z-index:1050;padding:24px}
-        .nyds-modal-backdrop[data-open="true"]{display:flex}
-        .nyds-modal{width:min(520px,100%);background:#fff;border:1px solid #d9e3e8;border-radius:16px;box-shadow:0 24px 70px rgba(19,36,65,.28);overflow:hidden}
-        .nyds-modal-header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:20px 22px;border-bottom:1px solid #edf2f5;background:#132441;color:#fff}
-        .nyds-modal-header h5{color:#fff;margin:0;font-size:1rem}.nyds-modal-header small{display:block;color:#b8cbe4;margin-top:4px}
-        .nyds-modal-body{padding:22px}.nyds-modal-actions{display:flex;justify-content:flex-end;gap:10px;padding:0 22px 22px}
-        .nyds-toast{position:fixed;right:24px;bottom:24px;z-index:1060;display:none;max-width:420px;border-radius:14px;padding:14px 16px;background:#132441;color:#fff;box-shadow:0 18px 45px rgba(19,36,65,.22)}
-        .nyds-toast[data-open="true"]{display:block}.nyds-toast[data-kind="error"]{background:#97334c}.nyds-toast[data-kind="success"]{background:#286a4e}
-    </style>
 </head>
 <body class="bg-light">
     {% include 'crm_header.html' %}
@@ -64,6 +54,7 @@
                                     <option>Transferencia</option>
                                     <option>Efectivo</option>
                                     <option>Tarjeta</option>
+                                    <option>Trueque</option>
                                 </select>
                             </div>
                             <div class="col-md-5">
@@ -122,7 +113,7 @@
                                 {% for p in pedidos %}
                                 <tr id="pedido-{{ p.id }}">
                                     <td><strong>{{ p.folio }}</strong><div class="text-muted small">{{ p.canal }}</div></td>
-                                    <td>{{ p.cliente.nombre }}<div class="text-muted small">{{ p.cliente.telefono }}</div></td>
+                                    <td>{{ p.cliente.nombre }}<div class="text-muted small">{{ p.cliente.telefono }}</div>{% if saldos_trueque.get(p.cliente_id, 0) > 0 %}<div class="text-muted small">Trueque a favor: ${{ '%.2f' | format(saldos_trueque.get(p.cliente_id, 0)) }}</div>{% endif %}</td>
                                     <td><span class="badge {{ 'bg-success' if p.estado == 'Entregado' else 'bg-warning text-dark' if p.estado in ['Pendiente de pago','Pendiente de produccion','Intento fallido'] else 'bg-primary' if p.estado in ['Confirmado','En ruta'] else 'bg-secondary' }}">{{ p.estado }}</span></td>
                                     <td>
                                         {% for l in p.lineas %}
@@ -138,7 +129,10 @@
                                             <button class="btn btn-outline-primary btn-sm" data-action="confirmar" data-pedido="{{ p.id }}">Reservar</button>
                                             {% endif %}
                                             {% if rol in ['supervisor', 'cobranza'] and p.saldo > 0 %}
-                                            <button class="btn btn-outline-primary btn-sm" data-action="pago" data-pedido="{{ p.id }}" data-saldo="{{ '%.2f' | format(p.saldo) }}">Pago</button>
+                                            <button class="btn btn-outline-primary btn-sm" data-action="pago" data-pedido="{{ p.id }}" data-cliente="{{ p.cliente_id }}" data-saldo="{{ '%.2f' | format(p.saldo) }}" data-saldo-trueque="{{ '%.2f' | format(saldos_trueque.get(p.cliente_id, 0)) }}">Pago</button>
+                                            {% endif %}
+                                            {% if rol in ['supervisor', 'cobranza'] %}
+                                            <button class="btn btn-outline-secondary btn-sm" data-action="trueque" data-cliente="{{ p.cliente_id }}">Registrar trueque</button>
                                             {% endif %}
                                             {% if rol in ['supervisor', 'preparacion'] and p.estado == 'Confirmado' %}
                                             <button class="btn btn-outline-primary btn-sm" data-action="estado" data-estado="Listo para entrega" data-pedido="{{ p.id }}">Listo</button>
@@ -195,104 +189,9 @@
             </aside>
         </div>
     </main>
-    <div class="nyds-modal-backdrop" id="nydsModalBackdrop" aria-hidden="true">
-        <div class="nyds-modal" role="dialog" aria-modal="true" aria-labelledby="nydsModalTitle">
-            <div class="nyds-modal-header">
-                <div>
-                    <h5 id="nydsModalTitle">Acción</h5>
-                    <small id="nydsModalSubtitle"></small>
-                </div>
-                <button class="btn btn-outline-light btn-sm" type="button" id="nydsModalClose">Cerrar</button>
-            </div>
-            <form id="nydsModalForm">
-                <div class="nyds-modal-body" id="nydsModalFields"></div>
-                <div class="nyds-modal-actions">
-                    <button class="btn btn-outline-secondary" type="button" id="nydsModalCancel">Cancelar</button>
-                    <button class="btn btn-primary" type="submit" id="nydsModalSubmit">Guardar</button>
-                </div>
-            </form>
-        </div>
-    </div>
-    <div class="nyds-toast" id="nydsToast" role="status"></div>
+    {% include 'crm_modal.html' %}
     <script>
         const pedidoForm = document.getElementById('pedidoForm');
-        const modalBackdrop = document.getElementById('nydsModalBackdrop');
-        const modalTitle = document.getElementById('nydsModalTitle');
-        const modalSubtitle = document.getElementById('nydsModalSubtitle');
-        const modalFields = document.getElementById('nydsModalFields');
-        const modalForm = document.getElementById('nydsModalForm');
-        const modalSubmit = document.getElementById('nydsModalSubmit');
-        const modalCancel = document.getElementById('nydsModalCancel');
-        const modalClose = document.getElementById('nydsModalClose');
-        const toast = document.getElementById('nydsToast');
-        let modalResolver = null;
-
-        function token(prefix) {
-            return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-        }
-
-        async function jsonFetch(url, options = {}) {
-            const response = await fetch(url, {
-                ...options,
-                headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
-            });
-            const data = await response.json().catch(() => ({}));
-            if (!response.ok) {
-                throw new Error(data.error || 'No se pudo completar la acción.');
-            }
-            return data;
-        }
-
-        function showToast(message, kind = 'error') {
-            toast.textContent = message;
-            toast.dataset.kind = kind;
-            toast.dataset.open = 'true';
-            window.setTimeout(() => { toast.dataset.open = 'false'; }, 4200);
-        }
-
-        function closeModal(result = null) {
-            modalBackdrop.dataset.open = 'false';
-            modalBackdrop.setAttribute('aria-hidden', 'true');
-            if (modalResolver) {
-                modalResolver(result);
-                modalResolver = null;
-            }
-        }
-
-        function openModal({ title, subtitle = '', submitText = 'Guardar', fields = [] }) {
-            modalTitle.textContent = title;
-            modalSubtitle.textContent = subtitle;
-            modalSubmit.textContent = submitText;
-            modalFields.innerHTML = fields.map((field) => {
-                const value = field.value || '';
-                const required = field.required ? 'required' : '';
-                const step = field.step ? `step="${field.step}"` : '';
-                const min = field.min !== undefined ? `min="${field.min}"` : '';
-                if (field.type === 'textarea') {
-                    return `<div class="mb-3"><label class="form-label">${field.label}</label><textarea class="form-control" name="${field.name}" rows="${field.rows || 3}" ${required}>${value}</textarea></div>`;
-                }
-                if (field.type === 'select') {
-                    return `<div class="mb-3"><label class="form-label">${field.label}</label><select class="form-select" name="${field.name}" ${required}>${field.options.map(option => `<option ${option === value ? 'selected' : ''}>${option}</option>`).join('')}</select></div>`;
-                }
-                return `<div class="mb-3"><label class="form-label">${field.label}</label><input class="form-control" type="${field.type || 'text'}" name="${field.name}" value="${value}" ${required} ${step} ${min}></div>`;
-            }).join('');
-            modalBackdrop.dataset.open = 'true';
-            modalBackdrop.setAttribute('aria-hidden', 'false');
-            const firstInput = modalFields.querySelector('input, select, textarea');
-            if (firstInput) firstInput.focus();
-            return new Promise((resolve) => { modalResolver = resolve; });
-        }
-
-        modalCancel.addEventListener('click', () => closeModal(null));
-        modalClose.addEventListener('click', () => closeModal(null));
-        modalBackdrop.addEventListener('click', (event) => {
-            if (event.target === modalBackdrop) closeModal(null);
-        });
-        modalForm.addEventListener('submit', (event) => {
-            event.preventDefault();
-            const data = Object.fromEntries(new FormData(modalForm).entries());
-            closeModal(data);
-        });
 
         async function crearPedido(confirmar) {
             const form = new FormData(pedidoForm);
@@ -353,20 +252,47 @@
                     await jsonFetch(`/api/crm/pedidos/${pedido}/confirmar`, { method: 'POST', body: '{}' });
                 }
                 if (action === 'pago') {
+                    const categorias = await opcionesCategoriasTrueque();
+                    const saldoTrueque = parseFloat(button.dataset.saldoTrueque || '0');
                     const pago = await openModal({
                         title: 'Registrar pago',
-                        subtitle: 'El pago actualiza el saldo del pedido sin mover inventario.',
+                        subtitle: `El pago actualiza el saldo del pedido sin mover inventario. Saldo a favor por trueque del cliente: $${saldoTrueque.toFixed(2)}.`,
                         submitText: 'Registrar pago',
                         fields: [
                             { name: 'monto', label: 'Monto recibido', type: 'number', value: button.dataset.saldo || '', min: '0.01', step: '0.01', required: true },
-                            { name: 'metodo', label: 'Metodo de pago', type: 'select', value: 'Transferencia', options: ['Transferencia', 'Efectivo', 'Tarjeta', 'Contra entrega'], required: true },
+                            { name: 'metodo', label: 'Metodo de pago', type: 'select', value: 'Transferencia', options: ['Transferencia', 'Efectivo', 'Tarjeta', 'Contra entrega', 'Trueque'], required: true },
+                            { name: 'categoria_trueque_id', label: 'Giro del intercambio', type: 'select', optionsMap: categorias, showIf: { field: 'metodo', equals: 'Trueque' }, required: true },
+                            { name: 'porcentaje_trueque', label: '% del pago cubierto con trueque', type: 'number', value: '100', min: '1', max: '100', step: '1', showIf: { field: 'metodo', equals: 'Trueque' }, required: true },
                             { name: 'referencia', label: 'Referencia', value: 'Pago registrado', required: true },
                         ],
+                        onFieldChange: alManejarNuevaCategoriaTrueque,
                     });
                     if (!pago) return;
-                    await jsonFetch(`/api/crm/pedidos/${pedido}/pagos`, {
+                    const cuerpoPago = { token: token('pago'), monto: pago.monto, metodo: pago.metodo, referencia: pago.referencia };
+                    if (pago.metodo === 'Trueque') {
+                        cuerpoPago.categoria_trueque_id = Number(pago.categoria_trueque_id);
+                        cuerpoPago.porcentaje_trueque = pago.porcentaje_trueque;
+                    }
+                    await jsonFetch(`/api/crm/pedidos/${pedido}/pagos`, { method: 'POST', body: JSON.stringify(cuerpoPago) });
+                }
+                if (action === 'trueque') {
+                    const cliente = button.dataset.cliente;
+                    const categorias = await opcionesCategoriasTrueque();
+                    const trueque = await openModal({
+                        title: 'Registrar trueque',
+                        subtitle: 'Genera saldo a favor del cliente por bienes o servicios recibidos a cambio.',
+                        submitText: 'Registrar trueque',
+                        fields: [
+                            { name: 'categoria_id', label: 'Giro del intercambio', type: 'select', optionsMap: categorias, required: true },
+                            { name: 'monto', label: 'Valor del intercambio', type: 'number', min: '0.01', step: '0.01', required: true },
+                            { name: 'descripcion', label: 'Descripcion', value: '', required: true },
+                        ],
+                        onFieldChange: alManejarNuevaCategoriaTrueque,
+                    });
+                    if (!trueque) return;
+                    await jsonFetch(`/api/crm/clientes/${cliente}/trueque`, {
                         method: 'POST',
-                        body: JSON.stringify({ token: token('pago'), monto: pago.monto, metodo: pago.metodo, referencia: pago.referencia }),
+                        body: JSON.stringify({ token: token('trueque'), categoria_id: Number(trueque.categoria_id), monto: trueque.monto, descripcion: trueque.descripcion }),
                     });
                 }
                 if (action === 'estado') {

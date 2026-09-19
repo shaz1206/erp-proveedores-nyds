@@ -7,6 +7,11 @@ from flask import request,session,redirect,render_template,url_for,abort
 from sqlalchemy import update
 from sqlalchemy.exc import IntegrityError,OperationalError
 
+if __package__:
+    from .reportes_pdf import celda, generar_pdf, respuesta_pdf
+else:
+    from reportes_pdf import celda, generar_pdf, respuesta_pdf
+
 def registrar_inventario(app,db,MP,Entrada,usuario_actual):
     class AjusteInventario(db.Model):
         __tablename__='inventario_mp_ajustes'
@@ -57,6 +62,36 @@ def registrar_inventario(app,db,MP,Entrada,usuario_actual):
             if k not in saldos:saldos[k]={**r,'cantidad':Decimal(0)}
             saldos[k]['cantidad']+=r['cantidad']
         return render_template('inventario_mp.html',saldos=saldos.values(),movimientos=filtrados,demo=demo,hay_demo=any(r['demo'] for r in todos),hoy=date.today())
+
+    @app.route('/admin/inventario-mp/pdf')
+    @protegido
+    def inventario_mp_pdf():
+        ambiente=request.args.get('ambiente','real');demo=ambiente=='demo'
+        todos=movimientos();filtrados=[r for r in todos if r['demo']==demo];saldos={}
+        for r in filtrados:
+            k=clave(r)
+            if k not in saldos:saldos[k]={**r,'cantidad':Decimal(0)}
+            saldos[k]['cantidad']+=r['cantidad']
+        filas=[]
+        for s in sorted(saldos.values(),key=lambda s:(s['mp'].nombre_oficial,s['ubicacion'])):
+            vencido=' (VENCIDO)' if s['caducidad'] and s['caducidad']<=date.today() else ''
+            filas.append([
+                celda(s['mp'].nombre_oficial),
+                celda(s['ubicacion']),
+                celda((s['lote'] or 'Sin lote')+vencido, muted=bool(vencido)),
+                celda(f"{s['cantidad']:g} {s['unidad']}"),
+            ])
+        buffer=generar_pdf(
+            titulo='Inventario de materia prima'+(' (DEMO)' if demo else ''),
+            subtitulo='Saldo actual por materia prima, ubicación, lote y caducidad.',
+            secciones=[{
+                'columnas':['Materia prima','Ubicación','Lote / caducidad','Saldo'],
+                'filas':filas,
+                'anchos':[7,4,4,3.7],
+                'vacio':'Aún no hay movimientos registrados.',
+            }],
+        )
+        return respuesta_pdf(buffer,f"inventario-mp-{'demo' if demo else 'real'}.pdf")
 
     @app.route('/admin/inventario-mp/registrar',methods=['GET','POST'])
     @protegido

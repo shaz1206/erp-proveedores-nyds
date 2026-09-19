@@ -5,6 +5,11 @@ import json, secrets
 from flask import request, session, redirect, render_template, abort, url_for
 from sqlalchemy import update
 
+if __package__:
+    from .reportes_pdf import celda, generar_pdf, respuesta_pdf
+else:
+    from reportes_pdf import celda, generar_pdf, respuesta_pdf
+
 
 def registrar_recetas(app, db, MP, PT, usuario_actual):
     class Receta(db.Model):
@@ -22,6 +27,7 @@ def registrar_recetas(app, db, MP, PT, usuario_actual):
         pendientes=db.Column(db.Text)
         origen=db.Column(db.JSON,nullable=False)
         version=db.Column(db.Integer,nullable=False,default=1)
+        creado_en=db.Column(db.DateTime,default=datetime.utcnow,nullable=False)
         lineas=db.relationship('RecetaIngrediente',backref='receta',foreign_keys='RecetaIngrediente.receta_id',order_by='RecetaIngrediente.id')
 
     class RecetaIngrediente(db.Model):
@@ -57,6 +63,35 @@ def registrar_recetas(app, db, MP, PT, usuario_actual):
         consulta=Receta.query
         if q:consulta=consulta.filter(Receta.nombre.contains(q,autoescape=True))
         return render_template('recetas.html',recetas=consulta.order_by(Receta.id).all(),q=q)
+
+    @app.route('/admin/recetas/pdf')
+    def recetas_pdf():
+        if not session.get('admin_logueado'):return redirect('/login')
+        q=request.args.get('q','').strip()
+        consulta=Receta.query
+        if q:consulta=consulta.filter(Receta.nombre.contains(q,autoescape=True))
+        recetas_lista=consulta.order_by(Receta.nombre).all()
+        filas=[]
+        for r in recetas_lista:
+            rendimiento=f"{r.rendimiento:g} {r.unidad_rendimiento}" if r.rendimiento is not None else 'Por confirmar'
+            filas.append([
+                celda(r.nombre),
+                celda(r.tipo),
+                celda(rendimiento, muted=r.rendimiento is None),
+                celda(r.estado),
+                celda(f"{len(r.lineas)}"),
+            ])
+        buffer=generar_pdf(
+            titulo='Recetario NYDS',
+            subtitulo='Formulas en revisión · '+(f"búsqueda: “{q}” · " if q else '')+f"{len(recetas_lista)} receta(s)",
+            secciones=[{
+                'columnas':['Receta','Tipo','Rendimiento documentado','Estado','Ingredientes'],
+                'filas':filas,
+                'anchos':[6,3,4,2.6,2.4],
+                'vacio':'No hay recetas para mostrar.',
+            }],
+        )
+        return respuesta_pdf(buffer,'recetario-nyds.pdf')
 
     @app.route('/admin/recetas/<int:id_receta>',methods=['GET','POST'])
     def receta_detalle(id_receta):
@@ -112,4 +147,50 @@ def registrar_recetas(app, db, MP, PT, usuario_actual):
             except (ValueError,InvalidOperation) as e:
                 db.session.rollback();error=str(e) if isinstance(e,ValueError) else 'Cantidad inválida.'
         return render_template('receta_detalle.html',r=r,error=error,unidades=unidades,materias=MP.query.order_by(MP.nombre_oficial).all(),subrecetas=Receta.query.filter(Receta.id!=r.id).order_by(Receta.nombre).all(),revisiones=RecetaRevision.query.filter_by(receta_id=r.id).order_by(RecetaRevision.id.desc()).all()),(400 if error else 200)
+
+    @app.route('/admin/recetas/<int:id_receta>/pdf')
+    def receta_detalle_pdf(id_receta):
+        if not session.get('admin_logueado'):return redirect('/login')
+        r=db.get_or_404(Receta,id_receta)
+        filas=[]
+        for l in r.lineas:
+            if l.mp:
+                nombre=l.mp.nombre_oficial
+            elif l.subreceta:
+                nombre=f"{l.subreceta.nombre} (subreceta)"
+            else:
+                nombre=l.nombre_original
+            filas.append([
+                celda(nombre),
+                celda(f"{l.cantidad:g}"),
+                celda(l.unidad),
+                celda(l.proveedor_referencia or '—', muted=not l.proveedor_referencia),
+                celda(l.observaciones or '', muted=True),
+            ])
+        rendimiento=f"{r.rendimiento:g} {r.unidad_rendimiento}" if r.rendimiento is not None else 'Por confirmar'
+        secciones=[{
+            'columnas':['Ingrediente','Cantidad','Unidad','Proveedor / referencia','Observaciones'],
+            'filas':filas,
+            'anchos':[5.2,2.2,1.8,4,4],
+            'vacio':'Esta receta todavía no tiene ingredientes.',
+        }]
+        if r.notas or r.pendientes:
+            notas_filas=[]
+            if r.notas:
+                notas_filas.append([celda('Notas'),celda(r.notas)])
+            if r.pendientes:
+                notas_filas.append([celda('Pendientes'),celda(r.pendientes,muted=True)])
+            secciones.append({
+                'titulo':'Notas',
+                'columnas':['Campo','Detalle'],
+                'filas':notas_filas,
+                'anchos':[3,14],
+            })
+        buffer=generar_pdf(
+            titulo=r.nombre,
+            subtitulo=f"{r.tipo} · Rendimiento: {rendimiento} · Estado: {r.estado} · Revisión {r.version}",
+            secciones=secciones,
+        )
+        return respuesta_pdf(buffer,f"receta-{r.id}-{r.nombre[:40]}.pdf")
+
     return Receta,RecetaIngrediente,RecetaRevision

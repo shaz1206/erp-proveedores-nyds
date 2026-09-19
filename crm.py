@@ -2,11 +2,15 @@
 from datetime import datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from functools import wraps
-import os
 import secrets
 
 from flask import abort, jsonify, redirect, render_template, request, session, url_for
 from sqlalchemy.exc import IntegrityError
+
+if __package__:
+    from .reportes_pdf import celda, generar_pdf, respuesta_pdf
+else:
+    from reportes_pdf import celda, generar_pdf, respuesta_pdf
 
 
 DIAS_ES = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
@@ -55,20 +59,14 @@ ESTADOS_PEDIDO = [
     "Devuelto",
 ]
 
+METODOS_PAGO = ["Efectivo", "Transferencia", "Tarjeta", "Contra entrega", "Trueque"]
+
 RESERVAS_ABIERTAS = {"Activa"}
 UBICACION_PT = "Almacen PT"
 UBICACION_TRANSITO = "En transito"
-CRM_ROLES = {"supervisor", "ventas", "preparacion", "reparto", "cobranza"}
-CRM_USUARIOS = {
-    "crm.admin": {"password_env": "NYDS_CRM_ADMIN_PASSWORD", "rol": "supervisor", "nombre": "Supervisor CRM"},
-    "ventas.nyds": {"password_env": "NYDS_CRM_VENTAS_PASSWORD", "rol": "ventas", "nombre": "Ventas NYDS"},
-    "preparacion.nyds": {"password_env": "NYDS_CRM_PREPARACION_PASSWORD", "rol": "preparacion", "nombre": "Preparacion NYDS"},
-    "reparto.nyds": {"password_env": "NYDS_CRM_REPARTO_PASSWORD", "rol": "reparto", "nombre": "Reparto NYDS"},
-    "caja.nyds": {"password_env": "NYDS_CRM_CAJA_PASSWORD", "rol": "cobranza", "nombre": "Caja NYDS"},
-}
 
 
-def registrar_crm(app, db, MP, PT, Receta, RecetaIngrediente, MovimientoMP, AjusteInventario, usuario_actual):
+def registrar_crm(app, db, MP, PT, Receta, RecetaIngrediente, MovimientoMP, AjusteInventario, usuario_actual, autenticar_persona):
     class ClienteCRM(db.Model):
         __tablename__ = "crm_clientes"
         id = db.Column(db.Integer, primary_key=True)
@@ -132,6 +130,12 @@ def registrar_crm(app, db, MP, PT, Receta, RecetaIngrediente, MovimientoMP, Ajus
         def subtotal(self):
             return self.cantidad * self.precio_unitario
 
+    class CategoriaTruequeCRM(db.Model):
+        __tablename__ = "crm_categorias_trueque"
+        id = db.Column(db.Integer, primary_key=True)
+        nombre = db.Column(db.String(80), unique=True, nullable=False)
+        activo = db.Column(db.Boolean, nullable=False, default=True)
+
     class PagoPedidoCRM(db.Model):
         __tablename__ = "crm_pedido_pagos"
         id = db.Column(db.Integer, primary_key=True)
@@ -141,6 +145,25 @@ def registrar_crm(app, db, MP, PT, Receta, RecetaIngrediente, MovimientoMP, Ajus
         monto = db.Column(db.Numeric(18, 2), nullable=False)
         metodo = db.Column(db.String(40), nullable=False)
         referencia = db.Column(db.String(160), nullable=False)
+        categoria_trueque_id = db.Column(db.Integer, db.ForeignKey("crm_categorias_trueque.id"))
+        categoria_trueque = db.relationship(CategoriaTruequeCRM)
+        porcentaje_trueque = db.Column(db.Numeric(5, 2))
+        usuario = db.Column(db.String(100), nullable=False)
+        token = db.Column(db.String(80), unique=True, nullable=False)
+
+    class MovimientoTruequeCRM(db.Model):
+        __tablename__ = "crm_trueque_movimientos"
+        id = db.Column(db.Integer, primary_key=True)
+        cliente_id = db.Column(db.Integer, db.ForeignKey("crm_clientes.id"), nullable=False)
+        cliente = db.relationship(ClienteCRM)
+        categoria_id = db.Column(db.Integer, db.ForeignKey("crm_categorias_trueque.id"), nullable=False)
+        categoria = db.relationship(CategoriaTruequeCRM)
+        tipo = db.Column(db.String(10), nullable=False)  # "credito" (a favor del cliente) o "consumo" (aplicado a un pago)
+        monto = db.Column(db.Numeric(18, 2), nullable=False)
+        pedido_id = db.Column(db.Integer, db.ForeignKey("crm_pedidos.id"))
+        pago_id = db.Column(db.Integer, db.ForeignKey("crm_pedido_pagos.id"))
+        descripcion = db.Column(db.String(300), nullable=False)
+        fecha = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
         usuario = db.Column(db.String(100), nullable=False)
         token = db.Column(db.String(80), unique=True, nullable=False)
 
@@ -330,6 +353,12 @@ def registrar_crm(app, db, MP, PT, Receta, RecetaIngrediente, MovimientoMP, Ajus
         )
         return Decimal(str(total or 0))
 
+    def saldo_trueque_cliente(cliente_id):
+        total = Decimal("0")
+        for mov in MovimientoTruequeCRM.query.filter_by(cliente_id=cliente_id).all():
+            total += mov.monto if mov.tipo == "credito" else -mov.monto
+        return total
+
     def receta_producto(producto_id):
         return (
             Receta.query.filter_by(producto_id=producto_id)
@@ -481,6 +510,7 @@ def registrar_crm(app, db, MP, PT, Receta, RecetaIngrediente, MovimientoMP, Ajus
             "importe_total": float(pedido.importe_total),
             "importe_pagado": float(pedido.importe_pagado),
             "saldo": float(pedido.saldo),
+            "saldo_trueque_cliente": float(saldo_trueque_cliente(pedido.cliente_id)),
             "lineas": [
                 {
                     "id": l.id,
@@ -499,20 +529,19 @@ def registrar_crm(app, db, MP, PT, Receta, RecetaIngrediente, MovimientoMP, Ajus
         if request.method == "POST":
             usuario = request.form.get("usuario") or (request.json.get("usuario") if request.is_json else None)
             password = request.form.get("password") or (request.json.get("password") if request.is_json else None)
-            cuenta = CRM_USUARIOS.get(usuario or "")
-            password_esperado = os.environ.get(cuenta["password_env"], "") if cuenta else ""
-            if cuenta and password_esperado and secrets.compare_digest(password_esperado, password or ""):
+            persona = autenticar_persona(usuario, password)
+            if persona:
                 session["crm_logueado"] = True
-                session["crm_usuario"] = usuario
-                session["crm_nombre"] = cuenta["nombre"]
-                session["crm_rol"] = cuenta["rol"]
+                session["crm_usuario"] = persona.usuario
+                session["crm_nombre"] = persona.nombre
+                session["crm_rol"] = persona.rol
                 session.permanent = True
                 if request.is_json:
-                    return jsonify({"exito": True, "redirect": "/crm/tablero", "rol": cuenta["rol"]})
+                    return jsonify({"exito": True, "redirect": "/crm/tablero", "rol": persona.rol})
                 return redirect(url_for("crm_tablero"))
             if request.is_json:
                 return jsonify({"error": "Credenciales incorrectas"}), 401
-            return render_template("crm_login.html", error="Credenciales incorrectas")
+            return render_template("crm_login.html", error="Credenciales incorrectas"), 401
         return render_template("crm_login.html")
 
     @app.route("/crm/logout")
@@ -551,13 +580,199 @@ def registrar_crm(app, db, MP, PT, Receta, RecetaIngrediente, MovimientoMP, Ajus
             entregas.append({"movimiento": movimiento, "pedido": pedido, "evidencia": evidencia})
         return render_template("productos_entregados.html", entregas=entregas)
 
+    @app.route("/admin/productos-entregados/pdf")
+    @protegido_erp
+    def productos_entregados_pdf():
+        movimientos = (
+            MovimientoPT.query.filter_by(tipo="Entrega confirmada")
+            .order_by(MovimientoPT.fecha.desc(), MovimientoPT.id.desc())
+            .all()
+        )
+        filas = []
+        for movimiento in movimientos:
+            pedido = db.session.get(PedidoCRM, movimiento.pedido_id) if movimiento.pedido_id else None
+            filas.append([
+                celda(movimiento.fecha.strftime("%d/%m/%Y %H:%M")),
+                celda(movimiento.producto.nombre if movimiento.producto else "Producto eliminado"),
+                celda(f"{-movimiento.cantidad:g} {movimiento.unidad}"),
+                celda(pedido.folio if pedido else movimiento.referencia),
+                celda(pedido.cliente.nombre if pedido and pedido.cliente else "Sin pedido vinculado", muted=not pedido),
+                celda(movimiento.usuario, muted=True),
+            ])
+        buffer = generar_pdf(
+            titulo="Productos entregados",
+            subtitulo=f"Salidas definitivas confirmadas desde el CRM · {len(movimientos)} entrega(s)",
+            secciones=[{
+                "columnas": ["Fecha", "Producto", "Cantidad", "Pedido", "Cliente", "Usuario"],
+                "filas": filas,
+                "anchos": [2.6, 4, 2.4, 2.4, 3.6, 2.3],
+                "vacio": "Aún no hay productos entregados.",
+            }],
+        )
+        return respuesta_pdf(buffer, "productos-entregados.pdf")
+
+    def _pedidos_en_ruta_por_zona():
+        pedidos = (
+            PedidoCRM.query.filter_by(estado="En ruta")
+            .order_by(PedidoCRM.fecha_actualizacion.asc())
+            .all()
+        )
+        salida_por_pedido = {}
+        for mov in MovimientoPT.query.filter_by(tipo="Salida a ruta").order_by(MovimientoPT.fecha.asc()).all():
+            if mov.pedido_id and mov.pedido_id not in salida_por_pedido:
+                salida_por_pedido[mov.pedido_id] = mov.fecha
+        zonas = {}
+        for pedido in pedidos:
+            zona = pedido.domicilio.zona if pedido.domicilio else "Sin zona"
+            zonas.setdefault(zona, []).append((pedido, salida_por_pedido.get(pedido.id)))
+        return pedidos, zonas
+
+    @app.route("/crm/rutas")
+    @protegido()
+    def crm_rutas():
+        pedidos, zonas = _pedidos_en_ruta_por_zona()
+        grupos = [
+            {
+                "zona": zona,
+                "filas": [{"pedido": pedido, "salida": salida} for pedido, salida in zonas[zona]],
+            }
+            for zona in sorted(zonas)
+        ]
+        return render_template(
+            "crm_rutas.html",
+            grupos=grupos,
+            total=len(pedidos),
+            hoy_es=fecha_larga_es(datetime.utcnow()),
+            nombre_usuario=session.get("crm_nombre") or ("Administrador ERP" if session.get("admin_logueado") else "Equipo NYDS"),
+            rol=rol_crm_actual(),
+        )
+
+    @app.route("/crm/rutas/pdf")
+    @protegido()
+    def crm_rutas_pdf():
+        pedidos, zonas = _pedidos_en_ruta_por_zona()
+        secciones = []
+        for zona in sorted(zonas):
+            filas = []
+            for pedido, salida in zonas[zona]:
+                filas.append([
+                    celda(pedido.folio),
+                    celda(pedido.cliente.nombre if pedido.cliente else "Cliente"),
+                    celda(pedido.cliente.telefono if pedido.cliente else "", muted=True),
+                    celda(pedido.domicilio.direccion if pedido.domicilio else "", muted=True),
+                    celda(dinero(pedido.saldo)),
+                    celda(salida.strftime("%d/%m %H:%M") if salida else "—", muted=True),
+                ])
+            secciones.append({
+                "titulo": f"Zona: {zona} ({len(filas)})",
+                "columnas": ["Folio", "Cliente", "Teléfono", "Dirección", "Por cobrar", "Salió"],
+                "filas": filas,
+                "anchos": [2.2, 3.4, 2.7, 6.2, 2.3, 2.4],
+            })
+        if not secciones:
+            secciones = [{
+                "columnas": ["Folio", "Cliente", "Teléfono", "Dirección", "Por cobrar", "Salió"],
+                "filas": [],
+                "vacio": "No hay pedidos en ruta en este momento.",
+            }]
+        buffer = generar_pdf(
+            titulo="Hoja de ruta",
+            subtitulo=f"Pedidos en ruta · {fecha_larga_es(datetime.utcnow())} · {len(pedidos)} pedido(s)",
+            secciones=secciones,
+        )
+        return respuesta_pdf(buffer, "hoja-de-ruta.pdf")
+
     @app.route("/crm/pedidos")
     @protegido()
     def crm_pedidos():
         pedidos = PedidoCRM.query.order_by(PedidoCRM.id.desc()).all()
         ordenes = OrdenLlenadoCRM.query.order_by(OrdenLlenadoCRM.id.desc()).limit(20).all()
         productos = PT.query.filter_by(estatus="Activo").order_by(PT.nombre).all()
-        return render_template("crm_pedidos.html", pedidos=pedidos, ordenes=ordenes, productos=productos, rol=rol_crm_actual())
+        saldos_trueque = {p.cliente_id: float(saldo_trueque_cliente(p.cliente_id)) for p in pedidos}
+        return render_template(
+            "crm_pedidos.html",
+            pedidos=pedidos,
+            ordenes=ordenes,
+            productos=productos,
+            rol=rol_crm_actual(),
+            saldos_trueque=saldos_trueque,
+        )
+
+    @app.route("/crm/clientes")
+    @protegido()
+    def crm_clientes():
+        clientes = ClienteCRM.query.order_by(ClienteCRM.nombre).all()
+        filas = []
+        for cliente in clientes:
+            pedidos_cliente = PedidoCRM.query.filter_by(cliente_id=cliente.id).all()
+            filas.append({
+                "cliente": cliente,
+                "pedidos": len(pedidos_cliente),
+                "total_comprado": sum(float(p.importe_total or 0) for p in pedidos_cliente),
+                "total_pendiente": sum(float(p.saldo or 0) for p in pedidos_cliente),
+                "saldo_trueque": float(saldo_trueque_cliente(cliente.id)),
+            })
+        return render_template("crm_clientes.html", filas=filas, rol=rol_crm_actual())
+
+    @app.route("/crm/pagos")
+    @protegido()
+    def crm_pagos():
+        pagos = PagoPedidoCRM.query.order_by(PagoPedidoCRM.fecha.desc()).limit(300).all()
+        total_por_metodo = {}
+        for pago in PagoPedidoCRM.query.all():
+            total_por_metodo.setdefault(pago.metodo, {"cantidad": 0, "total": 0.0})
+            total_por_metodo[pago.metodo]["cantidad"] += 1
+            total_por_metodo[pago.metodo]["total"] += float(pago.monto)
+        trueque_movimientos = MovimientoTruequeCRM.query.order_by(MovimientoTruequeCRM.fecha.desc()).limit(200).all()
+        return render_template(
+            "crm_pagos.html",
+            pagos=pagos,
+            total_por_metodo=total_por_metodo,
+            trueque_movimientos=trueque_movimientos,
+            rol=rol_crm_actual(),
+        )
+
+    @app.route("/crm/reportes")
+    @protegido()
+    def crm_reportes():
+        pedidos = PedidoCRM.query.all()
+        por_estado = {}
+        for p in pedidos:
+            por_estado.setdefault(p.estado, {"cantidad": 0, "total": 0.0})
+            por_estado[p.estado]["cantidad"] += 1
+            por_estado[p.estado]["total"] += float(p.importe_total or 0)
+
+        por_metodo = {}
+        for pago in PagoPedidoCRM.query.all():
+            por_metodo.setdefault(pago.metodo, {"cantidad": 0, "total": 0.0})
+            por_metodo[pago.metodo]["cantidad"] += 1
+            por_metodo[pago.metodo]["total"] += float(pago.monto)
+
+        credito_generado = sum(float(m.monto) for m in MovimientoTruequeCRM.query.filter_by(tipo="credito").all())
+        credito_consumido = sum(float(m.monto) for m in MovimientoTruequeCRM.query.filter_by(tipo="consumo").all())
+
+        top_clientes = (
+            db.session.query(ClienteCRM.nombre, db.func.coalesce(db.func.sum(PedidoCRM.importe_total), 0))
+            .join(PedidoCRM, PedidoCRM.cliente_id == ClienteCRM.id)
+            .group_by(ClienteCRM.id)
+            .order_by(db.func.coalesce(db.func.sum(PedidoCRM.importe_total), 0).desc())
+            .limit(10)
+            .all()
+        )
+
+        return render_template(
+            "crm_reportes.html",
+            por_estado=por_estado,
+            por_metodo=por_metodo,
+            credito_generado=credito_generado,
+            credito_consumido=credito_consumido,
+            credito_vigente=credito_generado - credito_consumido,
+            top_clientes=[{"nombre": nombre, "total": float(total)} for nombre, total in top_clientes],
+            total_facturado=sum(float(p.importe_total or 0) for p in pedidos),
+            total_cobrado=sum(float(p.importe_pagado or 0) for p in pedidos),
+            total_pendiente=sum(float(p.saldo or 0) for p in pedidos),
+            rol=rol_crm_actual(),
+        )
 
     @app.route("/api/crm/productos/<int:id_producto>/disponibilidad")
     @protegido_json("ventas", "preparacion", "cobranza")
@@ -677,6 +892,60 @@ def registrar_crm(app, db, MP, PT, Receta, RecetaIngrediente, MovimientoMP, Ajus
         respuesta["faltantes"] = faltantes
         return jsonify(respuesta), 200
 
+    @app.route("/api/crm/categorias-trueque", methods=["GET", "POST"])
+    @protegido_json()
+    def api_crm_categorias_trueque():
+        if request.method == "GET":
+            categorias = CategoriaTruequeCRM.query.filter_by(activo=True).order_by(CategoriaTruequeCRM.nombre).all()
+            return jsonify([{"id": c.id, "nombre": c.nombre} for c in categorias])
+        if not tiene_rol("cobranza", "ventas"):
+            return jsonify({"error": "Permiso insuficiente."}), 403
+        data = request.json or {}
+        try:
+            nombre = texto(data, "nombre", 80, True)
+            existente = CategoriaTruequeCRM.query.filter(db.func.lower(CategoriaTruequeCRM.nombre) == nombre.lower()).first()
+            if existente:
+                existente.activo = True
+                db.session.commit()
+                return jsonify({"id": existente.id, "nombre": existente.nombre}), 200
+            categoria = CategoriaTruequeCRM(nombre=nombre)
+            db.session.add(categoria)
+            db.session.commit()
+            return jsonify({"id": categoria.id, "nombre": categoria.nombre}), 201
+        except (ValueError, IntegrityError) as e:
+            db.session.rollback()
+            return jsonify({"error": str(e) if isinstance(e, ValueError) else "No se pudo guardar el giro."}), 400
+
+    @app.route("/api/crm/clientes/<int:id_cliente>/trueque", methods=["POST"])
+    @protegido_json("cobranza")
+    def api_crm_trueque_credito(id_cliente):
+        cliente = db.get_or_404(ClienteCRM, id_cliente)
+        data = request.json or {}
+        try:
+            token = texto(data, "token", 80) or secrets.token_hex(24)
+            existente = MovimientoTruequeCRM.query.filter_by(token=token).first()
+            if existente:
+                return jsonify({"saldo_trueque": float(saldo_trueque_cliente(cliente.id))}), 200
+            categoria = db.session.get(CategoriaTruequeCRM, data.get("categoria_id")) if data.get("categoria_id") else None
+            if not categoria or not categoria.activo:
+                raise ValueError("Selecciona un giro de trueque valido.")
+            monto = numero(data.get("monto"), decimales=2, positivo=True)
+            movimiento = MovimientoTruequeCRM(
+                cliente_id=cliente.id,
+                categoria_id=categoria.id,
+                tipo="credito",
+                monto=monto,
+                descripcion=texto(data, "descripcion", 300, True),
+                usuario=crm_usuario_actual(),
+                token=token,
+            )
+            db.session.add(movimiento)
+            db.session.commit()
+            return jsonify({"saldo_trueque": float(saldo_trueque_cliente(cliente.id))}), 201
+        except (ValueError, IntegrityError) as e:
+            db.session.rollback()
+            return jsonify({"error": str(e) if isinstance(e, ValueError) else "No se pudo registrar el trueque."}), 400
+
     @app.route("/api/crm/pedidos/<int:id_pedido>/pagos", methods=["POST"])
     @protegido_json("cobranza")
     def api_crm_pago_pedido(id_pedido):
@@ -690,16 +959,50 @@ def registrar_crm(app, db, MP, PT, Receta, RecetaIngrediente, MovimientoMP, Ajus
             monto = numero(data.get("monto"), decimales=2, positivo=True)
             if pedido.importe_pagado + monto > pedido.importe_total:
                 raise ValueError("El pago supera el saldo pendiente.")
+            metodo = texto(data, "metodo", 40, True)
+            if metodo not in METODOS_PAGO:
+                raise ValueError("Metodo de pago no valido.")
+            categoria_trueque = None
+            porcentaje_trueque = None
+            monto_trueque = None
+            if metodo == "Trueque":
+                categoria_trueque = db.session.get(CategoriaTruequeCRM, data.get("categoria_trueque_id")) if data.get("categoria_trueque_id") else None
+                if not categoria_trueque or not categoria_trueque.activo:
+                    raise ValueError("Selecciona el giro del intercambio.")
+                porcentaje_trueque = numero(data.get("porcentaje_trueque"), decimales=2, positivo=True)
+                if porcentaje_trueque > 100:
+                    raise ValueError("El porcentaje de trueque no puede superar 100.")
+                monto_trueque = (monto * porcentaje_trueque / Decimal("100")).quantize(Decimal(".01"))
+                disponible = saldo_trueque_cliente(pedido.cliente_id)
+                if monto_trueque > disponible:
+                    raise ValueError(f"El cliente solo tiene ${disponible:.2f} de saldo a favor por trueque.")
             pago = PagoPedidoCRM(
                 pedido_id=pedido.id,
                 monto=monto,
-                metodo=texto(data, "metodo", 40, True),
+                metodo=metodo,
                 referencia=texto(data, "referencia", 160, True),
+                categoria_trueque_id=categoria_trueque.id if categoria_trueque else None,
+                porcentaje_trueque=porcentaje_trueque,
                 usuario=crm_usuario_actual(),
                 token=token,
             )
             pedido.importe_pagado += monto
             db.session.add(pago)
+            db.session.flush()
+            if metodo == "Trueque":
+                db.session.add(
+                    MovimientoTruequeCRM(
+                        cliente_id=pedido.cliente_id,
+                        categoria_id=categoria_trueque.id,
+                        tipo="consumo",
+                        monto=monto_trueque,
+                        pedido_id=pedido.id,
+                        pago_id=pago.id,
+                        descripcion=f"Consumo de trueque ({categoria_trueque.nombre}) en pago de {pedido.folio}",
+                        usuario=crm_usuario_actual(),
+                        token=f"{token}-consumo",
+                    )
+                )
             registrar_evento(pedido, "Pago recibido", f"Pago registrado por {monto}.", {"metodo": pago.metodo})
             db.session.commit()
             return jsonify(serializar_pedido(pedido)), 201

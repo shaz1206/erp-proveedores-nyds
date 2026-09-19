@@ -1,6 +1,5 @@
 import os
 import re
-import secrets
 import unicodedata
 from datetime import datetime, date
 from decimal import Decimal, InvalidOperation
@@ -20,6 +19,11 @@ from flask import (
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import func, inspect
 from werkzeug.utils import secure_filename
+
+if __package__:
+    from .reportes_pdf import celda, generar_pdf, respuesta_pdf
+else:
+    from reportes_pdf import celda, generar_pdf, respuesta_pdf
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 UPLOAD_FOLDER = os.path.join(BASE_DIR, "uploads")
@@ -954,11 +958,11 @@ def login_admin():
         usuario = request.form.get("usuario") or (request.json.get("usuario") if request.is_json else None)
         password = request.form.get("password") or (request.json.get("password") if request.is_json else None)
 
-        admin_usuario = os.environ.get("NYDS_ADMIN_USER", "compras.nyds")
-        admin_password = os.environ.get("NYDS_ADMIN_PASSWORD", "nyds2026")
-        if usuario == admin_usuario and admin_password and secrets.compare_digest(admin_password, password or ""):
+        asegurar_persona_inicial()
+        persona = autenticar_persona(usuario, password, roles_permitidos={"supervisor"})
+        if persona:
             session["admin_logueado"] = True
-            session["usuario"] = usuario
+            session["usuario"] = persona.usuario
             session.permanent = True
             if request.is_json:
                 return jsonify({"exito": True, "redirect": "/admin/catalogo"})
@@ -1006,6 +1010,47 @@ def vista_catalogo_materias_primas():
     if not session.get("admin_logueado"):
         return redirect(url_for("login_admin"))
     return render_template("materias_primas_catalogo.html")
+
+
+@app.route("/admin/materias-primas/conteo/pdf", methods=["GET"])
+def materias_primas_conteo_pdf():
+    if not session.get("admin_logueado"):
+        return redirect(url_for("login_admin"))
+    materias = MateriaPrima.query.filter_by(activo=True).order_by(MateriaPrima.familia, MateriaPrima.nombre_oficial).all()
+    familias = {}
+    for mp in materias:
+        familias.setdefault(mp.familia or "Sin familia", []).append(mp)
+    secciones = []
+    for familia in sorted(familias):
+        filas = []
+        for mp in familias[familia]:
+            ubi = ubicacion_principal_vigente(mp)
+            filas.append([
+                celda(mp.sku_mp),
+                celda(mp.nombre_oficial),
+                celda(mp.unidad_base),
+                celda(f"{ubi.almacen} / {ubi.ubicacion}" if ubi else "Sin asignar", muted=not ubi),
+                celda(""),
+                celda(""),
+            ])
+        secciones.append({
+            "titulo": f"{familia} ({len(filas)})",
+            "columnas": ["SKU", "Materia prima", "Unidad", "Ubicación", "Conteo real", "Observaciones"],
+            "filas": filas,
+            "anchos": [2.0, 5.2, 1.7, 3.3, 2.7, 3.4],
+        })
+    if not secciones:
+        secciones = [{
+            "columnas": ["SKU", "Materia prima", "Unidad", "Ubicación", "Conteo real", "Observaciones"],
+            "filas": [],
+            "vacio": "No hay materias primas activas para contar.",
+        }]
+    buffer = generar_pdf(
+        titulo="Hoja de conteo de materia prima",
+        subtitulo=f"Para inventario físico · anota la cantidad real de cada insumo · {len(materias)} materia(s) prima(s) activa(s)",
+        secciones=secciones,
+    )
+    return respuesta_pdf(buffer, "hoja-de-conteo-materia-prima.pdf")
 
 
 @app.route("/admin/materias-primas/nueva", methods=["GET"])
@@ -2099,6 +2144,12 @@ def materias_primas_proveedor(id_proveedor):
 
 # Crea únicamente tablas faltantes; conserva las tablas y datos existentes de proveedores.
 if __package__:
+    from .personas import registrar_personas
+else:
+    from personas import registrar_personas
+Persona, autenticar_persona, asegurar_persona_inicial, ROLES_PERSONA = registrar_personas(app, db, usuario_actual)
+
+if __package__:
     from .productos_terminados import registrar_productos_terminados
 else:
     from productos_terminados import registrar_productos_terminados
@@ -2149,6 +2200,7 @@ else:
     MovimientoMP,
     AjusteInventario,
     usuario_actual,
+    autenticar_persona,
 )
 
 if __package__:
@@ -2179,6 +2231,7 @@ with app.app_context():
     migrar_columnas_faltantes()
     db.create_all()
     sincronizar_proveedores_desde_recetario(RecetaIngrediente)
+    asegurar_persona_inicial()
 
 if __name__ == "__main__":
     app.run(debug=True)

@@ -15,7 +15,10 @@
                 <h2>Productos entregados</h2>
                 <p class="text-muted mb-0">Salidas definitivas confirmadas desde el CRM con evidencia de entrega.</p>
             </div>
-            <span class="badge bg-primary">{{ entregas | length }} entregas</span>
+            <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-primary">{{ entregas | length }} entregas</span>
+                <a href="/admin/productos-entregados/pdf" target="_blank" class="btn btn-outline-secondary btn-sm">&#8681; Descargar PDF</a>
+            </div>
         </div>
         <div class="card">
             <div class="table-responsive">

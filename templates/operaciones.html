@@ -26,12 +26,12 @@
         </section>
 
         <section class="ops-grid mb-4">
-            <a class="ops-metric" href="/admin/catalogo"><span>Proveedores</span><strong>{{ diagnostico.metricas.proveedores }}</strong><small>Catálogo</small></a>
-            <a class="ops-metric" href="/admin/materias-primas"><span>MP activas</span><strong>{{ diagnostico.metricas.materias_primas_activas }}</strong><small>Materia prima</small></a>
-            <a class="ops-metric" href="/admin/productos-terminados"><span>PT activos</span><strong>{{ diagnostico.metricas.productos_terminados_activos }}</strong><small>Producto terminado</small></a>
-            <a class="ops-metric" href="/admin/recetas"><span>Recetas</span><strong>{{ diagnostico.metricas.recetas }}</strong><small>Formulas</small></a>
-            <a class="ops-metric" href="/crm/pedidos"><span>Pedidos CRM</span><strong>{{ diagnostico.metricas.pedidos_crm }}</strong><small>Ventas</small></a>
-            <a class="ops-metric" href="/crm/pedidos"><span>Llenados</span><strong>{{ diagnostico.metricas.ordenes_llenado_pendientes }}</strong><small>Pendientes</small></a>
+            <a class="ops-metric" href="/admin/catalogo" title="{{ diagnostico.metricas.proveedores_nuevos }} nuevo(s) esta semana"><span class="ops-metric-dot {{ 'dot-verde' if diagnostico.metricas.proveedores_nuevos > 0 else 'dot-amarillo' }}"></span><span class="ops-metric-label">Proveedores</span><strong>{{ diagnostico.metricas.proveedores }}</strong><small>Catálogo</small></a>
+            <a class="ops-metric" href="/admin/materias-primas" title="{{ diagnostico.metricas.materias_primas_nuevas }} nueva(s) esta semana"><span class="ops-metric-dot {{ 'dot-verde' if diagnostico.metricas.materias_primas_nuevas > 0 else 'dot-amarillo' }}"></span><span class="ops-metric-label">MP activas</span><strong>{{ diagnostico.metricas.materias_primas_activas }}</strong><small>Materia prima</small></a>
+            <a class="ops-metric" href="/admin/productos-terminados" title="{{ diagnostico.metricas.productos_terminados_nuevos }} nuevo(s) esta semana"><span class="ops-metric-dot {{ 'dot-verde' if diagnostico.metricas.productos_terminados_nuevos > 0 else 'dot-amarillo' }}"></span><span class="ops-metric-label">PT activos</span><strong>{{ diagnostico.metricas.productos_terminados_activos }}</strong><small>Producto terminado</small></a>
+            <a class="ops-metric" href="/admin/recetas" title="{{ diagnostico.metricas.recetas_nuevas }} nueva(s) esta semana"><span class="ops-metric-dot {{ 'dot-verde' if diagnostico.metricas.recetas_nuevas > 0 else 'dot-amarillo' }}"></span><span class="ops-metric-label">Recetas</span><strong>{{ diagnostico.metricas.recetas }}</strong><small>Formulas</small></a>
+            <a class="ops-metric" href="/crm/pedidos" title="{{ diagnostico.metricas.pedidos_crm_nuevos }} nuevo(s) esta semana"><span class="ops-metric-dot {{ 'dot-verde' if diagnostico.metricas.pedidos_crm_nuevos > 0 else 'dot-amarillo' }}"></span><span class="ops-metric-label">Pedidos CRM</span><strong>{{ diagnostico.metricas.pedidos_crm }}</strong><small>Ventas</small></a>
+            <a class="ops-metric" href="/crm/pedidos" title="{{ diagnostico.metricas.llenados_nuevos }} nuevo(s) esta semana"><span class="ops-metric-dot {{ 'dot-verde' if diagnostico.metricas.llenados_nuevos > 0 else 'dot-amarillo' }}"></span><span class="ops-metric-label">Llenados</span><strong>{{ diagnostico.metricas.ordenes_llenado_pendientes }}</strong><small>Pendientes</small></a>
         </section>
 
         <div class="row g-4">
@@ -49,7 +49,6 @@
                         <div class="ops-issues">
                             {% for i in diagnostico.incidencias %}
                             <a class="ops-issue ops-issue-{{ i.severidad }}" href="{{ i.href or '/admin/operaciones' }}">
-                                <span>{{ 'Bloqueo' if i.severidad == 'bloqueo' else 'Alerta' if i.severidad == 'alerta' else 'Info' }}</span>
                                 <strong>{{ i.titulo }}</strong>
                                 <small>{{ i.detalle }}</small>
                             </a>

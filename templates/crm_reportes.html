@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <title>Reportes - CRM NYDS</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20260919-crm') }}">
+</head>
+<body class="bg-light">
+    {% include 'crm_header.html' %}
+    <main class="container-fluid px-4 mb-5">
+        <div class="mb-4">
+            <h2>Reportes</h2>
+            <p class="text-muted mb-0">Resumen de facturación, cobranza y trueque del CRM.</p>
+        </div>
+
+        <div class="row g-3 mb-4">
+            <div class="col-md-3 col-sm-6">
+                <div class="card h-100"><div class="card-body">
+                    <div class="text-muted small text-uppercase fw-semibold">Total facturado</div>
+                    <div class="fs-4 fw-bold">${{ '%.2f' | format(total_facturado) }}</div>
+                </div></div>
+            </div>
+            <div class="col-md-3 col-sm-6">
+                <div class="card h-100"><div class="card-body">
+                    <div class="text-muted small text-uppercase fw-semibold">Total cobrado</div>
+                    <div class="fs-4 fw-bold">${{ '%.2f' | format(total_cobrado) }}</div>
+                </div></div>
+            </div>
+            <div class="col-md-3 col-sm-6">
+                <div class="card h-100"><div class="card-body">
+                    <div class="text-muted small text-uppercase fw-semibold">Pendiente por cobrar</div>
+                    <div class="fs-4 fw-bold text-danger">${{ '%.2f' | format(total_pendiente) }}</div>
+                </div></div>
+            </div>
+            <div class="col-md-3 col-sm-6">
+                <div class="card h-100"><div class="card-body">
+                    <div class="text-muted small text-uppercase fw-semibold">Trueque vigente</div>
+                    <div class="fs-4 fw-bold text-success">${{ '%.2f' | format(credito_vigente) }}</div>
+                    <div class="text-muted small">Generado ${{ '%.2f' | format(credito_generado) }} · Consumido ${{ '%.2f' | format(credito_consumido) }}</div>
+                </div></div>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-lg-6">
+                <section class="card">
+                    <div class="card-header"><h5 class="mb-0">Cobros por método de pago</h5></div>
+                    <div class="table-responsive">
+                        <table class="table align-middle mb-0">
+                            <thead><tr><th>Método</th><th>Pagos</th><th>Total</th></tr></thead>
+                            <tbody>
+                                {% for metodo, datos in por_metodo.items() %}
+                                <tr>
+                                    <td>{{ metodo }}</td>
+                                    <td>{{ datos.cantidad }}</td>
+                                    <td>${{ '%.2f' | format(datos.total) }}</td>
+                                </tr>
+                                {% else %}
+                                <tr><td colspan="3" class="text-center text-muted py-4">Sin pagos registrados</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
+            <div class="col-lg-6">
+                <section class="card">
+                    <div class="card-header"><h5 class="mb-0">Pedidos por estado</h5></div>
+                    <div class="table-responsive">
+                        <table class="table align-middle mb-0">
+                            <thead><tr><th>Estado</th><th>Pedidos</th><th>Importe total</th></tr></thead>
+                            <tbody>
+                                {% for estado, datos in por_estado.items() %}
+                                <tr>
+                                    <td>{{ estado }}</td>
+                                    <td>{{ datos.cantidad }}</td>
+                                    <td>${{ '%.2f' | format(datos.total) }}</td>
+                                </tr>
+                                {% else %}
+                                <tr><td colspan="3" class="text-center text-muted py-4">Sin pedidos registrados</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
+            <div class="col-lg-6">
+                <section class="card">
+                    <div class="card-header"><h5 class="mb-0">Top clientes por monto comprado</h5></div>
+                    <div class="table-responsive">
+                        <table class="table align-middle mb-0">
+                            <thead><tr><th>#</th><th>Cliente</th><th>Total comprado</th></tr></thead>
+                            <tbody>
+                                {% for fila in top_clientes %}
+                                <tr>
+                                    <td>{{ loop.index }}</td>
+                                    <td>{{ fila.nombre }}</td>
+                                    <td>${{ '%.2f' | format(fila.total) }}</td>
+                                </tr>
+                                {% else %}
+                                <tr><td colspan="3" class="text-center text-muted py-4">Sin clientes registrados</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </main>
+</body>
+</html>
