@@ -17,6 +17,7 @@ def registrar_productos_terminados(app, db):
         categoria = db.Column(db.String(100), nullable=False)
         estatus = db.Column(db.String(20), nullable=False, default='Borrador')
         stock_minimo = db.Column(db.Numeric(18, 6), nullable=False, default=0)
+        precio = db.Column(db.Numeric(18, 2))
         color = db.Column(db.String(100))
         olor = db.Column(db.String(100))
         viscosidad = db.Column(db.String(100))
@@ -26,7 +27,7 @@ def registrar_productos_terminados(app, db):
         puntos_venta = db.Column(db.JSON, nullable=False, default=list)
         imagen = db.Column(db.LargeBinary)
         imagen_tipo = db.Column(db.String(30))
-        creado_en = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+        creado_en = db.Column(db.DateTime, default=datetime.utcnow)
 
     puntos = ['Ruta', 'Vendss Clean', 'Arpelab', 'Vending']
     estados = ['Borrador', 'Activo', 'Inactivo']
@@ -82,6 +83,14 @@ def registrar_productos_terminados(app, db):
                     datos[campo] = numero
                 except (InvalidOperation, ValueError):
                     errores.append(f'{campo}: usa un número positivo o cero, con máximo 6 decimales y menor a un billón.')
+            texto_precio = request.form.get('precio', '').strip()
+            try:
+                precio = Decimal(texto_precio) if texto_precio else None
+                if precio is not None and (not precio.is_finite() or precio <= 0 or precio >= Decimal('1000000') or precio.as_tuple().exponent < -2):
+                    raise ValueError
+                datos['precio'] = precio
+            except (InvalidOperation, ValueError):
+                errores.append('precio: usa un número mayor a cero, con máximo 2 decimales, o déjalo en blanco si aún no se define.')
             datos['estatus'] = request.form.get('estatus')
             datos['biodegradabilidad'] = request.form.get('biodegradabilidad', '')
             datos['puntos_venta'] = list(dict.fromkeys(valores['puntos_venta']))

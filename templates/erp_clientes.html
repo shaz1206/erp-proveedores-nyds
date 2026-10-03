@@ -1,0 +1,36 @@
+{% extends 'abastecimiento_base.html' %}{% block contenido %}
+<div class="d-flex justify-content-between flex-wrap gap-3 mb-3">
+    <div>
+        <h2>Clientes</h2>
+        <p class="text-muted mb-0">Balance por cliente: lo que ha pedido, lo que ha pagado, lo que debe y lo que se le ha entregado. Entra a un cliente para ver todo su detalle.</p>
+    </div>
+    <a href="{{ url_for('clientes_erp_pdf', q=q) }}" target="_blank" class="btn btn-outline-secondary align-self-start">&#8681; Descargar PDF</a>
+</div>
+<div class="row g-3 mb-4">
+    {% for titulo, valor, clase in [('Comprado', totales.comprado, ''), ('Pagado', totales.pagado, ''), ('Deben', totales.debe, 'text-danger'), ('Trueque a favor', totales.trueque, 'text-success')] %}
+    <div class="col-md-3 col-6"><div class="card h-100"><div class="card-body">
+        <div class="text-muted small text-uppercase fw-semibold">{{ titulo }}</div>
+        <div class="fs-4 fw-bold {{ clase }}">${{ '{:,.2f}'.format(valor | float) }}</div>
+    </div></div></div>
+    {% endfor %}
+</div>
+<form class="d-flex gap-2 mb-3" method="get"><input name="q" class="form-control" aria-label="Buscar cliente" placeholder="Buscar por nombre, teléfono, RFC o correo" value="{{ q }}"><button class="btn btn-primary">Buscar</button>{% if q %}<a href="{{ url_for('clientes_erp') }}" class="btn btn-outline-secondary">Todos</a>{% endif %}</form>
+<div class="card"><div class="table-responsive"><table class="table align-middle mb-0">
+    <thead><tr><th>Cliente</th><th>Pedidos</th><th>Comprado</th><th>Pagado</th><th>Debe</th><th>Última entrega</th><th></th></tr></thead>
+    <tbody>
+    {% for f in filas %}
+    <tr>
+        <td><a href="{{ url_for('cliente_erp', id_cliente=f.cliente.id) }}" class="fw-bold text-decoration-none">{{ f.cliente.nombre_completo }}</a><div class="text-muted small">{{ f.cliente.telefono or 'Sin teléfono' }}</div></td>
+        <td>{{ f.pedidos }}<div class="text-muted small">{{ f.entregados }} entregado(s)</div></td>
+        <td>${{ '{:,.2f}'.format(f.comprado | float) }}</td>
+        <td>${{ '{:,.2f}'.format(f.pagado | float) }}</td>
+        <td>{% if f.debe > 0 %}<span class="text-danger fw-semibold">${{ '{:,.2f}'.format(f.debe | float) }}</span>{% elif f.debe < 0 %}<span class="text-success">A favor ${{ '{:,.2f}'.format(-f.debe | float) }}</span>{% else %}Al corriente{% endif %}{% if f.trueque > 0 %}<div class="text-success small">Trueque ${{ '{:,.2f}'.format(f.trueque | float) }}</div>{% endif %}</td>
+        <td>{% if f.ultima %}<div class="small">{{ f.ultima.fecha.strftime('%d/%m/%Y') }} · {{ f.ultima.productos }}</div><div class="text-muted small">{{ f.ultima.pedido.folio }}{% if f.ultima.receptor %} · recibió {{ f.ultima.receptor }}{% endif %}</div>{% else %}<span class="text-muted small">Sin entregas</span>{% endif %}</td>
+        <td><a href="{{ url_for('cliente_erp', id_cliente=f.cliente.id) }}" class="btn btn-outline-primary btn-sm">Ver balance</a></td>
+    </tr>
+    {% else %}
+    <tr><td colspan="7" class="text-center py-5 text-muted">{% if q %}Ningún cliente coincide con “{{ q }}”.{% else %}Aún no hay clientes. Se dan de alta desde el CRM.{% endif %}</td></tr>
+    {% endfor %}
+    </tbody>
+</table></div></div>
+{% endblock %}

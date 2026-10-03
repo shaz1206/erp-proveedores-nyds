@@ -2,8 +2,9 @@
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from functools import wraps
+import os
 import secrets
-from flask import request, session, redirect, render_template, abort, url_for
+from flask import request, session, redirect, render_template, abort, url_for, send_from_directory
 from sqlalchemy import update
 from sqlalchemy.exc import IntegrityError, OperationalError
 
@@ -75,6 +76,58 @@ def registrar_abastecimiento(app, db, MP, Proveedor, Condicion, usuario_actual):
         mp = db.relationship(MP)
         cantidad = db.Column(db.Numeric(18,6), nullable=False)
         unidad = db.Column(db.String(20), nullable=False)
+
+    class CompraDocumento(db.Model):
+        """Evidencia de una orden de compra (factura, remision, COA, fotos...).
+        Si recepcion_id esta lleno, es evidencia de esa recepcion en particular."""
+        __tablename__ = 'compra_documentos'
+        id = db.Column(db.Integer, primary_key=True)
+        orden_id = db.Column(db.Integer, db.ForeignKey('compra_ordenes.id'), nullable=False, index=True)
+        orden = db.relationship(Orden, backref=db.backref('documentos', order_by='CompraDocumento.id'))
+        recepcion_id = db.Column(db.Integer, db.ForeignKey('compra_recepciones.id'))
+        recepcion = db.relationship(RecepcionMP, backref='documentos')
+        tipo = db.Column(db.String(60), nullable=False)
+        descripcion = db.Column(db.String(300))
+        nombre_original = db.Column(db.String(255), nullable=False)
+        archivo = db.Column(db.String(255), nullable=False)
+        tamano = db.Column(db.Integer, nullable=False)
+        usuario = db.Column(db.String(100), nullable=False)
+        fecha = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    TIPOS_EVIDENCIA = ['Factura', 'Remisión', 'Certificado de análisis (COA)', 'Foto de recepción', 'Comprobante de pago', 'Cotización', 'Otro']
+    # Se valida la extension y tambien los primeros bytes, para no aceptar archivos disfrazados.
+    FIRMAS = {'pdf': (b'%PDF',), 'png': (b'\x89PNG',), 'jpg': (b'\xff\xd8\xff',), 'jpeg': (b'\xff\xd8\xff',),
+              'webp': (b'RIFF',), 'xlsx': (b'PK',), 'docx': (b'PK',)}
+    MAX_EVIDENCIA = 15 * 1024 * 1024
+    CARPETA_EVIDENCIA = os.path.join(app.config.get('UPLOAD_FOLDER') or os.path.join(os.path.dirname(__file__), 'uploads'), 'compras')
+
+    def leer_evidencias(campo='archivos'):
+        """Valida los archivos del formulario antes de tocar la base: [(nombre, extension, bytes)]."""
+        archivos = [f for f in request.files.getlist(campo) if f and f.filename]
+        if len(archivos) > 10:
+            raise ValueError('Sube máximo 10 archivos a la vez.')
+        leidos = []
+        for f in archivos:
+            nombre = os.path.basename(f.filename.replace('\\', '/'))[:255]
+            ext = nombre.rsplit('.', 1)[-1].lower() if '.' in nombre else ''
+            if ext not in FIRMAS:
+                raise ValueError(f'{nombre}: solo se aceptan PDF, JPG, PNG, WebP, Excel (.xlsx) o Word (.docx).')
+            contenido = f.read(MAX_EVIDENCIA + 1)
+            if len(contenido) > MAX_EVIDENCIA:
+                raise ValueError(f'{nombre}: cada archivo puede pesar máximo 15 MB.')
+            if not contenido.startswith(FIRMAS[ext]) or (ext == 'webp' and contenido[8:12] != b'WEBP'):
+                raise ValueError(f'{nombre}: el contenido no corresponde a un archivo .{ext} válido.')
+            leidos.append((nombre, ext, contenido))
+        return leidos
+
+    def guardar_evidencias(leidos, orden_id, tipo, descripcion='', recepcion_id=None):
+        os.makedirs(CARPETA_EVIDENCIA, exist_ok=True)
+        for nombre, ext, contenido in leidos:
+            archivo = f'oc{orden_id}-{secrets.token_hex(12)}.{ext}'
+            with open(os.path.join(CARPETA_EVIDENCIA, archivo), 'wb') as destino:
+                destino.write(contenido)
+            db.session.add(CompraDocumento(orden_id=orden_id, recepcion_id=recepcion_id, tipo=tipo, descripcion=descripcion or None,
+                                           nombre_original=nombre, archivo=archivo, tamano=len(contenido), usuario=usuario_actual()))
 
     def protegido(fn):
         @wraps(fn)
@@ -175,6 +228,9 @@ def registrar_abastecimiento(app, db, MP, Proveedor, Condicion, usuario_actual):
                 token=texto('token',80,True)
                 if RecepcionMP.query.filter_by(token=token).first(): return redirect(url_for('compra_detalle',id_orden=o.id))
                 if o.estado not in ('Emitida','Parcial'): raise ValueError('Esta orden ya está cerrada.')
+                evidencias=leer_evidencias('evidencia') if request.form.get('accion')!='cancelar' else []
+                tipo_evidencia=request.form.get('evidencia_tipo') or 'Foto de recepción'
+                if tipo_evidencia not in TIPOS_EVIDENCIA: raise ValueError('Tipo de evidencia inválido.')
                 version=o.version
                 if request.form.get('accion')=='cancelar':
                     if any(l.recepciones for l in o.lineas): raise ValueError('No se puede cancelar una orden con recepciones.')
@@ -208,10 +264,43 @@ def registrar_abastecimiento(app, db, MP, Proveedor, Condicion, usuario_actual):
                 if request.form.get('accion')!='cancelar':
                     db.session.add(rec); db.session.flush()
                     if a: db.session.add(MovimientoMP(recepcion_id=rec.id,mp_id=l.mp_id,cantidad=cantidad_base,unidad=l.unidad))
+                    if evidencias: guardar_evidencias(evidencias,o.id,tipo_evidencia,recepcion_id=rec.id)
                 db.session.commit()
                 return redirect(url_for('compra_detalle',id_orden=o.id))
             except (ValueError,IntegrityError,OperationalError) as e:
                 db.session.rollback(); error=str(e) if isinstance(e,ValueError) else 'No se pudo guardar: la orden fue actualizada o la recepción ya existe. Recarga y verifica el historial.'
-        return render_template('compra_detalle.html',o=o,error=error,token=secrets.token_hex(24)), (400 if error else 200)
+        return render_template('compra_detalle.html',o=o,error=error,token=secrets.token_hex(24),tipos_evidencia=TIPOS_EVIDENCIA), (400 if error else 200)
 
-    return Orden,CompraLinea,RecepcionMP,MovimientoMP
+    @app.route('/admin/compras/<int:id_orden>/evidencia',methods=['POST'])
+    @protegido
+    def compra_evidencia(id_orden):
+        """Sube evidencia a la orden en cualquier momento (aunque ya este cerrada)."""
+        o=db.get_or_404(Orden,id_orden); error=None
+        try:
+            leidos=leer_evidencias('archivos')
+            if not leidos: raise ValueError('Selecciona al menos un archivo.')
+            tipo=request.form.get('tipo','')
+            if tipo not in TIPOS_EVIDENCIA: raise ValueError('Selecciona el tipo de evidencia.')
+            recepcion_id=None
+            if request.form.get('recepcion_id'):
+                rec=db.session.get(RecepcionMP,int(request.form['recepcion_id']))
+                if not rec or rec.linea.orden_id!=o.id: raise ValueError('La recepción no pertenece a esta orden.')
+                recepcion_id=rec.id
+            guardar_evidencias(leidos,o.id,tipo,texto('descripcion',300),recepcion_id)
+            db.session.commit()
+            return redirect(url_for('compra_detalle',id_orden=o.id,evidencia=1)+'#evidencia')
+        except ValueError as e:
+            db.session.rollback(); error=str(e)
+        return render_template('compra_detalle.html',o=o,error=error,token=secrets.token_hex(24),tipos_evidencia=TIPOS_EVIDENCIA), 400
+
+    @app.route('/admin/compras/evidencia/<int:id_documento>')
+    @protegido
+    def compra_evidencia_archivo(id_documento):
+        doc=db.get_or_404(CompraDocumento,id_documento)
+        ext=doc.archivo.rsplit('.',1)[-1]
+        # PDF e imagenes se abren en el navegador; Excel/Word se descargan.
+        respuesta=send_from_directory(CARPETA_EVIDENCIA,doc.archivo,as_attachment=ext not in ('pdf','png','jpg','jpeg','webp'),download_name=doc.nombre_original)
+        respuesta.headers['X-Content-Type-Options']='nosniff'
+        return respuesta
+
+    return Orden,CompraLinea,RecepcionMP,MovimientoMP,CompraDocumento

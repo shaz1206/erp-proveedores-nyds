@@ -25,16 +25,33 @@ Después abre:
 - Acceso administrativo: `http://127.0.0.1:5000/login`
 - Catálogo de proveedores: `http://127.0.0.1:5000/admin/catalogo`
 - Catálogo de materias primas: `http://127.0.0.1:5000/admin/materias-primas`
+- Inventario de materia prima y de producto terminado: `/admin/inventario-mp` y `/admin/inventario-pt`
+- Clientes (balance y estado de cuenta por cliente): `/admin/clientes`
+- CRM de pedidos: `http://127.0.0.1:5000/crm/login`
+- Tienda en línea para clientes: `http://127.0.0.1:5000/tienda`
 
-Credenciales del prototipo:
+La base de datos SQLite vive **fuera** del repositorio, en `../instance/erp.db` (junto a la carpeta del proyecto), y los archivos subidos en `uploads/`. Ninguno de los dos se versiona.
 
-- Usuario admin por omisión: `compras.nyds`
-- Contraseña admin: variable de entorno `NYDS_ADMIN_PASSWORD`
-- `SECRET_KEY`: variable de entorno `SECRET_KEY`
+### Usuarios
 
-El CRM usa variables de entorno por rol: `NYDS_CRM_ADMIN_PASSWORD`, `NYDS_CRM_VENTAS_PASSWORD`, `NYDS_CRM_PREPARACION_PASSWORD`, `NYDS_CRM_REPARTO_PASSWORD` y `NYDS_CRM_CAJA_PASSWORD`.
+Los usuarios del ERP y del CRM se guardan en la base de datos (tabla `personas`) y se administran en `/admin/personas`, cada uno con su rol (supervisor, ventas, preparación, reparto o cobranza). En una base nueva se crea un primer supervisor con:
 
-> Para producción, sustituye el login fijo por usuarios en base de datos con contraseñas cifradas.
+- Usuario: variable de entorno `NYDS_ADMIN_USER` (por omisión `compras.nyds`)
+- Contraseña: variable de entorno `NYDS_ADMIN_PASSWORD`. Defínela siempre; si no, se usa la contraseña por omisión que está en el código.
+- `SECRET_KEY`: variable de entorno `SECRET_KEY` (si no se define, las sesiones se pierden al reiniciar).
+
+## Pruebas
+
+Las pruebas automatizadas usan SQLite en memoria y nunca tocan la base real. Desde la carpeta del proyecto:
+
+```bash
+python -m unittest discover -s pruebas
+```
+
+## Documentación
+
+- `docs/ESTADO_ACTUAL_CRM_ERP.md`: descripción general de cómo se conectan el ERP y el CRM (redactada el 15 de septiembre de 2026; algunos detalles, como el login del CRM, ya cambiaron).
+- `docs/PROVEEDORES_Y_PRECIOS.md`: uso de proveedores y precios por materia prima.
 
 ## Módulo de Materias Primas incluido
 

@@ -1,0 +1,94 @@
+{% extends 'abastecimiento_base.html' %}{% block contenido %}
+{% macro dinero(v) %}${{ '{:,.2f}'.format(v | float) }}{% endmacro %}
+<a href="{{ url_for('clientes_erp') }}" class="text-decoration-none">← Volver a clientes</a>
+<div class="d-flex justify-content-between flex-wrap gap-3 mt-3 mb-4">
+    <div>
+        <h2>{{ cliente.nombre_completo }}</h2>
+        <p class="text-muted mb-0">{{ [cliente.telefono, cliente.correo, cliente.rfc] | select | join(' · ') or 'Sin datos de contacto' }}</p>
+        {% for d in cliente.domicilios %}<div class="small text-muted">{{ d.direccion }}{% if d.zona %} · {{ d.zona }}{% endif %}</div>{% endfor %}
+    </div>
+    <a href="{{ url_for('cliente_erp_pdf', id_cliente=cliente.id) }}" target="_blank" class="btn btn-outline-secondary align-self-start">&#8681; Estado de cuenta PDF</a>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md col-6"><div class="card h-100"><div class="card-body"><div class="text-muted small text-uppercase fw-semibold">Comprado</div><div class="fs-4 fw-bold">{{ dinero(comprado) }}</div></div></div></div>
+    <div class="col-md col-6"><div class="card h-100"><div class="card-body"><div class="text-muted small text-uppercase fw-semibold">Pagado</div><div class="fs-4 fw-bold">{{ dinero(pagado) }}</div></div></div></div>
+    <div class="col-md col-6"><div class="card h-100"><div class="card-body"><div class="text-muted small text-uppercase fw-semibold">{{ 'Debe' if debe >= 0 else 'Saldo a favor' }}</div><div class="fs-4 fw-bold {{ 'text-danger' if debe > 0 else 'text-success' }}">{{ dinero(debe if debe >= 0 else -debe) }}</div></div></div></div>
+    <div class="col-md col-6"><div class="card h-100"><div class="card-body"><div class="text-muted small text-uppercase fw-semibold">Trueque a favor</div><div class="fs-4 fw-bold text-success">{{ dinero(saldo_trueque) }}</div></div></div></div>
+    <div class="col-md col-12"><div class="card h-100"><div class="card-body"><div class="text-muted small text-uppercase fw-semibold">Por entregar</div><div class="fs-4 fw-bold">{{ pendientes_entrega }}</div><div class="text-muted small">pedido(s)</div></div></div></div>
+</div>
+
+<h4>Estado de cuenta</h4>
+<div class="card mb-4"><div class="table-responsive"><table class="table align-middle mb-0">
+    <thead><tr><th>Fecha</th><th>Concepto</th><th class="text-end">Cargo</th><th class="text-end">Abono</th><th class="text-end">Saldo</th></tr></thead>
+    <tbody>
+    {% for m in movimientos %}
+    <tr><td class="text-nowrap">{{ m.fecha.strftime('%d/%m/%Y') }}</td><td>{{ m.concepto }}</td><td class="text-end">{{ dinero(m.cargo) if m.cargo else '' }}</td><td class="text-end text-success">{{ dinero(m.abono) if m.abono else '' }}</td><td class="text-end fw-semibold">{{ dinero(m.saldo) }}</td></tr>
+    {% else %}
+    <tr><td colspan="5" class="text-center py-4 text-muted">Sin movimientos.</td></tr>
+    {% endfor %}
+    </tbody>
+</table></div></div>
+
+<h4>Pedidos</h4>
+<div class="card mb-4"><div class="table-responsive"><table class="table align-middle mb-0">
+    <thead><tr><th>Pedido</th><th>Productos</th><th>Estado</th><th>Entrega</th><th class="text-end">Total</th><th class="text-end">Pagado</th><th class="text-end">Saldo</th></tr></thead>
+    <tbody>
+    {% for p in pedidos %}
+    <tr>
+        <td><strong>{{ p.folio }}</strong><div class="text-muted small">{{ p.fecha.strftime('%d/%m/%Y') }} · {{ p.canal }}</div></td>
+        <td>{% for l in p.lineas %}<div class="small">{{ l.cantidad | float }} {{ l.producto.nombre if l.producto else 'Producto' }} <span class="text-muted">× ${{ '%.2f'|format(l.precio_unitario) }}</span></div>{% endfor %}{% if p.urgente %}<span class="badge bg-danger">Urgente +{{ dinero(p.cargo_urgente) }}</span>{% endif %}</td>
+        <td><span class="badge {{ 'bg-success' if p.estado == 'Entregado' else 'bg-secondary' if p.estado in ['Cancelado', 'Devuelto'] else 'bg-primary' }}">{{ p.estado }}</span></td>
+        <td>{% if p.id in entregas %}<div class="small">{{ entregas[p.id].fecha.strftime('%d/%m/%Y %H:%M') }}</div>{% if entregas[p.id].receptor %}<div class="text-muted small">Recibió {{ entregas[p.id].receptor }}</div>{% endif %}{% else %}<span class="text-muted small">Pendiente</span>{% endif %}</td>
+        <td class="text-end">{{ dinero(p.importe_total) }}</td>
+        <td class="text-end">{{ dinero(p.importe_pagado) }}</td>
+        <td class="text-end {{ 'text-danger fw-semibold' if p.saldo > 0 and p.estado not in ['Cancelado', 'Devuelto'] else '' }}">{{ dinero(p.saldo) }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="7" class="text-center py-4 text-muted">Sin pedidos.</td></tr>
+    {% endfor %}
+    </tbody>
+</table></div></div>
+
+<div class="row g-4">
+    <div class="col-lg-6">
+        <h4>Productos entregados</h4>
+        <div class="card"><div class="table-responsive"><table class="table align-middle mb-0">
+            <thead><tr><th>Producto</th><th>Cantidad</th><th>Entregas</th><th>Última</th></tr></thead>
+            <tbody>
+            {% for f in entregados %}
+            <tr><td>{{ f.producto }}</td><td>{{ '%g'|format(f.cantidad) }}</td><td>{{ f.veces }}</td><td>{{ f.ultima.strftime('%d/%m/%Y') }}</td></tr>
+            {% else %}
+            <tr><td colspan="4" class="text-center py-4 text-muted">Aún no se le ha entregado nada.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table></div></div>
+    </div>
+    <div class="col-lg-6">
+        <h4>Pagos</h4>
+        <div class="card"><div class="table-responsive"><table class="table align-middle mb-0">
+            <thead><tr><th>Fecha</th><th>Pedido</th><th>Método</th><th class="text-end">Monto</th></tr></thead>
+            <tbody>
+            {% for pg in pagos %}
+            <tr><td>{{ pg.fecha.strftime('%d/%m/%Y') }}</td><td>{{ pg.pedido.folio if pg.pedido else '—' }}</td><td>{{ pg.metodo }}<div class="text-muted small">{{ pg.referencia }}</div></td><td class="text-end">{{ dinero(pg.monto) }}</td></tr>
+            {% else %}
+            <tr><td colspan="4" class="text-center py-4 text-muted">Sin pagos.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table></div></div>
+    </div>
+    {% if trueque %}
+    <div class="col-12">
+        <h4>Trueque</h4>
+        <div class="card"><div class="table-responsive"><table class="table align-middle mb-0">
+            <thead><tr><th>Fecha</th><th>Giro</th><th>Movimiento</th><th>Descripción</th><th class="text-end">Monto</th></tr></thead>
+            <tbody>
+            {% for m in trueque %}
+            <tr><td>{{ m.fecha.strftime('%d/%m/%Y') }}</td><td>{{ m.categoria.nombre if m.categoria else '—' }}</td><td><span class="badge {{ 'bg-success' if m.tipo == 'credito' else 'bg-warning text-dark' }}">{{ 'A favor' if m.tipo == 'credito' else 'Usado' }}</span></td><td class="text-muted">{{ m.descripcion }}</td><td class="text-end">{{ dinero(m.monto) }}</td></tr>
+            {% endfor %}
+            </tbody>
+        </table></div></div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -2159,7 +2159,7 @@ if __package__:
     from .abastecimiento import registrar_abastecimiento
 else:
     from abastecimiento import registrar_abastecimiento
-OrdenCompra, CompraLinea, RecepcionMP, MovimientoMP = registrar_abastecimiento(
+OrdenCompra, CompraLinea, RecepcionMP, MovimientoMP, CompraDocumento = registrar_abastecimiento(
     app, db, MateriaPrima, Proveedor, MateriaPrimaProveedor, usuario_actual)
 
 
@@ -2190,6 +2190,9 @@ else:
     MovimientoPT,
     EventoCRM,
     EvidenciaEntregaCRM,
+    PedidoDocumentoCRM,
+    crear_pedido_desde_datos,
+    MovimientoTruequeCRM,
 ) = registrar_crm(
     app,
     db,
@@ -2201,6 +2204,35 @@ else:
     AjusteInventario,
     usuario_actual,
     autenticar_persona,
+    UPLOAD_FOLDER,
+    allowed_file,
+)
+
+if __package__:
+    from .inventario_pt import registrar_inventario_pt
+    from .clientes_erp import registrar_clientes_erp
+else:
+    from inventario_pt import registrar_inventario_pt
+    from clientes_erp import registrar_clientes_erp
+registrar_inventario_pt(app, db, ProductoTerminado, MovimientoPT, ReservaERP, usuario_actual)
+registrar_clientes_erp(app, db, ClienteCRM, PedidoCRM, PagoPedidoCRM, MovimientoPT, EvidenciaEntregaCRM, MovimientoTruequeCRM)
+
+if __package__:
+    from .tienda import registrar_tienda
+else:
+    from tienda import registrar_tienda
+
+registrar_tienda(
+    app,
+    db,
+    ProductoTerminado,
+    ClienteCRM,
+    ClienteDomicilio,
+    PedidoCRM,
+    PedidoLineaCRM,
+    MovimientoPT,
+    ReservaERP,
+    crear_pedido_desde_datos,
 )
 
 if __package__:

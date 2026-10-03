@@ -6,8 +6,119 @@
 <div class="card card-body mb-4"><h4>Rendimiento del lote</h4><p class="text-muted">Cantidad final que produce esta receta. Déjala vacía mientras esté por confirmar.</p><div class="row g-3"><div class="col-md-6"><label for="rendimiento" class="form-label">Cantidad final</label><input id="rendimiento" name="rendimiento" type="number" min="0.000001" step="0.000001" class="form-control" value="{{ request.form.get('rendimiento',r.rendimiento if r.rendimiento is not none else '') }}"></div><div class="col-md-6"><label for="unidad_rendimiento" class="form-label">Unidad final</label><select id="unidad_rendimiento" name="unidad_rendimiento" class="form-select"><option value="">Por confirmar</option>{% for u in unidades %}<option {% if request.form.get('unidad_rendimiento',r.unidad_rendimiento)==u %}selected{% endif %}>{{ u }}</option>{% endfor %}</select></div></div></div>
 <h4 class="mb-3">Ingredientes de la receta</h4>
 {% for l in r.lineas %}<div class="card card-body mb-3"><div class="d-flex justify-content-between gap-2 mb-2"><strong>{{ loop.index }}. {{ l.nombre_original }}</strong>{% if l.subreceta_id %}<a href="/admin/recetas/{{ l.subreceta_id }}">Ver subreceta ↗</a>{% elif l.mp_id %}<a href="/admin/materias-primas/{{ l.mp_id }}">Ver materia prima ↗</a>{% endif %}</div><div class="row g-3"><div class="col-md-5"><label class="form-label" for="vinculo_{{ l.id }}">Ingrediente del catálogo</label><select class="form-select" name="vinculo_{{ l.id }}" id="vinculo_{{ l.id }}" required>{% set seleccionado=request.form.get('vinculo_'~l.id,'mp:'~l.mp_id if l.mp_id else 'rec:'~l.subreceta_id) %}<optgroup label="Materias primas">{% for m in materias %}<option value="mp:{{ m.id_mp }}" {% if seleccionado=='mp:'~m.id_mp %}selected{% endif %}>{{ m.nombre_oficial }}</option>{% endfor %}</optgroup><optgroup label="Preparaciones / subrecetas">{% for s in subrecetas %}<option value="rec:{{ s.id }}" {% if seleccionado=='rec:'~s.id %}selected{% endif %}>{{ s.nombre }}</option>{% endfor %}</optgroup></select></div><div class="col-md-2"><label class="form-label" for="cantidad_{{ l.id }}">Cantidad</label><input class="form-control" id="cantidad_{{ l.id }}" name="cantidad_{{ l.id }}" type="number" min="0.000001" step="0.000001" required value="{{ request.form.get('cantidad_'~l.id,l.cantidad) }}"></div><div class="col-md-2"><label class="form-label" for="unidad_{{ l.id }}">Unidad</label><select class="form-select" id="unidad_{{ l.id }}" name="unidad_{{ l.id }}">{% for u in unidades %}<option {% if request.form.get('unidad_'~l.id,l.unidad)==u %}selected{% endif %}>{{ u }}</option>{% endfor %}</select></div><div class="col-md-3"><label class="form-label" for="proveedor_{{ l.id }}">Proveedor de referencia</label><input class="form-control" id="proveedor_{{ l.id }}" name="proveedor_{{ l.id }}" maxlength="250" value="{{ request.form.get('proveedor_'~l.id,l.proveedor_referencia or '') }}" placeholder="Por confirmar"></div></div>{% if l.observaciones %}<p class="form-text mt-3 mb-0">{{ l.observaciones }}</p>{% endif %}</div>{% endfor %}
+<div class="card card-body my-4" id="procedimiento-card">
+<style>
+#pasosLista{display:flex;flex-direction:column;gap:10px}
+.paso-bloque{display:flex;gap:12px;align-items:flex-start;background:#fff;border:1px solid #d9e3e8;border-left:4px solid var(--nyds-lapis);border-radius:12px;padding:12px}
+.paso-bloque.arrastrando{opacity:.45}
+.paso-bloque.destino{border-color:var(--nyds-lapis);box-shadow:0 0 0 3px rgba(52,81,163,.15)}
+.paso-asa{cursor:grab;color:#607086;font-size:18px;line-height:1;letter-spacing:-4px;padding:6px 4px 0 0;user-select:none}.paso-asa:hover{color:var(--nyds-lapis)}
+.paso-num{display:grid;place-items:center;flex-shrink:0;width:30px;height:30px;border-radius:50%;background:var(--nyds-midnight);color:#fff;font-weight:800;font-size:13px}
+.paso-acciones{display:flex;flex-direction:column;gap:4px}
+@media(max-width:600px){.paso-asa{display:none}.paso-bloque{flex-wrap:wrap}.paso-acciones{flex-direction:row;width:100%;justify-content:flex-end}}
+</style>
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2"><h4 class="mb-0">Procedimiento</h4><span class="text-muted small">Arrastra los bloques o usa &#8593; &#8595; para cambiar el orden. La numeración se ajusta sola.</span></div>
+<div id="pasosLista">
+{%- for b in bloques %}
+<div class="paso-bloque" draggable="true">
+    <div class="paso-asa" title="Arrastra para mover" aria-hidden="true">&#8942;&#8942;</div>
+    <span class="paso-num">1</span>
+    <div class="flex-grow-1">
+        <input class="form-control form-control-sm mb-2 fw-semibold" name="paso_titulo" maxlength="120" placeholder="Título del bloque (opcional), ej. Mezclado" value="{{ b.titulo }}">
+        <textarea class="form-control" name="paso_texto" rows="2" maxlength="4000" placeholder="Instrucciones de este paso">{{ b.texto }}</textarea>
+    </div>
+    <div class="paso-acciones">
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-paso="subir" title="Subir" aria-label="Subir bloque">&#8593;</button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-paso="bajar" title="Bajar" aria-label="Bajar bloque">&#8595;</button>
+        <button type="button" class="btn btn-outline-danger btn-sm" data-paso="quitar" title="Quitar" aria-label="Quitar bloque">&#10005;</button>
+    </div>
+</div>
+{%- endfor %}
+</div>
+<p class="text-muted mb-0 mt-2" id="pasosVacio" {% if bloques %}hidden{% endif %}>Aún no hay procedimiento. Agrega el primer bloque.</p>
+<button type="button" class="btn btn-outline-primary align-self-start mt-3" id="agregarPaso">+ Agregar bloque</button>
+<template id="pasoPlantilla"><div class="paso-bloque" draggable="true">
+    <div class="paso-asa" title="Arrastra para mover" aria-hidden="true">&#8942;&#8942;</div>
+    <span class="paso-num">1</span>
+    <div class="flex-grow-1">
+        <input class="form-control form-control-sm mb-2 fw-semibold" name="paso_titulo" maxlength="120" placeholder="Título del bloque (opcional), ej. Mezclado" value="">
+        <textarea class="form-control" name="paso_texto" rows="2" maxlength="4000" placeholder="Instrucciones de este paso"></textarea>
+    </div>
+    <div class="paso-acciones">
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-paso="subir" title="Subir" aria-label="Subir bloque">&#8593;</button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-paso="bajar" title="Bajar" aria-label="Bajar bloque">&#8595;</button>
+        <button type="button" class="btn btn-outline-danger btn-sm" data-paso="quitar" title="Quitar" aria-label="Quitar bloque">&#10005;</button>
+    </div>
+</div></template>
+<script>
+(function () {
+    const lista = document.getElementById('pasosLista');
+    const vacio = document.getElementById('pasosVacio');
+    const plantilla = document.getElementById('pasoPlantilla');
+    let arrastrado = null;
+
+    function numerar() {
+        const bloques = lista.querySelectorAll('.paso-bloque');
+        bloques.forEach((b, i) => {
+            b.querySelector('.paso-num').textContent = i + 1;
+            b.querySelector('[data-paso="subir"]').disabled = i === 0;
+            b.querySelector('[data-paso="bajar"]').disabled = i === bloques.length - 1;
+        });
+        vacio.hidden = bloques.length > 0;
+    }
+
+    document.getElementById('agregarPaso').addEventListener('click', () => {
+        lista.append(plantilla.content.cloneNode(true));
+        numerar();
+        lista.lastElementChild.querySelector('textarea').focus();
+    });
+
+    lista.addEventListener('click', (event) => {
+        const boton = event.target.closest('[data-paso]');
+        if (!boton) return;
+        const bloque = boton.closest('.paso-bloque');
+        if (boton.dataset.paso === 'subir' && bloque.previousElementSibling) lista.insertBefore(bloque, bloque.previousElementSibling);
+        if (boton.dataset.paso === 'bajar' && bloque.nextElementSibling) lista.insertBefore(bloque.nextElementSibling, bloque);
+        if (boton.dataset.paso === 'quitar') {
+            const tieneTexto = [...bloque.querySelectorAll('input, textarea')].some((c) => c.value.trim());
+            if (tieneTexto && !confirm('¿Quitar este bloque del procedimiento?')) return;
+            bloque.remove();
+        }
+        numerar();
+    });
+
+    // Arrastrar y soltar: solo desde el asa, para no estorbar al escribir en los campos.
+    lista.addEventListener('mousedown', (event) => {
+        const bloque = event.target.closest('.paso-bloque');
+        if (bloque) bloque.draggable = !!event.target.closest('.paso-asa');
+    });
+    lista.addEventListener('dragstart', (event) => {
+        arrastrado = event.target.closest('.paso-bloque');
+        if (!arrastrado) return;
+        arrastrado.classList.add('arrastrando');
+        event.dataTransfer.effectAllowed = 'move';
+    });
+    lista.addEventListener('dragover', (event) => {
+        const destino = event.target.closest('.paso-bloque');
+        if (!arrastrado || !destino || destino === arrastrado) return;
+        event.preventDefault();
+        lista.querySelectorAll('.destino').forEach((b) => b.classList.remove('destino'));
+        destino.classList.add('destino');
+        const caja = destino.getBoundingClientRect();
+        lista.insertBefore(arrastrado, event.clientY > caja.top + caja.height / 2 ? destino.nextElementSibling : destino);
+    });
+    lista.addEventListener('dragend', () => {
+        if (arrastrado) arrastrado.classList.remove('arrastrando');
+        lista.querySelectorAll('.destino').forEach((b) => b.classList.remove('destino'));
+        arrastrado = null;
+        numerar();
+    });
+    numerar();
+})();
+</script>
+</div>
 <div class="card card-body my-4"><label class="form-label" for="pendientes">Datos por confirmar</label><textarea id="pendientes" name="pendientes" rows="5" maxlength="12000" class="form-control mb-3">{{ request.form.get('pendientes',r.pendientes or '') }}</textarea><label class="form-label" for="notas">Notas de revisión</label><textarea id="notas" name="notas" rows="4" maxlength="12000" class="form-control mb-3">{{ request.form.get('notas',r.notas or '') }}</textarea><label class="form-label" for="motivo">Motivo de actualización</label><input id="motivo" name="motivo" class="form-control" maxlength="1000" required placeholder="Ej. Rendimiento confirmado por producción" value="{{ request.form.get('motivo','') }}"></div>
 <div class="sticky-actions mb-4"><button class="btn btn-primary">Guardar actualización en borrador</button></div></form>
 <details class="card card-body mb-4"><summary class="fw-bold">Consultar datos originales del documento</summary><div class="table-responsive mt-3"><table class="table"><thead><tr><th>Ingrediente original</th><th>Proveedor</th><th>Cantidad</th><th>Unidad</th><th>Observaciones</th></tr></thead><tbody>{% for c in r.origen.receta.componentes %}<tr><td>{{ c.nombre }}</td><td>{{ c.proveedor or 'No indicado' }}</td><td>{{ c.cantidad }}</td><td>{{ c.unidad }}</td><td>{{ c.observaciones }}</td></tr>{% endfor %}</tbody></table></div>{% for n in r.origen.receta.notas %}<p>{{ n }}</p>{% endfor %}</details>
-<details class="card card-body"><summary class="fw-bold">Historial de actualizaciones ({{ revisiones|length }})</summary>{% for rev in revisiones %}<div class="border-top mt-3 pt-3"><strong>{{ rev.motivo }}</strong><p class="text-muted">{{ rev.fecha.strftime('%d/%m/%Y %H:%M') }} · {{ rev.usuario }}</p>{% if rev.anterior.version %}<details><summary>Ver datos de la revisión {{ rev.anterior.version }}</summary><pre style="white-space:pre-wrap;overflow-wrap:anywhere" class="mt-2">{{ rev.anterior|tojson(indent=2) }}</pre></details>{% endif %}</div>{% endfor %}</details>
+<details class="card card-body"><summary class="fw-bold">Historial de actualizaciones ({{ revisiones|length }})</summary>{% for rev in revisiones %}<div class="border-top mt-3 pt-3"><strong>{{ rev.motivo }}</strong><p class="text-muted">{{ rev.fecha.strftime('%d/%m/%Y %H:%M') }} · {{ rev.usuario }}</p>{% if rev.anterior.version %}{% set a = rev.anterior %}<details><summary>Ver cómo estaba la revisión {{ a.version }}</summary><div class="mt-2 small"><p class="mb-1"><strong>Rendimiento:</strong> {{ a.rendimiento ~ ' ' ~ (a.unidad or '') if a.rendimiento else 'Por confirmar' }}</p>{% if a.lineas %}<table class="table table-sm mb-2"><thead><tr><th>Ingrediente</th><th>Cantidad</th><th>Proveedor</th></tr></thead><tbody>{% for la in a.lineas %}{% set mp = materias | selectattr('id_mp', 'equalto', la.mp_id) | first if la.mp_id else none %}{% set sub = subrecetas | selectattr('id', 'equalto', la.subreceta_id) | first if la.subreceta_id else none %}<tr><td>{{ mp.nombre_oficial if mp else sub.nombre if sub else 'Ingrediente ' ~ loop.index }}</td><td>{{ la.cantidad }} {{ la.unidad }}</td><td>{{ la.proveedor or '—' }}</td></tr>{% endfor %}</tbody></table>{% endif %}{% if a.procedimiento %}<p class="mb-1"><strong>Procedimiento:</strong></p><ol>{% for paso in a.procedimiento | pasos_receta %}<li>{% if paso.titulo %}<strong>{{ paso.titulo }}:</strong> {% endif %}{{ paso.texto }}</li>{% endfor %}</ol>{% endif %}{% if a.pendientes %}<p class="mb-1"><strong>Por confirmar:</strong> {{ a.pendientes }}</p>{% endif %}{% if a.notas %}<p class="mb-0"><strong>Notas:</strong> {{ a.notas }}</p>{% endif %}</div></details>{% endif %}</div>{% endfor %}</details>
 {% endblock %}

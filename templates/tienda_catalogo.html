@@ -1,0 +1,53 @@
+{% extends 'tienda_base.html' %}
+{% block titulo %}Catálogo - Tienda NYDS{% endblock %}
+{% block contenido %}
+<div class="d-flex justify-content-between flex-wrap gap-3 mb-4">
+    <div>
+        <h2 class="fw-bold text-dark mb-1">Catálogo</h2>
+        <p class="text-muted mb-0">Productos NYDS disponibles para pedido en línea.</p>
+    </div>
+</div>
+<form class="row g-2 mb-4" method="get">
+    <div class="col-md-8"><input name="q" value="{{ q }}" class="form-control" placeholder="Buscar por nombre o categoría" aria-label="Buscar producto"></div>
+    <div class="col-md-3"><button class="btn btn-outline-primary w-100">Buscar</button></div>
+</form>
+{% if request.args.get('sin_stock') %}<div class="alert alert-warning" role="status">Ese producto no tiene existencia disponible en este momento.</div>{% endif %}
+{% if request.args.get('agregado') %}
+<div class="alert alert-success" role="status">
+    Producto agregado al carrito.
+    {% if request.args.get('limitado') == '1' %}Se ajustó la cantidad a lo que hay disponible en existencia.{% endif %}
+</div>
+{% endif %}
+<div class="row g-3">
+    {% for p in productos %}
+    <div class="col-6 col-md-4 col-lg-3">
+        <div class="producto-card">
+            {% if p.imagen %}
+            <img src="{{ url_for('imagen_producto_terminado', id_producto=p.id) }}" alt="{{ p.nombre }}">
+            {% else %}
+            <div class="d-flex align-items-center justify-content-center text-muted" style="height:170px;background:#f7f9fa">Sin imagen</div>
+            {% endif %}
+            <div class="cuerpo">
+                <div>
+                    <small class="text-muted d-block">{{ p.categoria }}</small>
+                    <strong>{{ p.nombre }}</strong>
+                </div>
+                <div class="precio">${{ '%.2f' | format(p.precio) }}</div>
+                {% set disponible = disponibilidad.get(p.id, 0) %}
+                {% if disponible > 0 %}
+                <small class="text-muted">Disponible: {{ '%g' | format(disponible) }}</small>
+                <form class="d-flex gap-2 mt-auto" method="post" action="{{ url_for('tienda_catalogo_agregar', id_producto=p.id) }}">
+                    <input type="number" name="cantidad" value="1" min="1" max="{{ '%g' | format(disponible) }}" step="1" class="form-control form-control-sm" style="max-width:80px" aria-label="Cantidad">
+                    <button class="btn btn-primary btn-sm flex-fill">Agregar</button>
+                </form>
+                {% else %}
+                <span class="badge bg-secondary align-self-start">Agotado</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="col-12"><p class="text-muted text-center py-5">No hay productos disponibles para pedido en línea en este momento.</p></div>
+    {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,13 @@
+{# Selector de mes + PDF del mes. Antes de incluirlo: {% set pdf_url = '/crm/...' %} #}
+<form method="get" class="d-flex gap-2 align-items-center flex-wrap no-imprimir">
+    {% if q is defined and q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
+    <label class="text-muted small fw-semibold text-uppercase" for="selectorMes">Mes</label>
+    <select id="selectorMes" name="mes" class="form-select" style="width:auto" onchange="this.form.submit()">
+        {% for opcion in mes.opciones %}
+        <option value="{{ opcion.valor }}" {{ 'selected' if opcion.valor == mes.valor else '' }}>{{ opcion.etiqueta }}</option>
+        {% endfor %}
+    </select>
+    {% if pdf_url %}
+    <a class="btn btn-outline-secondary" target="_blank" href="{{ pdf_url }}?mes={{ mes.valor }}{% if q is defined and q %}&q={{ q | urlencode }}{% endif %}">&#8681; PDF del mes</a>
+    {% endif %}
+</form>

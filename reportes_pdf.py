@@ -7,6 +7,7 @@ mismo membrete, tipografía y colores que el resto del sistema.
 import os
 from datetime import datetime
 from io import BytesIO
+from xml.sax.saxutils import escape
 
 from flask import Response
 from reportlab.lib import colors
@@ -39,11 +40,17 @@ ESTILO_CELDA = ParagraphStyle("nyds_celda", parent=_estilos_base["Normal"], text
 ESTILO_CELDA_MUTED = ParagraphStyle("nyds_celda_muted", parent=ESTILO_CELDA, textColor=MUTED)
 
 
-def celda(texto, muted=False):
-    """Envuelve texto en un Paragraph para que haga salto de línea dentro de la tabla."""
+def celda(texto, muted=False, negrita=False):
+    """Envuelve texto en un Paragraph para que haga salto de línea dentro de la tabla.
+
+    El texto se escapa (un "&" o "<" en el nombre de un cliente no rompe el PDF);
+    los saltos de línea del texto se respetan."""
     if texto is None:
         texto = ""
-    return Paragraph(str(texto), ESTILO_CELDA_MUTED if muted else ESTILO_CELDA)
+    marcado = escape(str(texto)).replace("\n", "<br/>")
+    if negrita:
+        marcado = f"<b>{marcado}</b>"
+    return Paragraph(marcado, ESTILO_CELDA_MUTED if muted else ESTILO_CELDA)
 
 
 def _membrete(titulo, generado_el):
@@ -92,17 +99,18 @@ def generar_pdf(titulo, subtitulo, secciones, nombre_archivo="reporte-nyds.pdf")
         title=titulo,
     )
     generado_el = datetime.now().strftime("%d/%m/%Y %H:%M")
-    cuerpo = [Paragraph(titulo, ESTILO_TITULO)]
+    cuerpo = [Paragraph(escape(titulo), ESTILO_TITULO)]
     if subtitulo:
-        cuerpo.append(Paragraph(subtitulo, ESTILO_SUBTITULO))
+        cuerpo.append(Paragraph(escape(subtitulo), ESTILO_SUBTITULO))
     cuerpo.append(Spacer(1, 10))
 
     for seccion in secciones:
         if seccion.get("titulo"):
-            cuerpo.append(Paragraph(seccion["titulo"], ESTILO_SECCION))
+            cuerpo.append(Paragraph(escape(seccion["titulo"]), ESTILO_SECCION))
         columnas = seccion["columnas"]
         filas = seccion.get("filas") or []
-        if not filas:
+        vacia = not filas
+        if vacia:
             mensaje = seccion.get("vacio", "Sin registros.")
             filas = [[celda(mensaje, muted=True)] + ["" for _ in columnas[1:]]]
         anchos = [a * cm for a in seccion["anchos"]] if seccion.get("anchos") else None
@@ -121,7 +129,7 @@ def generar_pdf(titulo, subtitulo, secciones, nombre_archivo="reporte-nyds.pdf")
             ("LEFTPADDING", (0, 0), (-1, -1), 6),
             ("RIGHTPADDING", (0, 0), (-1, -1), 6),
             ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ]))
+        ] + ([("SPAN", (0, 1), (-1, 1))] if vacia else [])))
         cuerpo.append(tabla)
         cuerpo.append(Spacer(1, 14))
 

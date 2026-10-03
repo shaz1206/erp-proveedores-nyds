@@ -12,12 +12,17 @@
         .ruta-zona-titulo b{font-size:1.02rem;color:var(--nyds-midnight)}
         .ruta-zona-titulo .badge{background:var(--nyds-lapis)}
         .ruta-card{background:#fff;border:1px solid #e4e9f1;border-radius:14px;padding:14px 16px;margin-bottom:10px;box-shadow:0 3px 10px rgba(19,36,65,.04);display:grid;grid-template-columns:1fr auto;gap:6px 16px}
+        .ruta-card.urgente{border-left:4px solid #a82a48}
         .ruta-card .folio{font-size:11px;font-weight:800;color:var(--nyds-lapis);text-transform:uppercase;letter-spacing:.04em}
         .ruta-card .cliente{font-weight:700;color:var(--nyds-midnight);font-size:14px}
         .ruta-card .direccion{color:#455774;font-size:13px;grid-column:1/2}
         .ruta-card .telefono{color:#607086;font-size:12.5px}
         .ruta-card .saldo{text-align:right;font-weight:800;color:var(--nyds-midnight);font-variant-numeric:tabular-nums}
         .ruta-card .salio{text-align:right;color:#8496a6;font-size:11.5px}
+        .ruta-card .acciones{grid-column:1/-1;display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+        .ruta-aviso{display:inline-block;border-radius:8px;padding:3px 9px;font-size:11.5px;font-weight:700;background:#fce3e9;color:#a82a48}
+        .ruta-seccion{margin-bottom:30px}
+        .ruta-seccion > h4{font-size:1.05rem;font-weight:800;color:var(--nyds-midnight);margin-bottom:4px}
         @media print{
             body.has-app-sidebar{padding-left:0!important}
             .app-sidebar,.app-sidebar-reopen,.erp-toolbar,.no-imprimir{display:none!important}
@@ -27,40 +32,166 @@
 </head>
 <body class="bg-light">
     {% include 'crm_header.html' %}
+    {% set puede_programar = rol in ['supervisor', 'ventas', 'reparto'] %}
+    {% macro tarjeta(fila, acciones) %}
+    {% set pedido = fila.pedido %}
+    <div class="ruta-card{{ ' urgente' if pedido.urgente else '' }}">
+        <div>
+            <span class="folio">{{ pedido.folio }} &middot; {{ fila.zona }}</span>
+            <div class="cliente">{{ pedido.cliente.nombre_completo if pedido.cliente else 'Cliente' }}</div>
+        </div>
+        <div class="saldo">{{ '${:,.0f}'.format(pedido.importe_total | float) }}</div>
+        <div class="direccion">{{ pedido.domicilio.direccion if pedido.domicilio else 'Sin dirección' }}{% if pedido.domicilio and pedido.domicilio.referencias %} &middot; {{ pedido.domicilio.referencias }}{% endif %}</div>
+        <div class="salio">{{ pedido.estado }}</div>
+        <div class="telefono">{{ pedido.cliente.telefono if pedido.cliente else '' }}
+            {% if pedido.urgente %}<span class="ruta-aviso">Urgente +{{ '${:,.2f}'.format(pedido.cargo_urgente | float) }}</span>{% endif %}
+            {% if fila.ruta_paso and not pedido.fecha_ruta %}<span class="ruta-aviso">La ruta de {{ fila.zona }} ya pasó hoy</span>{% endif %}
+            {% if pedido.fecha_ruta and pedido.fecha_ruta > hoy %}<span class="badge bg-secondary">Ruta del {{ pedido.fecha_ruta.strftime('%d/%m/%Y') }}</span>{% endif %}
+        </div>
+        {% if acciones %}<div class="acciones">{{ acciones | safe }}</div>{% endif %}
+    </div>
+    {% endmacro %}
     <main class="container-fluid px-4 mb-5">
         <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4 no-imprimir">
             <div>
-                <h2>Hoja de ruta</h2>
-                <p class="text-muted mb-0">{{ hoy_es }} &middot; {{ total }} pedido(s) en ruta ahora.</p>
+                <h2>Ruta</h2>
+                <p class="text-muted mb-0">{{ hoy_es }} &middot; {{ total }} pedido(s) en ruta ahora &middot; {{ por_asignar | length }} por asignar.</p>
             </div>
             <div class="d-flex gap-2">
-                <a href="/crm/rutas/pdf" target="_blank" class="btn btn-outline-secondary">&#8681; Descargar PDF</a>
+                <a href="/crm/rutas/pdf" target="_blank" class="btn btn-outline-secondary">&#8681; Hoja de ruta PDF</a>
                 <button type="button" class="btn btn-primary" onclick="window.print()">&#128424; Imprimir</button>
             </div>
         </div>
-        {% for grupo in grupos %}
-        <div class="ruta-zona">
-            <div class="ruta-zona-titulo"><b>Zona: {{ grupo.zona }}</b><span class="badge">{{ grupo.filas | length }}</span></div>
-            {% for fila in grupo.filas %}
-            {% set pedido = fila.pedido %}
-            <div class="ruta-card">
-                <div>
-                    <span class="folio">{{ pedido.folio }}</span>
-                    <div class="cliente">{{ pedido.cliente.nombre if pedido.cliente else 'Cliente' }}</div>
-                </div>
-                <div class="saldo">{{ '${:,.0f}'.format(pedido.saldo | float) }}</div>
-                <div class="direccion">{{ pedido.domicilio.direccion if pedido.domicilio else 'Sin dirección' }}{% if pedido.domicilio and pedido.domicilio.referencias %} &middot; {{ pedido.domicilio.referencias }}{% endif %}</div>
-                <div class="salio">{% if fila.salida %}Salió {{ fila.salida.strftime('%d/%m %H:%M') }}{% else %}Sin registro de salida{% endif %}</div>
-                <div class="telefono">{{ pedido.cliente.telefono if pedido.cliente else '' }}</div>
-            </div>
+
+        <section class="ruta-seccion no-imprimir">
+            <h4>Por asignar a ruta</h4>
+            <p class="text-muted small">Pedidos confirmados o listos que todavía no tienen ruta. Si la ruta de su zona ya pasó hoy, puedes mandarlos a la siguiente ruta o aceptarlos hoy como urgentes con un cargo extra.</p>
+            {% for fila in por_asignar %}
+                {% set acciones %}{% if puede_programar %}
+                <button class="btn btn-sm {{ 'btn-outline-danger' if fila.ruta_paso else 'btn-primary' }}" data-ruta="hoy" data-pedido="{{ fila.pedido.id }}" data-paso="{{ '1' if fila.ruta_paso else '' }}" data-zona="{{ fila.zona }}">{{ 'Aceptar hoy (urgente)' if fila.ruta_paso else 'Aceptar en ruta de hoy' }}</button>
+                <button class="btn btn-sm {{ 'btn-primary' if fila.ruta_paso else 'btn-outline-secondary' }}" data-ruta="siguiente" data-pedido="{{ fila.pedido.id }}">Siguiente ruta</button>
+                {% endif %}{% endset %}
+                {{ tarjeta(fila, acciones) }}
+            {% else %}
+            <div class="text-muted small">No hay pedidos pendientes de asignar.</div>
             {% endfor %}
-        </div>
-        {% else %}
-        <div class="text-center text-muted py-5">
-            <strong>No hay pedidos en ruta en este momento.</strong>
-            <p class="mt-2 mb-0">Cuando reparto marque un pedido como "En ruta" aparecer&aacute; aqu&iacute; agrupado por zona.</p>
-        </div>
-        {% endfor %}
+        </section>
+
+        <section class="ruta-seccion no-imprimir">
+            <h4>Aceptados para la ruta de hoy</h4>
+            {% for fila in para_hoy %}
+                {% set acciones %}
+                {% if rol in ['supervisor', 'reparto'] %}<button class="btn btn-sm btn-primary" data-estado="En ruta" data-pedido="{{ fila.pedido.id }}">Salir a ruta</button>{% endif %}
+                {% if puede_programar %}<button class="btn btn-sm btn-outline-secondary" data-ruta="siguiente" data-pedido="{{ fila.pedido.id }}">Pasar a siguiente ruta</button>{% endif %}
+                {% endset %}
+                {{ tarjeta(fila, acciones) }}
+            {% else %}
+            <div class="text-muted small">Nada aceptado todavía para hoy.</div>
+            {% endfor %}
+        </section>
+
+        {% if programados %}
+        <section class="ruta-seccion no-imprimir">
+            <h4>Programados para siguientes rutas</h4>
+            {% for fila in programados %}
+                {% set acciones %}{% if puede_programar %}
+                <button class="btn btn-sm btn-outline-danger" data-ruta="hoy" data-pedido="{{ fila.pedido.id }}" data-paso="{{ '1' if fila.ruta_paso else '' }}" data-zona="{{ fila.zona }}">Adelantar a hoy</button>
+                <button class="btn btn-sm btn-outline-secondary" data-ruta="siguiente" data-pedido="{{ fila.pedido.id }}">Cambiar fecha</button>
+                {% endif %}{% endset %}
+                {{ tarjeta(fila, acciones) }}
+            {% endfor %}
+        </section>
+        {% endif %}
+
+        <section class="ruta-seccion">
+            <h4>En ruta ahora</h4>
+            {% for grupo in grupos %}
+            <div class="ruta-zona">
+                <div class="ruta-zona-titulo"><b>Zona: {{ grupo.zona }}</b><span class="badge">{{ grupo.filas | length }}</span></div>
+                {% for fila in grupo.filas %}
+                {% set pedido = fila.pedido %}
+                <div class="ruta-card{{ ' urgente' if pedido.urgente else '' }}">
+                    <div>
+                        <span class="folio">{{ pedido.folio }}{% if pedido.urgente %} &middot; urgente{% endif %}</span>
+                        <div class="cliente">{{ pedido.cliente.nombre_completo if pedido.cliente else 'Cliente' }}</div>
+                    </div>
+                    <div class="saldo">{{ '${:,.0f}'.format(pedido.saldo | float) }}</div>
+                    <div class="direccion">{{ pedido.domicilio.direccion if pedido.domicilio else 'Sin dirección' }}{% if pedido.domicilio and pedido.domicilio.referencias %} &middot; {{ pedido.domicilio.referencias }}{% endif %}</div>
+                    <div class="salio">{% if fila.salida %}Salió {{ fila.salida.strftime('%d/%m %H:%M') }}{% else %}Sin registro de salida{% endif %}</div>
+                    <div class="telefono">{{ pedido.cliente.telefono if pedido.cliente else '' }}</div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-muted small">No hay pedidos en ruta en este momento.</div>
+            {% endfor %}
+        </section>
+
+        <section class="card no-imprimir">
+            <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <h5 class="mb-0">Entregas de {{ mes.etiqueta }}</h5>
+                {% set pdf_url = '/crm/rutas/historial/pdf' %}
+                {% include 'crm_mes.html' %}
+            </div>
+            <div class="table-responsive">
+                <table class="table align-middle mb-0">
+                    <thead><tr><th>Entregado</th><th>Folio</th><th>Cliente</th><th>Zona</th><th>Tipo</th><th>Total</th></tr></thead>
+                    <tbody>
+                        {% for e in entregas %}
+                        <tr>
+                            <td>{{ e.fecha.strftime('%d/%m/%Y %H:%M') }}</td>
+                            <td>{{ e.pedido.folio }}</td>
+                            <td>{{ e.pedido.cliente.nombre_completo if e.pedido.cliente else '—' }}</td>
+                            <td>{{ e.pedido.domicilio.zona if e.pedido.domicilio else '—' }}</td>
+                            <td>{% if e.pedido.urgente %}<span class="badge bg-danger">Urgente +${{ '%.2f' | format(e.pedido.cargo_urgente) }}</span>{% else %}Normal{% endif %}</td>
+                            <td>${{ '%.2f' | format(e.pedido.importe_total) }}</td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="6" class="text-center text-muted py-4">No hubo entregas en {{ mes.etiqueta }}.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
     </main>
+    {% include 'crm_modal.html' %}
+    <script>
+        document.addEventListener('click', async (event) => {
+            const button = event.target.closest('[data-ruta], [data-estado]');
+            if (!button) return;
+            const pedido = button.dataset.pedido;
+            try {
+                if (button.dataset.estado) {
+                    await jsonFetch(`/api/crm/pedidos/${pedido}/estado`, { method: 'POST', body: JSON.stringify({ estado: button.dataset.estado }) });
+                } else if (button.dataset.ruta === 'hoy') {
+                    const body = { accion: 'hoy' };
+                    if (button.dataset.paso) {
+                        const datos = await openModal({
+                            title: 'Entrega urgente',
+                            subtitle: `La ruta de ${button.dataset.zona} ya pasó hoy. Para meterlo hoy se cobra un cargo extra, que se suma al total del pedido.`,
+                            submitText: 'Aceptar como urgente',
+                            fields: [{ name: 'cargo_urgente', label: 'Cargo por entrega urgente (MXN)', type: 'number', min: '0.01', step: '0.01', required: true }],
+                        });
+                        if (!datos) return;
+                        body.urgente = true;
+                        body.cargo_urgente = datos.cargo_urgente;
+                    }
+                    await jsonFetch(`/api/crm/pedidos/${pedido}/ruta`, { method: 'POST', body: JSON.stringify(body) });
+                } else if (button.dataset.ruta === 'siguiente') {
+                    const datos = await openModal({
+                        title: 'Siguiente ruta',
+                        subtitle: 'El pedido sale en la ruta del día que elijas. Si tenía cargo urgente, se quita.',
+                        submitText: 'Programar',
+                        fields: [{ name: 'fecha', label: 'Fecha de la ruta', type: 'date', value: '{{ manana }}', min: '{{ manana }}', required: true }],
+                    });
+                    if (!datos) return;
+                    await jsonFetch(`/api/crm/pedidos/${pedido}/ruta`, { method: 'POST', body: JSON.stringify({ accion: 'siguiente', fecha: datos.fecha }) });
+                }
+                window.location.reload();
+            } catch (error) {
+                showToast(error.message);
+            }
+        });
+    </script>
 </body>
 </html>

@@ -1,0 +1,13 @@
+{% extends 'tienda_base.html' %}
+{% block titulo %}Pedido confirmado - Tienda NYDS{% endblock %}
+{% block contenido %}
+<div class="card border-0 shadow-sm p-5 text-center">
+    <h2 class="fw-bold text-dark mb-2">¡Gracias por tu pedido!</h2>
+    <p class="text-muted mb-1">Tu folio es <strong>{{ pedido.folio }}</strong>.</p>
+    <p class="text-muted">Nuestro equipo de ventas lo va a confirmar en breve y te avisaremos cuando esté en camino.</p>
+    <div class="d-flex justify-content-center gap-3 mt-3 flex-wrap">
+        <a class="btn btn-primary" href="{{ url_for('tienda_mis_pedidos') }}">Ver mis pedidos</a>
+        <a class="btn btn-outline-primary" href="{{ url_for('tienda_catalogo') }}">Seguir comprando</a>
+    </div>
+</div>
+{% endblock %}

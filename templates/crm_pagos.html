@@ -10,9 +10,13 @@
 <body class="bg-light">
     {% include 'crm_header.html' %}
     <main class="container-fluid px-4 mb-5">
-        <div class="mb-4">
-            <h2>Pagos</h2>
-            <p class="text-muted mb-0">Historial de cobros registrados en los pedidos y movimientos de crédito por trueque.</p>
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+            <div>
+                <h2>Pagos</h2>
+                <p class="text-muted mb-0">Cobros y trueque de {{ mes.etiqueta }} · cobrado ${{ '%.2f' | format(total_cobrado) }}.</p>
+            </div>
+            {% set pdf_url = '/crm/pagos/pdf' %}
+            {% include 'crm_mes.html' %}
         </div>
 
         <div class="row g-3 mb-4">
@@ -27,13 +31,13 @@
                 </div>
             </div>
             {% else %}
-            <div class="col-12"><div class="alert alert-secondary mb-0">Aún no hay pagos registrados.</div></div>
+            <div class="col-12"><div class="alert alert-secondary mb-0">No hay pagos registrados en {{ mes.etiqueta }}.</div></div>
             {% endfor %}
         </div>
 
         <section class="card mb-4">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Pagos recientes</h5>
+                <h5 class="mb-0">Pagos de {{ mes.etiqueta }}</h5>
                 <span class="badge bg-primary">{{ pagos | length }} pago(s)</span>
             </div>
             <div class="table-responsive">
@@ -55,7 +59,7 @@
                         <tr>
                             <td>{{ pago.fecha.strftime('%d/%m/%Y %H:%M') }}</td>
                             <td>{{ pago.pedido.folio if pago.pedido else '—' }}</td>
-                            <td>{{ pago.pedido.cliente.nombre if pago.pedido and pago.pedido.cliente else '—' }}</td>
+                            <td>{{ pago.pedido.cliente.nombre_completo if pago.pedido and pago.pedido.cliente else '—' }}</td>
                             <td>${{ '%.2f' | format(pago.monto) }}</td>
                             <td><span class="badge {{ 'bg-success' if pago.metodo == 'Trueque' else 'bg-secondary' }}">{{ pago.metodo }}</span></td>
                             <td>{% if pago.metodo == 'Trueque' %}{{ pago.categoria_trueque.nombre if pago.categoria_trueque else '—' }} · {{ pago.porcentaje_trueque }}%{% else %}—{% endif %}</td>
@@ -65,7 +69,7 @@
                         {% else %}
                         <tr>
                             <td colspan="8" class="text-center py-5">
-                                <strong>Aún no hay pagos registrados</strong>
+                                <strong>No hay pagos en {{ mes.etiqueta }}</strong>
                                 <p class="text-muted mt-2 mb-0">Los pagos se capturan desde el detalle de cada pedido.</p>
                             </td>
                         </tr>
@@ -75,9 +79,57 @@
             </div>
         </section>
 
+        <section class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Trueque por negocio · {{ mes.etiqueta }}</h5>
+                <span class="badge bg-success">Saldo total ${{ '%.2f' | format(trueque_totales.saldo) }}</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Negocio</th>
+                            <th>Giro</th>
+                            <th>Saldo al iniciar el mes</th>
+                            <th>A favor en el mes</th>
+                            <th>Usado en el mes</th>
+                            <th>Saldo</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for f in trueque_negocios %}
+                        <tr>
+                            <td><strong>{{ f.cliente.nombre_completo if f.cliente else '—' }}</strong></td>
+                            <td class="text-muted">{{ f.giros or '—' }}</td>
+                            <td>${{ '%.2f' | format(f.saldo_inicial) }}</td>
+                            <td class="text-success">+${{ '%.2f' | format(f.a_favor) }}</td>
+                            <td class="text-danger">−${{ '%.2f' | format(f.usado) }}</td>
+                            <td><strong>${{ '%.2f' | format(f.saldo) }}</strong></td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center py-4 text-muted">Ningún negocio tiene saldo ni movimientos de trueque en {{ mes.etiqueta }}.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    {% if trueque_negocios %}
+                    <tfoot>
+                        <tr class="fw-bold">
+                            <td colspan="2">Total</td>
+                            <td>${{ '%.2f' | format(trueque_totales.saldo_inicial) }}</td>
+                            <td class="text-success">+${{ '%.2f' | format(trueque_totales.a_favor) }}</td>
+                            <td class="text-danger">−${{ '%.2f' | format(trueque_totales.usado) }}</td>
+                            <td>${{ '%.2f' | format(trueque_totales.saldo) }}</td>
+                        </tr>
+                    </tfoot>
+                    {% endif %}
+                </table>
+            </div>
+        </section>
+
         <section class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Movimientos de trueque</h5>
+                <h5 class="mb-0">Movimientos de trueque · {{ mes.etiqueta }}</h5>
                 <span class="badge bg-primary">{{ trueque_movimientos | length }} movimiento(s)</span>
             </div>
             <div class="table-responsive">
@@ -85,7 +137,7 @@
                     <thead>
                         <tr>
                             <th>Fecha</th>
-                            <th>Cliente</th>
+                            <th>Negocio</th>
                             <th>Giro</th>
                             <th>Tipo</th>
                             <th>Monto</th>
@@ -97,9 +149,9 @@
                         {% for mov in trueque_movimientos %}
                         <tr>
                             <td>{{ mov.fecha.strftime('%d/%m/%Y %H:%M') }}</td>
-                            <td>{{ mov.cliente.nombre if mov.cliente else '—' }}</td>
+                            <td>{{ mov.cliente.nombre_completo if mov.cliente else '—' }}</td>
                             <td>{{ mov.categoria.nombre if mov.categoria else '—' }}</td>
-                            <td><span class="badge {{ 'bg-success' if mov.tipo == 'credito' else 'bg-warning text-dark' }}">{{ 'Crédito generado' if mov.tipo == 'credito' else 'Crédito consumido' }}</span></td>
+                            <td><span class="badge {{ 'bg-success' if mov.tipo == 'credito' else 'bg-warning text-dark' }}">{{ 'A favor' if mov.tipo == 'credito' else 'Usado' }}</span></td>
                             <td>${{ '%.2f' | format(mov.monto) }}</td>
                             <td>{{ mov.pedido.folio if mov.pedido else '—' }}</td>
                             <td class="text-muted">{{ mov.descripcion }}</td>
@@ -107,7 +159,7 @@
                         {% else %}
                         <tr>
                             <td colspan="7" class="text-center py-5">
-                                <strong>Aún no hay movimientos de trueque</strong>
+                                <strong>Sin movimientos de trueque en {{ mes.etiqueta }}</strong>
                                 <p class="text-muted mt-2 mb-0">Se generan desde Clientes o al pagar un pedido con Trueque.</p>
                             </td>
                         </tr>

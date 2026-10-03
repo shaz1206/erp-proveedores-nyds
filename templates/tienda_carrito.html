@@ -1,0 +1,35 @@
+{% extends 'tienda_base.html' %}
+{% block titulo %}Carrito - Tienda NYDS{% endblock %}
+{% block contenido %}
+<h2 class="fw-bold text-dark mb-4">Tu carrito</h2>
+{% if request.args.get('limitado') == '1' %}<div class="alert alert-warning">Ajustamos una cantidad a lo que hay disponible en existencia.</div>{% endif %}
+{% if not items %}
+<p class="text-muted">Tu carrito está vacío. <a href="{{ url_for('tienda_catalogo') }}">Ver catálogo</a>.</p>
+{% else %}
+<div class="card border-0 shadow-sm mb-4">
+<div class="table-responsive"><table class="table align-middle mb-0">
+<thead class="table-dark"><tr><th>Producto</th><th>Precio</th><th>Cantidad</th><th>Subtotal</th><th></th></tr></thead>
+<tbody>
+{% for item in items %}
+<tr>
+    <td>{{ item.producto.nombre }}{% set disponible = disponibilidad.get(item.producto.id, 0) %}{% if item.cantidad > disponible %}<br><small class="text-danger">Solo quedan {{ '%g' | format(disponible) }} disponibles</small>{% endif %}</td>
+    <td>${{ '%.2f' | format(item.precio_unitario) }}</td>
+    <td style="max-width:170px">
+        <form class="d-flex gap-2" method="post" action="{{ url_for('tienda_carrito_actualizar', id_producto=item.producto.id) }}">
+            <input type="number" name="cantidad" value="{{ item.cantidad | float }}" min="0" step="1" class="form-control form-control-sm" aria-label="Cantidad">
+            <button class="btn btn-outline-primary btn-sm text-nowrap">Actualizar</button>
+        </form>
+    </td>
+    <td>${{ '%.2f' | format(item.subtotal) }}</td>
+    <td><form method="post" action="{{ url_for('tienda_carrito_eliminar', id_producto=item.producto.id) }}"><button class="btn btn-outline-danger btn-sm">Quitar</button></form></td>
+</tr>
+{% endfor %}
+</tbody>
+</table></div>
+</div>
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+    <strong class="fs-5">Total: ${{ '%.2f' | format(total) }}</strong>
+    <a class="btn btn-primary btn-lg" href="{{ url_for('tienda_checkout') }}">Continuar a pago</a>
+</div>
+{% endif %}
+{% endblock %}

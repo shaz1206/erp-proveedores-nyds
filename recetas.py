@@ -1,7 +1,7 @@
 """Recetas iniciales en borrador, con fuente inmutable y revisión editable."""
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
-import json, secrets
+import json, re, secrets
 from flask import request, session, redirect, render_template, abort, url_for
 from sqlalchemy import update
 
@@ -25,6 +25,8 @@ def registrar_recetas(app, db, MP, PT, usuario_actual):
         unidad_rendimiento=db.Column(db.String(20))
         notas=db.Column(db.Text)
         pendientes=db.Column(db.Text)
+        # Bloques del procedimiento en orden, como JSON: [{"titulo": "...", "texto": "..."}].
+        procedimiento=db.Column(db.Text)
         origen=db.Column(db.JSON,nullable=False)
         version=db.Column(db.Integer,nullable=False,default=1)
         creado_en=db.Column(db.DateTime,default=datetime.utcnow,nullable=False)
@@ -53,8 +55,37 @@ def registrar_recetas(app, db, MP, PT, usuario_actual):
         motivo=db.Column(db.Text,nullable=False)
         anterior=db.Column(db.JSON,nullable=False)
 
+    def pasos(valor):
+        """Procedimiento guardado -> lista ordenada de bloques {titulo, texto}.
+        Acepta tambien el formato anterior (texto con un paso por renglon)."""
+        if not valor:return []
+        if valor.lstrip().startswith('['):
+            try:datos=json.loads(valor)
+            except ValueError:datos=None
+            if isinstance(datos,list):
+                bloques=[]
+                for d in datos:
+                    titulo=str(d.get('titulo') or '').strip() if isinstance(d,dict) else ''
+                    texto=str(d.get('texto') or '').strip() if isinstance(d,dict) else str(d).strip()
+                    if titulo or texto:bloques.append(dict(titulo=titulo,texto=texto))
+                return bloques
+        return [dict(titulo='',texto=re.sub(r'^\s*(\d+[.)]|[-*•])\s+','',x).strip()) for x in valor.splitlines() if x.strip()]
+
+    def bloques_del_formulario():
+        """Lee los bloques en el orden en que vienen del formulario (el orden que dejo el usuario)."""
+        titulos=request.form.getlist('paso_titulo');textos=request.form.getlist('paso_texto')
+        if len(titulos)!=len(textos):raise ValueError('Los bloques del procedimiento llegaron incompletos. Recarga la página.')
+        bloques=[dict(titulo=t.strip(),texto=x.strip()) for t,x in zip(titulos,textos) if t.strip() or x.strip()]
+        if len(bloques)>100:raise ValueError('El procedimiento admite máximo 100 bloques.')
+        for i,b in enumerate(bloques,1):
+            if len(b['titulo'])>120 or len(b['texto'])>4000:raise ValueError(f'Bloque {i}: título de hasta 120 caracteres e instrucciones de hasta 4000.')
+            if not b['texto']:raise ValueError(f'Bloque {i}: escribe las instrucciones (el título solo no basta).')
+        return bloques
+
+    app.jinja_env.filters['pasos_receta']=pasos
+
     def snapshot(r):
-        return dict(nombre=r.nombre,rendimiento=str(r.rendimiento) if r.rendimiento is not None else None,unidad=r.unidad_rendimiento,notas=r.notas,pendientes=r.pendientes,version=r.version,lineas=[dict(id=l.id,cantidad=str(l.cantidad),unidad=l.unidad,mp_id=l.mp_id,subreceta_id=l.subreceta_id,proveedor=l.proveedor_referencia,observaciones=l.observaciones) for l in r.lineas])
+        return dict(nombre=r.nombre,rendimiento=str(r.rendimiento) if r.rendimiento is not None else None,unidad=r.unidad_rendimiento,notas=r.notas,pendientes=r.pendientes,procedimiento=r.procedimiento,version=r.version,lineas=[dict(id=l.id,cantidad=str(l.cantidad),unidad=l.unidad,mp_id=l.mp_id,subreceta_id=l.subreceta_id,proveedor=l.proveedor_referencia,observaciones=l.observaciones) for l in r.lineas])
 
     @app.route('/admin/recetas')
     def recetas():
@@ -138,15 +169,18 @@ def registrar_recetas(app, db, MP, PT, usuario_actual):
                     return any(ciclo(h,pila|{n}) for h in grafo.get(n,[]))
                 if ciclo(r.id,set()):raise ValueError('Una receta no puede consumirse a sí misma, directa o indirectamente.')
                 notas=request.form.get('notas','');pendientes=request.form.get('pendientes','')
+                bloques=bloques_del_formulario()
+                procedimiento=json.dumps(bloques,ensure_ascii=False) if bloques else ''
                 if len(notas)>12000 or len(pendientes)>12000:raise ValueError('Notas demasiado largas.')
-                resultado=db.session.execute(update(Receta).where(Receta.id==r.id,Receta.version==version).values(version=version+1,rendimiento=rendimiento,unidad_rendimiento=unidad if rendimiento else None,notas=notas,pendientes=pendientes).execution_options(synchronize_session=False))
+                resultado=db.session.execute(update(Receta).where(Receta.id==r.id,Receta.version==version).values(version=version+1,rendimiento=rendimiento,unidad_rendimiento=unidad if rendimiento else None,notas=notas,pendientes=pendientes,procedimiento=procedimiento or None).execution_options(synchronize_session=False))
                 if resultado.rowcount!=1:raise ValueError('Otra persona actualizó la receta. Recarga la página.')
                 for l,c,u,m,s,p in nuevos:l.cantidad=c;l.unidad=u;l.mp_id=m;l.subreceta_id=s;l.proveedor_referencia=p
                 db.session.add(RecetaRevision(receta_id=r.id,usuario=usuario_actual(),motivo=motivo,anterior=anterior))
                 db.session.commit();return redirect(url_for('receta_detalle',id_receta=r.id,guardado=1))
             except (ValueError,InvalidOperation) as e:
                 db.session.rollback();error=str(e) if isinstance(e,ValueError) else 'Cantidad inválida.'
-        return render_template('receta_detalle.html',r=r,error=error,unidades=unidades,materias=MP.query.order_by(MP.nombre_oficial).all(),subrecetas=Receta.query.filter(Receta.id!=r.id).order_by(Receta.nombre).all(),revisiones=RecetaRevision.query.filter_by(receta_id=r.id).order_by(RecetaRevision.id.desc()).all()),(400 if error else 200)
+        bloques=[dict(titulo=t,texto=x) for t,x in zip(request.form.getlist('paso_titulo'),request.form.getlist('paso_texto'))] if request.method=='POST' else pasos(r.procedimiento)
+        return render_template('receta_detalle.html',r=r,error=error,bloques=bloques,unidades=unidades,materias=MP.query.order_by(MP.nombre_oficial).all(),subrecetas=Receta.query.filter(Receta.id!=r.id).order_by(Receta.nombre).all(),revisiones=RecetaRevision.query.filter_by(receta_id=r.id).order_by(RecetaRevision.id.desc()).all()),(400 if error else 200)
 
     @app.route('/admin/recetas/<int:id_receta>/pdf')
     def receta_detalle_pdf(id_receta):
@@ -174,6 +208,14 @@ def registrar_recetas(app, db, MP, PT, usuario_actual):
             'anchos':[5.2,2.2,1.8,4,4],
             'vacio':'Esta receta todavía no tiene ingredientes.',
         }]
+        lista_pasos=pasos(r.procedimiento)
+        secciones.append({
+            'titulo':'Procedimiento',
+            'columnas':['Paso','Instrucción'],
+            'filas':[[celda(i),celda(b['titulo'],negrita=True) if not b['texto'] else celda((b['titulo']+'\n' if b['titulo'] else '')+b['texto'])] for i,b in enumerate(lista_pasos,1)],
+            'anchos':[1.4,15.6],
+            'vacio':'Procedimiento por definir.',
+        })
         if r.notas or r.pendientes:
             notas_filas=[]
             if r.notas:

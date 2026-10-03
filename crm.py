@@ -1,11 +1,15 @@
 """CRM de pedidos y entregas conectado con inventario y producto terminado."""
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from functools import wraps
+import os
+import re
 import secrets
+import unicodedata
 
-from flask import abort, jsonify, redirect, render_template, request, session, url_for
+from flask import abort, jsonify, redirect, render_template, request, send_from_directory, session, url_for
 from sqlalchemy.exc import IntegrityError
+from werkzeug.utils import secure_filename
 
 if __package__:
     from .reportes_pdf import celda, generar_pdf, respuesta_pdf
@@ -41,6 +45,53 @@ def dinero(valor):
     return "${:,.0f}".format(float(valor or 0))
 
 
+def dinero2(valor):
+    return "${:,.2f}".format(float(valor or 0))
+
+
+def rango_mes(valor=None):
+    """'2026-10' -> (1 oct 2026, 1 nov 2026). Sin valor o invalido: mes actual."""
+    hoy = datetime.utcnow()
+    try:
+        anio, mes = (int(x) for x in str(valor).split("-"))
+        inicio = datetime(anio, mes, 1)
+    except (TypeError, ValueError):
+        inicio = datetime(hoy.year, hoy.month, 1)
+    fin = datetime(inicio.year + (inicio.month == 12), inicio.month % 12 + 1, 1)
+    return inicio, fin
+
+
+def nombre_mes(inicio):
+    return f"{MESES_ES[inicio.month]} {inicio.year}"
+
+
+def meses_atras(n, desde=None):
+    """Primer dia de los ultimos n meses, del mas reciente al mas antiguo."""
+    actual = desde or datetime.utcnow()
+    anio, mes = actual.year, actual.month
+    meses = []
+    for _ in range(n):
+        meses.append(datetime(anio, mes, 1))
+        anio, mes = (anio - 1, 12) if mes == 1 else (anio, mes - 1)
+    return meses
+
+
+def contexto_mes(valor=None):
+    """Mes elegido en pantalla (?mes=AAAA-MM) mas las opciones del selector."""
+    inicio, fin = rango_mes(valor)
+    opciones = meses_atras(12)
+    if inicio not in opciones:
+        opciones.append(inicio)
+    return {
+        "inicio": inicio,
+        "fin": fin,
+        "valor": inicio.strftime("%Y-%m"),
+        "etiqueta": nombre_mes(inicio),
+        "es_actual": inicio == opciones[0],
+        "opciones": [{"valor": m.strftime("%Y-%m"), "etiqueta": nombre_mes(m).capitalize()} for m in opciones],
+    }
+
+
 def canal_clase(canal):
     return {"whatsapp": "wa", "instagram": "ig", "facebook": "fb"}.get((canal or "").strip().lower(), "mn")
 
@@ -60,22 +111,69 @@ ESTADOS_PEDIDO = [
 ]
 
 METODOS_PAGO = ["Efectivo", "Transferencia", "Tarjeta", "Contra entrega", "Trueque"]
+# Pedidos que todavia pueden programarse en una ruta (aun no salen ni estan cerrados).
+ESTADOS_POR_RUTEAR = {"Confirmado", "Listo para entrega"}
 
 RESERVAS_ABIERTAS = {"Activa"}
 UBICACION_PT = "Almacen PT"
 UBICACION_TRANSITO = "En transito"
+TIPOS_DOCUMENTO_PEDIDO = ["Recibido firmado", "Factura", "CXC / Comprobante de cobro", "Otro"]
+ESTADOS_SIN_VENTA = {"Cancelado", "Devuelto"}
+RFC_CLIENTE_REGEX = re.compile(r"^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$")
 
 
-def registrar_crm(app, db, MP, PT, Receta, RecetaIngrediente, MovimientoMP, AjusteInventario, usuario_actual, autenticar_persona):
+def normalizar_busqueda(valor):
+    """Minusculas, sin acentos y sin espacios repetidos, para comparar al buscar."""
+    valor = unicodedata.normalize("NFKD", str(valor or "").lower())
+    valor = "".join(c for c in valor if not unicodedata.combining(c))
+    return re.sub(r"\s+", " ", valor).strip()
+
+
+def solo_digitos(valor):
+    return re.sub(r"\D", "", str(valor or ""))
+
+
+def cliente_coincide(cliente, consulta):
+    """Cada palabra de la busqueda debe aparecer en nombre, apellidos, RFC,
+    correo, telefono o alguna direccion del cliente. Asi "juan perez" o
+    "perez 998" encuentran al cliente aunque los datos esten en campos
+    distintos. Los numeros se comparan solo por digitos, para que
+    "998 123 4567" y "9981234567" coincidan."""
+    palabras = normalizar_busqueda(consulta).split()
+    if not palabras:
+        return True
+    partes = [cliente.nombre, cliente.apellidos, cliente.rfc, cliente.correo, cliente.telefono]
+    for domicilio in cliente.domicilios:
+        partes += [domicilio.direccion, domicilio.referencias, domicilio.zona]
+    texto_cliente = normalizar_busqueda(" ".join(p for p in partes if p))
+    telefono = solo_digitos(cliente.telefono)
+    for palabra in palabras:
+        if palabra in texto_cliente:
+            continue
+        digitos = solo_digitos(palabra)
+        if digitos and re.fullmatch(r"[\d().+-]{3,}", palabra) and digitos in telefono:
+            continue
+        return False
+    return True
+
+
+def registrar_crm(app, db, MP, PT, Receta, RecetaIngrediente, MovimientoMP, AjusteInventario, usuario_actual, autenticar_persona, UPLOAD_FOLDER, allowed_file):
     class ClienteCRM(db.Model):
         __tablename__ = "crm_clientes"
         id = db.Column(db.Integer, primary_key=True)
         nombre = db.Column(db.String(180), nullable=False)
-        telefono = db.Column(db.String(40), nullable=False, index=True)
+        apellidos = db.Column(db.String(180))
+        rfc = db.Column(db.String(13), index=True)
+        telefono = db.Column(db.String(40), nullable=False, default="", index=True)
         correo = db.Column(db.String(180))
         canal_origen = db.Column(db.String(40), nullable=False, default="Manual")
         fecha = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+        password_hash = db.Column(db.String(255))
         domicilios = db.relationship("ClienteDomicilio", backref="cliente", lazy=True, cascade="all, delete-orphan")
+
+        @property
+        def nombre_completo(self):
+            return " ".join(p for p in (self.nombre, self.apellidos) if p)
 
     class ClienteDomicilio(db.Model):
         __tablename__ = "crm_cliente_domicilios"
@@ -109,6 +207,11 @@ def registrar_crm(app, db, MP, PT, Receta, RecetaIngrediente, MovimientoMP, Ajus
         fecha_actualizacion = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
         token = db.Column(db.String(80), unique=True, nullable=False)
         version = db.Column(db.Integer, nullable=False, default=0)
+        # Ruta en la que va el pedido. Si la ruta de su zona ya paso ese dia,
+        # solo entra como urgente y con cargo extra (sumado a importe_total).
+        fecha_ruta = db.Column(db.Date)
+        urgente = db.Column(db.Boolean, default=False)
+        cargo_urgente = db.Column(db.Numeric(18, 2), default=0)
         lineas = db.relationship("PedidoLineaCRM", backref="pedido", lazy=True, cascade="all, delete-orphan")
 
         @property
@@ -161,6 +264,7 @@ def registrar_crm(app, db, MP, PT, Receta, RecetaIngrediente, MovimientoMP, Ajus
         tipo = db.Column(db.String(10), nullable=False)  # "credito" (a favor del cliente) o "consumo" (aplicado a un pago)
         monto = db.Column(db.Numeric(18, 2), nullable=False)
         pedido_id = db.Column(db.Integer, db.ForeignKey("crm_pedidos.id"))
+        pedido = db.relationship(PedidoCRM)
         pago_id = db.Column(db.Integer, db.ForeignKey("crm_pedido_pagos.id"))
         descripcion = db.Column(db.String(300), nullable=False)
         fecha = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
@@ -208,6 +312,7 @@ def registrar_crm(app, db, MP, PT, Receta, RecetaIngrediente, MovimientoMP, Ajus
         unidad = db.Column(db.String(20), nullable=False, default="pieza")
         ubicacion = db.Column(db.String(120), nullable=False, default=UBICACION_PT)
         referencia = db.Column(db.String(160), nullable=False)
+        motivo = db.Column(db.String(500))
         usuario = db.Column(db.String(100), nullable=False)
         token = db.Column(db.String(80), unique=True, nullable=False)
 
@@ -235,9 +340,23 @@ def registrar_crm(app, db, MP, PT, Receta, RecetaIngrediente, MovimientoMP, Ajus
         incidencia = db.Column(db.String(500))
         usuario = db.Column(db.String(100), nullable=False)
 
+    class PedidoDocumentoCRM(db.Model):
+        __tablename__ = "crm_pedido_documentos"
+        id = db.Column(db.Integer, primary_key=True)
+        pedido_id = db.Column(db.Integer, db.ForeignKey("crm_pedidos.id"), nullable=False, index=True)
+        tipo_documento = db.Column(db.String(60), nullable=False)
+        nombre_original = db.Column(db.String(255), nullable=False)
+        nombre_archivo_guardado = db.Column(db.String(255), nullable=False)
+        tamano_bytes = db.Column(db.Integer)
+        usuario = db.Column(db.String(100), nullable=False)
+        fecha = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+        activo = db.Column(db.Boolean, default=True, nullable=False)
+
     def crm_usuario_actual():
         if session.get("crm_logueado"):
             return session.get("crm_usuario", "crm.nyds")
+        if session.get("cliente_id"):
+            return f"cliente:{session.get('cliente_telefono') or session.get('cliente_id')}"
         return usuario_actual()
 
     def rol_crm_actual():
@@ -358,6 +477,76 @@ def registrar_crm(app, db, MP, PT, Receta, RecetaIngrediente, MovimientoMP, Ajus
         for mov in MovimientoTruequeCRM.query.filter_by(cliente_id=cliente_id).all():
             total += mov.monto if mov.tipo == "credito" else -mov.monto
         return total
+
+    def resumen_trueque_por_negocio(inicio, fin):
+        """Por cada negocio (cliente) con trueque: saldo con el que empezo el
+        mes, lo que se le abono a favor en el mes, lo que uso en el mes y el
+        saldo con el que cierra."""
+        cero = Decimal("0")
+        filas = {}
+        movimientos = (
+            MovimientoTruequeCRM.query.filter(MovimientoTruequeCRM.fecha < fin)
+            .order_by(MovimientoTruequeCRM.fecha)
+            .all()
+        )
+        for mov in movimientos:
+            fila = filas.setdefault(mov.cliente_id, {
+                "cliente": mov.cliente,
+                "giros": set(),
+                "saldo_inicial": cero,
+                "a_favor": cero,
+                "usado": cero,
+            })
+            if mov.categoria:
+                fila["giros"].add(mov.categoria.nombre)
+            if mov.fecha < inicio:
+                fila["saldo_inicial"] += mov.monto if mov.tipo == "credito" else -mov.monto
+            elif mov.tipo == "credito":
+                fila["a_favor"] += mov.monto
+            else:
+                fila["usado"] += mov.monto
+        resultado = []
+        for fila in filas.values():
+            fila["saldo"] = fila["saldo_inicial"] + fila["a_favor"] - fila["usado"]
+            fila["giros"] = ", ".join(sorted(fila["giros"]))
+            if fila["saldo"] or fila["a_favor"] or fila["usado"]:
+                resultado.append(fila)
+        resultado.sort(key=lambda f: (f["cliente"].nombre_completo if f["cliente"] else "").lower())
+        totales = {clave: sum((f[clave] for f in resultado), cero) for clave in ("saldo_inicial", "a_favor", "usado", "saldo")}
+        return resultado, totales
+
+    def fechas_entrega():
+        """pedido_id -> fecha en que se confirmo la entrega."""
+        fechas = {}
+        for mov in MovimientoPT.query.filter_by(tipo="Entrega confirmada").all():
+            if mov.pedido_id and (mov.pedido_id not in fechas or mov.fecha < fechas[mov.pedido_id]):
+                fechas[mov.pedido_id] = mov.fecha
+        return fechas
+
+    def zonas_con_ruta_hoy():
+        """Zonas por las que ya salio la ruta hoy (algun pedido de esa zona ya salio a ruta)."""
+        hoy = datetime.utcnow()
+        inicio = datetime(hoy.year, hoy.month, hoy.day)
+        zonas = set()
+        for mov in MovimientoPT.query.filter(MovimientoPT.tipo == "Salida a ruta", MovimientoPT.fecha >= inicio).all():
+            pedido = db.session.get(PedidoCRM, mov.pedido_id) if mov.pedido_id else None
+            if pedido and pedido.domicilio:
+                zonas.add(pedido.domicilio.zona)
+        return zonas
+
+    def pedidos_del_mes(inicio, fin, incluir_cancelados=False):
+        consulta = PedidoCRM.query.filter(PedidoCRM.fecha >= inicio, PedidoCRM.fecha < fin)
+        pedidos = consulta.order_by(PedidoCRM.fecha.desc(), PedidoCRM.id.desc()).all()
+        if incluir_cancelados:
+            return pedidos
+        return [p for p in pedidos if p.estado not in ESTADOS_SIN_VENTA]
+
+    def pagos_del_mes(inicio, fin):
+        return (
+            PagoPedidoCRM.query.filter(PagoPedidoCRM.fecha >= inicio, PagoPedidoCRM.fecha < fin)
+            .order_by(PagoPedidoCRM.fecha.desc(), PagoPedidoCRM.id.desc())
+            .all()
+        )
 
     def receta_producto(producto_id):
         return (
@@ -511,6 +700,9 @@ def registrar_crm(app, db, MP, PT, Receta, RecetaIngrediente, MovimientoMP, Ajus
             "importe_pagado": float(pedido.importe_pagado),
             "saldo": float(pedido.saldo),
             "saldo_trueque_cliente": float(saldo_trueque_cliente(pedido.cliente_id)),
+            "fecha_ruta": pedido.fecha_ruta.isoformat() if pedido.fecha_ruta else None,
+            "urgente": bool(pedido.urgente),
+            "cargo_urgente": float(pedido.cargo_urgente or 0),
             "lineas": [
                 {
                     "id": l.id,
@@ -559,58 +751,6 @@ def registrar_crm(app, db, MP, PT, Receta, RecetaIngrediente, MovimientoMP, Ajus
     def crm_admin_redirect():
         return redirect(url_for("crm_pedidos"))
 
-    @app.route("/admin/productos-entregados")
-    @protegido_erp
-    def productos_entregados_erp():
-        movimientos = (
-            MovimientoPT.query.filter_by(tipo="Entrega confirmada")
-            .order_by(MovimientoPT.fecha.desc(), MovimientoPT.id.desc())
-            .all()
-        )
-        entregas = []
-        for movimiento in movimientos:
-            pedido = db.session.get(PedidoCRM, movimiento.pedido_id) if movimiento.pedido_id else None
-            evidencia = (
-                EvidenciaEntregaCRM.query.filter_by(pedido_id=movimiento.pedido_id)
-                .order_by(EvidenciaEntregaCRM.fecha.desc(), EvidenciaEntregaCRM.id.desc())
-                .first()
-                if movimiento.pedido_id
-                else None
-            )
-            entregas.append({"movimiento": movimiento, "pedido": pedido, "evidencia": evidencia})
-        return render_template("productos_entregados.html", entregas=entregas)
-
-    @app.route("/admin/productos-entregados/pdf")
-    @protegido_erp
-    def productos_entregados_pdf():
-        movimientos = (
-            MovimientoPT.query.filter_by(tipo="Entrega confirmada")
-            .order_by(MovimientoPT.fecha.desc(), MovimientoPT.id.desc())
-            .all()
-        )
-        filas = []
-        for movimiento in movimientos:
-            pedido = db.session.get(PedidoCRM, movimiento.pedido_id) if movimiento.pedido_id else None
-            filas.append([
-                celda(movimiento.fecha.strftime("%d/%m/%Y %H:%M")),
-                celda(movimiento.producto.nombre if movimiento.producto else "Producto eliminado"),
-                celda(f"{-movimiento.cantidad:g} {movimiento.unidad}"),
-                celda(pedido.folio if pedido else movimiento.referencia),
-                celda(pedido.cliente.nombre if pedido and pedido.cliente else "Sin pedido vinculado", muted=not pedido),
-                celda(movimiento.usuario, muted=True),
-            ])
-        buffer = generar_pdf(
-            titulo="Productos entregados",
-            subtitulo=f"Salidas definitivas confirmadas desde el CRM · {len(movimientos)} entrega(s)",
-            secciones=[{
-                "columnas": ["Fecha", "Producto", "Cantidad", "Pedido", "Cliente", "Usuario"],
-                "filas": filas,
-                "anchos": [2.6, 4, 2.4, 2.4, 3.6, 2.3],
-                "vacio": "Aún no hay productos entregados.",
-            }],
-        )
-        return respuesta_pdf(buffer, "productos-entregados.pdf")
-
     def _pedidos_en_ruta_por_zona():
         pedidos = (
             PedidoCRM.query.filter_by(estado="En ruta")
@@ -627,9 +767,43 @@ def registrar_crm(app, db, MP, PT, Receta, RecetaIngrediente, MovimientoMP, Ajus
             zonas.setdefault(zona, []).append((pedido, salida_por_pedido.get(pedido.id)))
         return pedidos, zonas
 
+    def _pedidos_por_programar():
+        """Pedidos listos para salir que aun no estan en ruta, separados en:
+        por asignar (sin ruta), aceptados para hoy y programados a futuro."""
+        hoy = datetime.utcnow().date()
+        zonas_hoy = zonas_con_ruta_hoy()
+        por_asignar, para_hoy, programados = [], [], []
+        pedidos = (
+            PedidoCRM.query.filter(PedidoCRM.estado.in_(ESTADOS_POR_RUTEAR))
+            .order_by(PedidoCRM.fecha.asc())
+            .all()
+        )
+        for pedido in pedidos:
+            zona = pedido.domicilio.zona if pedido.domicilio else "Sin zona"
+            fila = {"pedido": pedido, "zona": zona, "ruta_paso": zona in zonas_hoy}
+            if not pedido.fecha_ruta:
+                por_asignar.append(fila)
+            elif pedido.fecha_ruta <= hoy:
+                para_hoy.append(fila)
+            else:
+                programados.append(fila)
+        programados.sort(key=lambda f: f["pedido"].fecha_ruta)
+        return por_asignar, para_hoy, programados
+
+    def _entregas_del_mes(inicio, fin):
+        entregas = []
+        for pedido_id, fecha in fechas_entrega().items():
+            if inicio <= fecha < fin:
+                pedido = db.session.get(PedidoCRM, pedido_id)
+                if pedido:
+                    entregas.append({"pedido": pedido, "fecha": fecha})
+        entregas.sort(key=lambda e: e["fecha"], reverse=True)
+        return entregas
+
     @app.route("/crm/rutas")
     @protegido()
     def crm_rutas():
+        mes = contexto_mes(request.args.get("mes"))
         pedidos, zonas = _pedidos_en_ruta_por_zona()
         grupos = [
             {
@@ -638,14 +812,111 @@ def registrar_crm(app, db, MP, PT, Receta, RecetaIngrediente, MovimientoMP, Ajus
             }
             for zona in sorted(zonas)
         ]
+        por_asignar, para_hoy, programados = _pedidos_por_programar()
         return render_template(
             "crm_rutas.html",
             grupos=grupos,
             total=len(pedidos),
+            por_asignar=por_asignar,
+            para_hoy=para_hoy,
+            programados=programados,
+            entregas=_entregas_del_mes(mes["inicio"], mes["fin"]),
+            mes=mes,
+            hoy=datetime.utcnow().date(),
+            manana=(datetime.utcnow().date() + timedelta(days=1)).isoformat(),
             hoy_es=fecha_larga_es(datetime.utcnow()),
             nombre_usuario=session.get("crm_nombre") or ("Administrador ERP" if session.get("admin_logueado") else "Equipo NYDS"),
             rol=rol_crm_actual(),
         )
+
+    @app.route("/api/crm/pedidos/<int:id_pedido>/ruta", methods=["POST"])
+    @protegido_json("ventas", "reparto")
+    def api_crm_programar_ruta(id_pedido):
+        """accion='hoy': entra en la ruta de hoy. Si la ruta de su zona ya
+        paso (o se pide urgente), va como urgente y exige un cargo extra que
+        se suma al total del pedido. accion='siguiente': se programa para una
+        ruta posterior (por omision manana) y se quita cualquier cargo urgente."""
+        pedido = db.get_or_404(PedidoCRM, id_pedido)
+        data = request.json or {}
+        try:
+            if pedido.estado not in ESTADOS_POR_RUTEAR:
+                raise ValueError("Solo un pedido confirmado o listo, que aun no sale, puede programarse en ruta.")
+            accion = texto(data, "accion", 20, True)
+            hoy = datetime.utcnow().date()
+            cargo_anterior = pedido.cargo_urgente or Decimal("0")
+            if accion == "hoy":
+                zona = pedido.domicilio.zona if pedido.domicilio else ""
+                urgente = bool(data.get("urgente")) or zona in zonas_con_ruta_hoy()
+                cargo = Decimal("0")
+                if urgente:
+                    if data.get("cargo_urgente") in (None, ""):
+                        raise ValueError("La ruta de esta zona ya paso: captura el cargo por entrega urgente.")
+                    cargo = numero(data.get("cargo_urgente"), decimales=2, positivo=True)
+                nuevo_total = pedido.importe_total - cargo_anterior + cargo
+                if nuevo_total < pedido.importe_pagado:
+                    raise ValueError("El nuevo total quedaria por debajo de lo ya pagado.")
+                pedido.importe_total = nuevo_total
+                pedido.urgente = urgente
+                pedido.cargo_urgente = cargo
+                pedido.fecha_ruta = hoy
+                if urgente:
+                    registrar_evento(pedido, "Ruta urgente", f"Aceptado en la ruta de hoy como urgente con cargo de {cargo}.", {"cargo_urgente": str(cargo)})
+                else:
+                    registrar_evento(pedido, "Ruta asignada", "Aceptado en la ruta de hoy.")
+            elif accion == "siguiente":
+                fecha_txt = texto(data, "fecha", 10)
+                try:
+                    fecha = datetime.strptime(fecha_txt, "%Y-%m-%d").date() if fecha_txt else hoy + timedelta(days=1)
+                except ValueError:
+                    raise ValueError("Fecha de ruta no valida.")
+                if fecha <= hoy:
+                    raise ValueError("La siguiente ruta debe ser a partir de manana.")
+                if pedido.importe_total - cargo_anterior < pedido.importe_pagado:
+                    raise ValueError("No se puede quitar el cargo urgente: ya esta pagado.")
+                pedido.importe_total -= cargo_anterior
+                pedido.urgente = False
+                pedido.cargo_urgente = Decimal("0")
+                pedido.fecha_ruta = fecha
+                registrar_evento(pedido, "Ruta programada", f"Programado para la ruta del {fecha.strftime('%d/%m/%Y')}.")
+            else:
+                raise ValueError("Accion de ruta no valida.")
+            db.session.commit()
+            return jsonify(serializar_pedido(pedido)), 200
+        except (ValueError, IntegrityError) as e:
+            db.session.rollback()
+            return jsonify({"error": str(e) if isinstance(e, ValueError) else "No se pudo programar la ruta."}), 400
+
+    @app.route("/crm/rutas/historial/pdf")
+    @protegido()
+    def crm_rutas_historial_pdf():
+        mes = contexto_mes(request.args.get("mes"))
+        entregas = _entregas_del_mes(mes["inicio"], mes["fin"])
+        filas = []
+        for e in entregas:
+            p = e["pedido"]
+            filas.append([
+                celda(e["fecha"].strftime("%d/%m/%Y %H:%M")),
+                celda(p.folio),
+                celda(p.cliente.nombre_completo if p.cliente else ""),
+                celda(p.domicilio.zona if p.domicilio else "", muted=True),
+                celda(f"Urgente +{dinero2(p.cargo_urgente)}" if p.urgente else "Normal", muted=not p.urgente),
+                celda(dinero2(p.importe_total)),
+            ])
+        urgentes = [e for e in entregas if e["pedido"].urgente]
+        buffer = generar_pdf(
+            titulo="Historial de entregas",
+            subtitulo=(
+                f"{mes['etiqueta'].capitalize()} · {len(entregas)} entrega(s) · "
+                f"{len(urgentes)} urgente(s) por {dinero2(sum((e['pedido'].cargo_urgente or 0 for e in urgentes), Decimal('0')))} en cargos"
+            ),
+            secciones=[{
+                "columnas": ["Entregado", "Folio", "Cliente", "Zona", "Tipo", "Total"],
+                "filas": filas,
+                "anchos": [2.8, 2.3, 4.6, 2.6, 3.3, 2.8],
+                "vacio": "No hubo entregas en este mes.",
+            }],
+        )
+        return respuesta_pdf(buffer, f"entregas-{mes['valor']}.pdf")
 
     @app.route("/crm/rutas/pdf")
     @protegido()
@@ -656,7 +927,7 @@ def registrar_crm(app, db, MP, PT, Receta, RecetaIngrediente, MovimientoMP, Ajus
             filas = []
             for pedido, salida in zonas[zona]:
                 filas.append([
-                    celda(pedido.folio),
+                    celda(f"{pedido.folio}\nURGENTE" if pedido.urgente else pedido.folio, negrita=bool(pedido.urgente)),
                     celda(pedido.cliente.nombre if pedido.cliente else "Cliente"),
                     celda(pedido.cliente.telefono if pedido.cliente else "", muted=True),
                     celda(pedido.domicilio.direccion if pedido.domicilio else "", muted=True),
@@ -682,10 +953,446 @@ def registrar_crm(app, db, MP, PT, Receta, RecetaIngrediente, MovimientoMP, Ajus
         )
         return respuesta_pdf(buffer, "hoja-de-ruta.pdf")
 
+    def serializar_cliente(cliente):
+        return {
+            "id": cliente.id,
+            "nombre": cliente.nombre,
+            "apellidos": cliente.apellidos or "",
+            "nombre_completo": cliente.nombre_completo,
+            "rfc": cliente.rfc or "",
+            "telefono": cliente.telefono,
+            "correo": cliente.correo or "",
+            "domicilios": [
+                {"id": d.id, "alias": d.alias, "direccion": d.direccion, "referencias": d.referencias or "", "zona": d.zona}
+                for d in cliente.domicilios
+            ],
+        }
+
+    def buscar_clientes(consulta):
+        clientes = ClienteCRM.query.order_by(ClienteCRM.nombre, ClienteCRM.apellidos).all()
+        return [c for c in clientes if cliente_coincide(c, consulta)]
+
+    @app.route("/api/crm/clientes")
+    @protegido_json()
+    def api_crm_clientes():
+        consulta = request.args.get("q", "").strip()
+        if len(consulta) < 2:
+            return jsonify([])
+        return jsonify([serializar_cliente(c) for c in buscar_clientes(consulta)[:20]])
+
+    @app.route("/api/crm/clientes", methods=["POST"])
+    @protegido_json("ventas", "cobranza")
+    def api_crm_cliente_alta():
+        """Alta manual de cliente desde el directorio. Solo el nombre es
+        obligatorio; el domicilio se crea solo si se captura una direccion."""
+        data = request.json or {}
+        try:
+            nombre = texto(data, "nombre", 180, True)
+            telefono = texto(data, "telefono", 40)
+            if telefono and ClienteCRM.query.filter_by(telefono=telefono).first():
+                raise ValueError("Ya existe un cliente con ese telefono.")
+            rfc = texto(data, "rfc", 13).upper()
+            if rfc and not RFC_CLIENTE_REGEX.match(rfc):
+                raise ValueError("El RFC del cliente no tiene un formato valido.")
+            cliente = ClienteCRM(
+                nombre=nombre,
+                apellidos=texto(data, "apellidos", 180) or None,
+                rfc=rfc or None,
+                telefono=telefono,
+                correo=texto(data, "correo", 180),
+                canal_origen=texto(data, "canal_origen", 40) or "Manual",
+            )
+            db.session.add(cliente)
+            db.session.flush()
+            direccion = texto(data, "direccion", 280)
+            if direccion:
+                db.session.add(ClienteDomicilio(
+                    cliente_id=cliente.id,
+                    alias="Principal",
+                    direccion=direccion,
+                    referencias=texto(data, "referencias", 500),
+                    zona=texto(data, "zona", 100) or "Cancun",
+                    cobertura=True,
+                ))
+            db.session.commit()
+            return jsonify(serializar_cliente(cliente)), 201
+        except (ValueError, IntegrityError) as e:
+            db.session.rollback()
+            return jsonify({"error": str(e) if isinstance(e, ValueError) else "No se pudo guardar el cliente."}), 400
+
+    def filas_clientes(consulta, inicio, fin):
+        filas = []
+        for cliente in buscar_clientes(consulta):
+            pedidos = [p for p in PedidoCRM.query.filter_by(cliente_id=cliente.id).all() if p.estado not in ESTADOS_SIN_VENTA]
+            del_mes = [p for p in pedidos if inicio <= p.fecha < fin]
+            filas.append({
+                "cliente": cliente,
+                "pedidos": len(pedidos),
+                "pedidos_mes": len(del_mes),
+                "comprado_mes": float(sum((p.importe_total for p in del_mes), Decimal("0"))),
+                "total_comprado": float(sum((p.importe_total for p in pedidos), Decimal("0"))),
+                "total_pendiente": float(sum((p.saldo for p in pedidos if p.saldo > 0), Decimal("0"))),
+                "saldo_trueque": float(saldo_trueque_cliente(cliente.id)),
+            })
+        return filas
+
+    @app.route("/crm/clientes")
+    @protegido()
+    def crm_clientes():
+        consulta = request.args.get("q", "").strip()
+        mes = contexto_mes(request.args.get("mes"))
+        filas = filas_clientes(consulta, mes["inicio"], mes["fin"])
+        return render_template("crm_clientes.html", filas=filas, q=consulta, mes=mes, rol=rol_crm_actual())
+
+    @app.route("/crm/clientes/pdf")
+    @protegido()
+    def crm_clientes_pdf():
+        mes = contexto_mes(request.args.get("mes"))
+        filas = filas_clientes(request.args.get("q", "").strip(), mes["inicio"], mes["fin"])
+        buffer = generar_pdf(
+            titulo="Directorio de clientes",
+            subtitulo=f"Compras de {mes['etiqueta']} e histórico acumulado · {len(filas)} cliente(s)",
+            secciones=[{
+                "columnas": ["Cliente", "Teléfono", "Pedidos mes", "Comprado mes", "Histórico", "Por cobrar", "Trueque"],
+                "filas": [
+                    [
+                        celda(f["cliente"].nombre_completo),
+                        celda(f["cliente"].telefono or "—", muted=True),
+                        celda(f["pedidos_mes"]),
+                        celda(dinero2(f["comprado_mes"])),
+                        celda(dinero2(f["total_comprado"])),
+                        celda(dinero2(f["total_pendiente"])),
+                        celda(dinero2(f["saldo_trueque"])),
+                    ]
+                    for f in filas
+                ],
+                "anchos": [4.4, 2.6, 1.7, 2.4, 2.5, 2.4, 2.4],
+                "vacio": "No hay clientes registrados.",
+            }],
+        )
+        return respuesta_pdf(buffer, f"clientes-{mes['valor']}.pdf")
+
+    @app.route("/crm/clientes/<int:id_cliente>/pdf")
+    @protegido()
+    def crm_cliente_historial_pdf(id_cliente):
+        """Historial completo de un cliente: pedidos, pagos y trueque, mes por mes."""
+        cliente = db.get_or_404(ClienteCRM, id_cliente)
+        pedidos = PedidoCRM.query.filter_by(cliente_id=cliente.id).order_by(PedidoCRM.fecha.desc()).all()
+        ids = [p.id for p in pedidos]
+        pagos = (
+            PagoPedidoCRM.query.filter(PagoPedidoCRM.pedido_id.in_(ids)).order_by(PagoPedidoCRM.fecha.desc()).all()
+            if ids else []
+        )
+        trueques = MovimientoTruequeCRM.query.filter_by(cliente_id=cliente.id).order_by(MovimientoTruequeCRM.fecha.desc()).all()
+
+        por_mes = {}
+        for p in pedidos:
+            if p.estado in ESTADOS_SIN_VENTA:
+                continue
+            fila = por_mes.setdefault(p.fecha.strftime("%Y-%m"), {"pedidos": 0, "comprado": Decimal("0"), "pagado": Decimal("0")})
+            fila["pedidos"] += 1
+            fila["comprado"] += p.importe_total
+        for pago in pagos:
+            fila = por_mes.setdefault(pago.fecha.strftime("%Y-%m"), {"pedidos": 0, "comprado": Decimal("0"), "pagado": Decimal("0")})
+            fila["pagado"] += pago.monto
+
+        datos = [cliente.telefono, cliente.correo, cliente.rfc]
+        domicilios = "; ".join(d.direccion for d in cliente.domicilios)
+        buffer = generar_pdf(
+            titulo=f"Historial de {cliente.nombre_completo}",
+            subtitulo=" · ".join(d for d in datos + [domicilios] if d) or "Sin datos de contacto",
+            secciones=[
+                {
+                    "titulo": "Resumen por mes",
+                    "columnas": ["Mes", "Pedidos", "Comprado", "Pagado"],
+                    "filas": [
+                        [celda(nombre_mes(rango_mes(clave)[0]).capitalize()), celda(f["pedidos"]), celda(dinero2(f["comprado"])), celda(dinero2(f["pagado"]))]
+                        for clave, f in sorted(por_mes.items(), reverse=True)
+                    ],
+                    "anchos": [5.5, 3, 5, 4.9],
+                    "vacio": "Sin movimientos.",
+                },
+                {
+                    "titulo": "Pedidos",
+                    "columnas": ["Fecha", "Folio", "Estado", "Productos", "Total", "Saldo"],
+                    "filas": [
+                        [
+                            celda(p.fecha.strftime("%d/%m/%Y")),
+                            celda(p.folio),
+                            celda(p.estado + (" · urgente" if p.urgente else ""), muted=True),
+                            celda("\n".join(f"{float(l.cantidad):g} {l.producto.nombre if l.producto else 'Producto'}" for l in p.lineas)),
+                            celda(dinero2(p.importe_total)),
+                            celda(dinero2(p.saldo)),
+                        ]
+                        for p in pedidos
+                    ],
+                    "anchos": [2.2, 2.4, 3, 5.6, 2.6, 2.6],
+                    "vacio": "Sin pedidos.",
+                },
+                {
+                    "titulo": "Pagos",
+                    "columnas": ["Fecha", "Pedido", "Método", "Referencia", "Monto"],
+                    "filas": [
+                        [celda(pg.fecha.strftime("%d/%m/%Y")), celda(pg.pedido.folio if pg.pedido else "—"), celda(pg.metodo), celda(pg.referencia, muted=True), celda(dinero2(pg.monto))]
+                        for pg in pagos
+                    ],
+                    "anchos": [2.4, 2.6, 3, 7.4, 3],
+                    "vacio": "Sin pagos.",
+                },
+                {
+                    "titulo": f"Trueque · saldo actual {dinero2(saldo_trueque_cliente(cliente.id))}",
+                    "columnas": ["Fecha", "Giro", "Movimiento", "Descripción", "Monto"],
+                    "filas": [
+                        [
+                            celda(m.fecha.strftime("%d/%m/%Y")),
+                            celda(m.categoria.nombre if m.categoria else "—"),
+                            celda("A favor" if m.tipo == "credito" else "Usado"),
+                            celda(m.descripcion, muted=True),
+                            celda(dinero2(m.monto)),
+                        ]
+                        for m in trueques
+                    ],
+                    "anchos": [2.4, 3, 2.4, 7.6, 3],
+                    "vacio": "Sin movimientos de trueque.",
+                },
+            ],
+        )
+        return respuesta_pdf(buffer, f"cliente-{cliente.id}-historial.pdf")
+
+    def datos_pagos(inicio, fin):
+        pagos = pagos_del_mes(inicio, fin)
+        total_por_metodo = {}
+        for pago in pagos:
+            total_por_metodo.setdefault(pago.metodo, {"cantidad": 0, "total": 0.0})
+            total_por_metodo[pago.metodo]["cantidad"] += 1
+            total_por_metodo[pago.metodo]["total"] += float(pago.monto)
+        trueque_movimientos = (
+            MovimientoTruequeCRM.query.filter(MovimientoTruequeCRM.fecha >= inicio, MovimientoTruequeCRM.fecha < fin)
+            .order_by(MovimientoTruequeCRM.fecha.desc())
+            .all()
+        )
+        trueque_negocios, trueque_totales = resumen_trueque_por_negocio(inicio, fin)
+        return {
+            "pagos": pagos,
+            "total_por_metodo": total_por_metodo,
+            "total_cobrado": sum(float(p.monto) for p in pagos),
+            "trueque_movimientos": trueque_movimientos,
+            "trueque_negocios": trueque_negocios,
+            "trueque_totales": trueque_totales,
+        }
+
+    @app.route("/crm/pagos")
+    @protegido()
+    def crm_pagos():
+        mes = contexto_mes(request.args.get("mes"))
+        return render_template("crm_pagos.html", mes=mes, rol=rol_crm_actual(), **datos_pagos(mes["inicio"], mes["fin"]))
+
+    @app.route("/crm/pagos/pdf")
+    @protegido()
+    def crm_pagos_pdf():
+        mes = contexto_mes(request.args.get("mes"))
+        d = datos_pagos(mes["inicio"], mes["fin"])
+        t = d["trueque_totales"]
+        buffer = generar_pdf(
+            titulo="Pagos y trueque",
+            subtitulo=f"{mes['etiqueta'].capitalize()} · {len(d['pagos'])} pago(s) · cobrado {dinero2(d['total_cobrado'])}",
+            secciones=[
+                {
+                    "titulo": "Cobrado por método",
+                    "columnas": ["Método", "Pagos", "Total"],
+                    "filas": [[celda(m), celda(v["cantidad"]), celda(dinero2(v["total"]))] for m, v in d["total_por_metodo"].items()],
+                    "anchos": [8, 4, 6.4],
+                    "vacio": "Sin pagos en el mes.",
+                },
+                {
+                    "titulo": "Pagos del mes",
+                    "columnas": ["Fecha", "Pedido", "Cliente", "Método", "Referencia", "Monto"],
+                    "filas": [
+                        [
+                            celda(p.fecha.strftime("%d/%m/%Y %H:%M")),
+                            celda(p.pedido.folio if p.pedido else "—"),
+                            celda(p.pedido.cliente.nombre_completo if p.pedido and p.pedido.cliente else "—"),
+                            celda(p.metodo + (f" · {p.categoria_trueque.nombre} {p.porcentaje_trueque}%" if p.metodo == "Trueque" and p.categoria_trueque else "")),
+                            celda(p.referencia, muted=True),
+                            celda(dinero2(p.monto)),
+                        ]
+                        for p in d["pagos"]
+                    ],
+                    "anchos": [2.7, 2.2, 3.6, 3.2, 4.1, 2.6],
+                    "vacio": "Sin pagos en el mes.",
+                },
+                {
+                    "titulo": "Trueque por negocio",
+                    "columnas": ["Negocio", "Giro", "Saldo inicial", "A favor", "Usado", "Saldo"],
+                    "filas": [
+                        [
+                            celda(f["cliente"].nombre_completo if f["cliente"] else "—"),
+                            celda(f["giros"] or "—", muted=True),
+                            celda(dinero2(f["saldo_inicial"])),
+                            celda(dinero2(f["a_favor"])),
+                            celda(dinero2(f["usado"])),
+                            celda(dinero2(f["saldo"]), negrita=True),
+                        ]
+                        for f in d["trueque_negocios"]
+                    ] + ([[
+                        celda("Total", negrita=True), celda(""),
+                        celda(dinero2(t["saldo_inicial"]), negrita=True), celda(dinero2(t["a_favor"]), negrita=True),
+                        celda(dinero2(t["usado"]), negrita=True), celda(dinero2(t["saldo"]), negrita=True),
+                    ]] if d["trueque_negocios"] else []),
+                    "anchos": [4.2, 3.2, 2.8, 2.7, 2.7, 2.8],
+                    "vacio": "Sin trueque en el mes.",
+                },
+                {
+                    "titulo": "Movimientos de trueque",
+                    "columnas": ["Fecha", "Negocio", "Giro", "Tipo", "Pedido", "Monto"],
+                    "filas": [
+                        [
+                            celda(m.fecha.strftime("%d/%m/%Y")),
+                            celda(m.cliente.nombre_completo if m.cliente else "—"),
+                            celda(m.categoria.nombre if m.categoria else "—", muted=True),
+                            celda("A favor" if m.tipo == "credito" else "Usado"),
+                            celda(m.pedido.folio if m.pedido_id and m.pedido else "—", muted=True),
+                            celda(dinero2(m.monto)),
+                        ]
+                        for m in d["trueque_movimientos"]
+                    ],
+                    "anchos": [2.4, 4.4, 3.2, 2.4, 3, 3],
+                    "vacio": "Sin movimientos de trueque en el mes.",
+                },
+            ],
+        )
+        return respuesta_pdf(buffer, f"pagos-{mes['valor']}.pdf")
+
+    def datos_reportes(inicio, fin):
+        pedidos = pedidos_del_mes(inicio, fin, incluir_cancelados=True)
+        ventas = [p for p in pedidos if p.estado not in ESTADOS_SIN_VENTA]
+        por_estado = {}
+        for p in pedidos:
+            por_estado.setdefault(p.estado, {"cantidad": 0, "total": 0.0})
+            por_estado[p.estado]["cantidad"] += 1
+            por_estado[p.estado]["total"] += float(p.importe_total or 0)
+
+        pagos = pagos_del_mes(inicio, fin)
+        por_metodo = {}
+        for pago in pagos:
+            por_metodo.setdefault(pago.metodo, {"cantidad": 0, "total": 0.0})
+            por_metodo[pago.metodo]["cantidad"] += 1
+            por_metodo[pago.metodo]["total"] += float(pago.monto)
+
+        _, trueque = resumen_trueque_por_negocio(inicio, fin)
+
+        por_cliente = {}
+        for p in ventas:
+            nombre = p.cliente.nombre_completo if p.cliente else "Cliente"
+            por_cliente[nombre] = por_cliente.get(nombre, 0.0) + float(p.importe_total or 0)
+        top_clientes = sorted(por_cliente.items(), key=lambda x: x[1], reverse=True)[:10]
+
+        return {
+            "por_estado": por_estado,
+            "por_metodo": por_metodo,
+            "credito_generado": float(trueque["a_favor"]),
+            "credito_consumido": float(trueque["usado"]),
+            "credito_vigente": float(trueque["saldo"]),
+            "top_clientes": [{"nombre": n, "total": t} for n, t in top_clientes],
+            "total_facturado": sum(float(p.importe_total or 0) for p in ventas),
+            "total_cobrado": sum(float(p.monto) for p in pagos),
+            "total_pendiente": sum(float(p.saldo or 0) for p in ventas if p.saldo > 0),
+            "pedidos_mes": len(ventas),
+            "urgentes_mes": sum(1 for p in ventas if p.urgente),
+            "cargos_urgentes": sum(float(p.cargo_urgente or 0) for p in ventas if p.urgente),
+        }
+
+    def historico_mensual(n=12):
+        filas = []
+        for inicio in meses_atras(n):
+            fin = rango_mes(inicio.strftime("%Y-%m"))[1]
+            ventas = pedidos_del_mes(inicio, fin)
+            _, trueque = resumen_trueque_por_negocio(inicio, fin)
+            filas.append({
+                "valor": inicio.strftime("%Y-%m"),
+                "mes": nombre_mes(inicio).capitalize(),
+                "pedidos": len(ventas),
+                "facturado": sum(float(p.importe_total or 0) for p in ventas),
+                "cobrado": sum(float(p.monto) for p in pagos_del_mes(inicio, fin)),
+                "trueque_a_favor": float(trueque["a_favor"]),
+                "trueque_usado": float(trueque["usado"]),
+            })
+        return filas
+
+    @app.route("/crm/reportes")
+    @protegido()
+    def crm_reportes():
+        mes = contexto_mes(request.args.get("mes"))
+        return render_template(
+            "crm_reportes.html",
+            mes=mes,
+            historico=historico_mensual(),
+            rol=rol_crm_actual(),
+            **datos_reportes(mes["inicio"], mes["fin"]),
+        )
+
+    @app.route("/crm/reportes/pdf")
+    @protegido()
+    def crm_reportes_pdf():
+        mes = contexto_mes(request.args.get("mes"))
+        d = datos_reportes(mes["inicio"], mes["fin"])
+        buffer = generar_pdf(
+            titulo="Reporte del CRM",
+            subtitulo=f"{mes['etiqueta'].capitalize()} · {d['pedidos_mes']} pedido(s)",
+            secciones=[
+                {
+                    "titulo": "Resumen del mes",
+                    "columnas": ["Concepto", "Importe"],
+                    "filas": [
+                        [celda("Generado (pedidos del mes)"), celda(dinero2(d["total_facturado"]))],
+                        [celda("Cobrado en el mes"), celda(dinero2(d["total_cobrado"]))],
+                        [celda("Pendiente por cobrar de pedidos del mes"), celda(dinero2(d["total_pendiente"]))],
+                        [celda(f"Cargos por entregas urgentes ({d['urgentes_mes']})"), celda(dinero2(d["cargos_urgentes"]))],
+                        [celda("Trueque a favor generado"), celda(dinero2(d["credito_generado"]))],
+                        [celda("Trueque usado"), celda(dinero2(d["credito_consumido"]))],
+                        [celda("Saldo de trueque al cierre del mes"), celda(dinero2(d["credito_vigente"]))],
+                    ],
+                    "anchos": [12.4, 6],
+                },
+                {
+                    "titulo": "Pedidos por estado",
+                    "columnas": ["Estado", "Pedidos", "Importe"],
+                    "filas": [[celda(e), celda(v["cantidad"]), celda(dinero2(v["total"]))] for e, v in d["por_estado"].items()],
+                    "anchos": [8, 4, 6.4],
+                    "vacio": "Sin pedidos en el mes.",
+                },
+                {
+                    "titulo": "Cobros por método",
+                    "columnas": ["Método", "Pagos", "Total"],
+                    "filas": [[celda(m), celda(v["cantidad"]), celda(dinero2(v["total"]))] for m, v in d["por_metodo"].items()],
+                    "anchos": [8, 4, 6.4],
+                    "vacio": "Sin pagos en el mes.",
+                },
+                {
+                    "titulo": "Top clientes del mes",
+                    "columnas": ["#", "Cliente", "Comprado"],
+                    "filas": [[celda(i), celda(c["nombre"]), celda(dinero2(c["total"]))] for i, c in enumerate(d["top_clientes"], 1)],
+                    "anchos": [1.4, 10.6, 6.4],
+                    "vacio": "Sin compras en el mes.",
+                },
+                {
+                    "titulo": "Histórico de los últimos 12 meses",
+                    "columnas": ["Mes", "Pedidos", "Generado", "Cobrado", "Trueque a favor", "Trueque usado"],
+                    "filas": [
+                        [celda(h["mes"]), celda(h["pedidos"]), celda(dinero2(h["facturado"])), celda(dinero2(h["cobrado"])), celda(dinero2(h["trueque_a_favor"])), celda(dinero2(h["trueque_usado"]))]
+                        for h in historico_mensual()
+                    ],
+                    "anchos": [3.6, 2, 3.3, 3.3, 3.1, 3.1],
+                },
+            ],
+        )
+        return respuesta_pdf(buffer, f"reporte-crm-{mes['valor']}.pdf")
+
     @app.route("/crm/pedidos")
     @protegido()
     def crm_pedidos():
-        pedidos = PedidoCRM.query.order_by(PedidoCRM.id.desc()).all()
+        mes = contexto_mes(request.args.get("mes"))
+        pedidos = pedidos_mes_y_abiertos(mes["inicio"], mes["fin"])
         ordenes = OrdenLlenadoCRM.query.order_by(OrdenLlenadoCRM.id.desc()).limit(20).all()
         productos = PT.query.filter_by(estatus="Activo").order_by(PT.nombre).all()
         saldos_trueque = {p.cliente_id: float(saldo_trueque_cliente(p.cliente_id)) for p in pedidos}
@@ -694,85 +1401,54 @@ def registrar_crm(app, db, MP, PT, Receta, RecetaIngrediente, MovimientoMP, Ajus
             pedidos=pedidos,
             ordenes=ordenes,
             productos=productos,
-            rol=rol_crm_actual(),
+            mes=mes,
             saldos_trueque=saldos_trueque,
-        )
-
-    @app.route("/crm/clientes")
-    @protegido()
-    def crm_clientes():
-        clientes = ClienteCRM.query.order_by(ClienteCRM.nombre).all()
-        filas = []
-        for cliente in clientes:
-            pedidos_cliente = PedidoCRM.query.filter_by(cliente_id=cliente.id).all()
-            filas.append({
-                "cliente": cliente,
-                "pedidos": len(pedidos_cliente),
-                "total_comprado": sum(float(p.importe_total or 0) for p in pedidos_cliente),
-                "total_pendiente": sum(float(p.saldo or 0) for p in pedidos_cliente),
-                "saldo_trueque": float(saldo_trueque_cliente(cliente.id)),
-            })
-        return render_template("crm_clientes.html", filas=filas, rol=rol_crm_actual())
-
-    @app.route("/crm/pagos")
-    @protegido()
-    def crm_pagos():
-        pagos = PagoPedidoCRM.query.order_by(PagoPedidoCRM.fecha.desc()).limit(300).all()
-        total_por_metodo = {}
-        for pago in PagoPedidoCRM.query.all():
-            total_por_metodo.setdefault(pago.metodo, {"cantidad": 0, "total": 0.0})
-            total_por_metodo[pago.metodo]["cantidad"] += 1
-            total_por_metodo[pago.metodo]["total"] += float(pago.monto)
-        trueque_movimientos = MovimientoTruequeCRM.query.order_by(MovimientoTruequeCRM.fecha.desc()).limit(200).all()
-        return render_template(
-            "crm_pagos.html",
-            pagos=pagos,
-            total_por_metodo=total_por_metodo,
-            trueque_movimientos=trueque_movimientos,
+            metodos_pago=METODOS_PAGO,
             rol=rol_crm_actual(),
         )
 
-    @app.route("/crm/reportes")
+    def pedidos_mes_y_abiertos(inicio, fin):
+        """Pedidos creados en el mes, mas los de meses anteriores que siguen
+        abiertos (para que nada pendiente desaparezca al cambiar de mes)."""
+        cerrados = {"Entregado"} | ESTADOS_SIN_VENTA
+        return [
+            p for p in PedidoCRM.query.order_by(PedidoCRM.id.desc()).all()
+            if inicio <= p.fecha < fin or (p.fecha < inicio and p.estado not in cerrados)
+        ]
+
+    @app.route("/crm/pedidos/pdf")
     @protegido()
-    def crm_reportes():
-        pedidos = PedidoCRM.query.all()
-        por_estado = {}
-        for p in pedidos:
-            por_estado.setdefault(p.estado, {"cantidad": 0, "total": 0.0})
-            por_estado[p.estado]["cantidad"] += 1
-            por_estado[p.estado]["total"] += float(p.importe_total or 0)
-
-        por_metodo = {}
-        for pago in PagoPedidoCRM.query.all():
-            por_metodo.setdefault(pago.metodo, {"cantidad": 0, "total": 0.0})
-            por_metodo[pago.metodo]["cantidad"] += 1
-            por_metodo[pago.metodo]["total"] += float(pago.monto)
-
-        credito_generado = sum(float(m.monto) for m in MovimientoTruequeCRM.query.filter_by(tipo="credito").all())
-        credito_consumido = sum(float(m.monto) for m in MovimientoTruequeCRM.query.filter_by(tipo="consumo").all())
-
-        top_clientes = (
-            db.session.query(ClienteCRM.nombre, db.func.coalesce(db.func.sum(PedidoCRM.importe_total), 0))
-            .join(PedidoCRM, PedidoCRM.cliente_id == ClienteCRM.id)
-            .group_by(ClienteCRM.id)
-            .order_by(db.func.coalesce(db.func.sum(PedidoCRM.importe_total), 0).desc())
-            .limit(10)
-            .all()
+    def crm_pedidos_pdf():
+        mes = contexto_mes(request.args.get("mes"))
+        pedidos = pedidos_del_mes(mes["inicio"], mes["fin"], incluir_cancelados=True)
+        ventas = [p for p in pedidos if p.estado not in ESTADOS_SIN_VENTA]
+        buffer = generar_pdf(
+            titulo="Pedidos del mes",
+            subtitulo=(
+                f"{mes['etiqueta'].capitalize()} · {len(pedidos)} pedido(s) · generado "
+                f"{dinero2(sum((p.importe_total for p in ventas), Decimal('0')))} · por cobrar "
+                f"{dinero2(sum((p.saldo for p in ventas if p.saldo > 0), Decimal('0')))}"
+            ),
+            secciones=[{
+                "columnas": ["Fecha", "Folio", "Cliente", "Productos", "Estado", "Pago", "Total", "Saldo"],
+                "filas": [
+                    [
+                        celda(p.fecha.strftime("%d/%m/%Y")),
+                        celda(p.folio),
+                        celda(p.cliente.nombre_completo if p.cliente else ""),
+                        celda("\n".join(f"{float(l.cantidad):g} {l.producto.nombre if l.producto else 'Producto'}" for l in p.lineas)),
+                        celda(p.estado + ("\nUrgente" if p.urgente else ""), muted=True),
+                        celda(p.forma_pago, muted=True),
+                        celda(dinero2(p.importe_total)),
+                        celda(dinero2(p.saldo)),
+                    ]
+                    for p in pedidos
+                ],
+                "anchos": [1.9, 2.1, 3, 3.9, 2.2, 1.9, 1.8, 1.6],
+                "vacio": "No hubo pedidos en este mes.",
+            }],
         )
-
-        return render_template(
-            "crm_reportes.html",
-            por_estado=por_estado,
-            por_metodo=por_metodo,
-            credito_generado=credito_generado,
-            credito_consumido=credito_consumido,
-            credito_vigente=credito_generado - credito_consumido,
-            top_clientes=[{"nombre": nombre, "total": float(total)} for nombre, total in top_clientes],
-            total_facturado=sum(float(p.importe_total or 0) for p in pedidos),
-            total_cobrado=sum(float(p.importe_pagado or 0) for p in pedidos),
-            total_pendiente=sum(float(p.saldo or 0) for p in pedidos),
-            rol=rol_crm_actual(),
-        )
+        return respuesta_pdf(buffer, f"pedidos-{mes['valor']}.pdf")
 
     @app.route("/api/crm/productos/<int:id_producto>/disponibilidad")
     @protegido_json("ventas", "preparacion", "cobranza")
@@ -794,6 +1470,83 @@ def registrar_crm(app, db, MP, PT, Receta, RecetaIngrediente, MovimientoMP, Ajus
         reservado = reservado_pt(id_producto)
         return jsonify({"producto_id": id_producto, "fisico": float(fisico), "reservado": float(reservado), "disponible": float(fisico - reservado)})
 
+    def crear_pedido_desde_datos(data):
+        """Crea un PedidoCRM (mas su cliente/domicilio/lineas) a partir del
+        mismo formato de datos que ya usaba el API del CRM. La usan tanto el
+        API interno (ventas capturando a mano) como la tienda publica
+        (el cliente arma su propio carrito): en ambos casos el pedido queda
+        en 'Recibido', pendiente de que ventas lo reserve, igual que hoy."""
+        token = texto(data, "token", 80) or secrets.token_hex(24)
+        existente = PedidoCRM.query.filter_by(token=token).first()
+        if existente:
+            return existente, True
+        cliente_data = data.get("cliente") or {}
+        domicilio_data = data.get("domicilio") or {}
+        cliente = None
+        if data.get("cliente_id"):
+            cliente = db.session.get(ClienteCRM, data["cliente_id"])
+        telefono = texto(cliente_data, "telefono", 40)
+        if not cliente and telefono:
+            cliente = ClienteCRM.query.filter_by(telefono=telefono).first()
+        if not cliente:
+            rfc = texto(cliente_data, "rfc", 13).upper()
+            if rfc and not RFC_CLIENTE_REGEX.match(rfc):
+                raise ValueError("El RFC del cliente no tiene un formato valido.")
+            cliente = ClienteCRM(
+                nombre=texto(cliente_data, "nombre", 180, True),
+                apellidos=texto(cliente_data, "apellidos", 180) or None,
+                rfc=rfc or None,
+                telefono=telefono,
+                correo=texto(cliente_data, "correo", 180),
+                canal_origen=texto(data, "canal", 40) or "Manual",
+            )
+            db.session.add(cliente)
+            db.session.flush()
+        domicilio = None
+        if data.get("domicilio_id"):
+            domicilio = ClienteDomicilio.query.filter_by(id=data["domicilio_id"], cliente_id=cliente.id).first()
+        if not domicilio:
+            domicilio = ClienteDomicilio(
+                cliente_id=cliente.id,
+                alias=texto(domicilio_data, "alias", 80) or "Principal",
+                direccion=texto(domicilio_data, "direccion", 280, True),
+                referencias=texto(domicilio_data, "referencias", 500),
+                zona=texto(domicilio_data, "zona", 100) or "Cancun",
+                cobertura=bool(domicilio_data.get("cobertura", True)),
+                lat=numero(domicilio_data["lat"], 8) if domicilio_data.get("lat") not in (None, "") else None,
+                lng=numero(domicilio_data["lng"], 8) if domicilio_data.get("lng") not in (None, "") else None,
+            )
+            db.session.add(domicilio)
+            db.session.flush()
+        pedido = PedidoCRM(
+            folio=folio_pedido(),
+            cliente_id=cliente.id,
+            domicilio_id=domicilio.id,
+            canal=texto(data, "canal", 40) or "Manual",
+            forma_pago=texto(data, "forma_pago", 40) or "Contra entrega",
+            pago_requerido_antes_preparar=bool(data.get("pago_requerido_antes_preparar")),
+            entrega_propia=bool(data.get("entrega_propia")),
+            colaborador_asignado=crm_usuario_actual() if data.get("entrega_propia") else texto(data, "colaborador_asignado", 100),
+            token=token,
+        )
+        db.session.add(pedido)
+        db.session.flush()
+        total = Decimal("0")
+        for item in data.get("lineas") or []:
+            producto = db.session.get(PT, item.get("producto_id"))
+            if not producto or producto.estatus != "Activo":
+                raise ValueError("Selecciona productos terminados activos.")
+            cantidad = numero(item.get("cantidad"), positivo=True)
+            precio = numero(item.get("precio_unitario"), decimales=2)
+            linea = PedidoLineaCRM(pedido_id=pedido.id, producto_id=producto.id, cantidad=cantidad, precio_unitario=precio, notas=texto(item, "notas", 500))
+            db.session.add(linea)
+            total += cantidad * precio
+        if total <= 0:
+            raise ValueError("Agrega al menos una linea con importe mayor a cero.")
+        pedido.importe_total = total.quantize(Decimal(".01"))
+        registrar_evento(pedido, "Pedido recibido", f"Pedido creado desde {pedido.canal}.", {"canal": pedido.canal})
+        return pedido, False
+
     @app.route("/api/crm/pedidos", methods=["GET", "POST"])
     @protegido_json()
     def api_crm_pedidos():
@@ -803,72 +1556,9 @@ def registrar_crm(app, db, MP, PT, Receta, RecetaIngrediente, MovimientoMP, Ajus
             return jsonify({"error": "Solo ventas puede crear pedidos."}), 403
         data = request.json or {}
         try:
-            token = texto(data, "token", 80) or secrets.token_hex(24)
-            existente = PedidoCRM.query.filter_by(token=token).first()
-            if existente:
-                return jsonify(serializar_pedido(existente)), 200
-            cliente_data = data.get("cliente") or {}
-            domicilio_data = data.get("domicilio") or {}
-            cliente = None
-            if data.get("cliente_id"):
-                cliente = db.session.get(ClienteCRM, data["cliente_id"])
-            if not cliente:
-                telefono = texto(cliente_data, "telefono", 40, True)
-                cliente = ClienteCRM.query.filter_by(telefono=telefono).first()
-            if not cliente:
-                cliente = ClienteCRM(
-                    nombre=texto(cliente_data, "nombre", 180, True),
-                    telefono=texto(cliente_data, "telefono", 40, True),
-                    correo=texto(cliente_data, "correo", 180),
-                    canal_origen=texto(data, "canal", 40) or "Manual",
-                )
-                db.session.add(cliente)
-                db.session.flush()
-            domicilio = None
-            if data.get("domicilio_id"):
-                domicilio = ClienteDomicilio.query.filter_by(id=data["domicilio_id"], cliente_id=cliente.id).first()
-            if not domicilio:
-                domicilio = ClienteDomicilio(
-                    cliente_id=cliente.id,
-                    alias=texto(domicilio_data, "alias", 80) or "Principal",
-                    direccion=texto(domicilio_data, "direccion", 280, True),
-                    referencias=texto(domicilio_data, "referencias", 500),
-                    zona=texto(domicilio_data, "zona", 100) or "Cancun",
-                    cobertura=bool(domicilio_data.get("cobertura", True)),
-                    lat=numero(domicilio_data["lat"], 8) if domicilio_data.get("lat") not in (None, "") else None,
-                    lng=numero(domicilio_data["lng"], 8) if domicilio_data.get("lng") not in (None, "") else None,
-                )
-                db.session.add(domicilio)
-                db.session.flush()
-            pedido = PedidoCRM(
-                folio=folio_pedido(),
-                cliente_id=cliente.id,
-                domicilio_id=domicilio.id,
-                canal=texto(data, "canal", 40) or "Manual",
-                forma_pago=texto(data, "forma_pago", 40) or "Contra entrega",
-                pago_requerido_antes_preparar=bool(data.get("pago_requerido_antes_preparar")),
-                entrega_propia=bool(data.get("entrega_propia")),
-                colaborador_asignado=crm_usuario_actual() if data.get("entrega_propia") else texto(data, "colaborador_asignado", 100),
-                token=token,
-            )
-            db.session.add(pedido)
-            db.session.flush()
-            total = Decimal("0")
-            for item in data.get("lineas") or []:
-                producto = db.session.get(PT, item.get("producto_id"))
-                if not producto or producto.estatus != "Activo":
-                    raise ValueError("Selecciona productos terminados activos.")
-                cantidad = numero(item.get("cantidad"), positivo=True)
-                precio = numero(item.get("precio_unitario"), decimales=2)
-                linea = PedidoLineaCRM(pedido_id=pedido.id, producto_id=producto.id, cantidad=cantidad, precio_unitario=precio, notas=texto(item, "notas", 500))
-                db.session.add(linea)
-                total += cantidad * precio
-            if total <= 0:
-                raise ValueError("Agrega al menos una linea con importe mayor a cero.")
-            pedido.importe_total = total.quantize(Decimal(".01"))
-            registrar_evento(pedido, "Pedido recibido", "Pedido creado desde el CRM.", {"canal": pedido.canal})
+            pedido, ya_existia = crear_pedido_desde_datos(data)
             db.session.commit()
-            return jsonify(serializar_pedido(pedido)), 201
+            return jsonify(serializar_pedido(pedido)), (200 if ya_existia else 201)
         except (ValueError, IntegrityError) as e:
             db.session.rollback()
             return jsonify({"error": str(e) if isinstance(e, ValueError) else "No se pudo guardar el pedido."}), 400
@@ -1101,6 +1791,7 @@ def registrar_crm(app, db, MP, PT, Receta, RecetaIngrediente, MovimientoMP, Ajus
                 if pedido.estado not in {"Listo para entrega", "Confirmado"}:
                     raise ValueError("Solo un pedido confirmado o listo puede salir a ruta.")
                 mover_producto_a_transito(pedido)
+                pedido.fecha_ruta = pedido.fecha_ruta or datetime.utcnow().date()
             if nuevo_estado in {"Cancelado", "Devuelto"}:
                 liberar_reservas(pedido)
             pedido.estado = nuevo_estado
@@ -1153,11 +1844,79 @@ def registrar_crm(app, db, MP, PT, Receta, RecetaIngrediente, MovimientoMP, Ajus
             db.session.rollback()
             return jsonify({"error": str(e) if isinstance(e, ValueError) else "No se pudo registrar la entrega."}), 400
 
+    def metricas_tablero(mes, ahora):
+        todos = PedidoCRM.query.all()
+        activos = [p for p in todos if p.estado not in {"Entregado", "Cancelado", "Devuelto"}]
+        del_mes = pedidos_del_mes(mes["inicio"], mes["fin"])
+        entregas = fechas_entrega()
+        entregas_mes = sum(1 for f in entregas.values() if mes["inicio"] <= f < mes["fin"])
+        entregas_hoy = sum(1 for f in entregas.values() if f.date() == ahora.date())
+        pendientes_cobro = [p for p in activos if p.saldo > 0]
+        cobrado_mes = sum(float(p.monto) for p in pagos_del_mes(mes["inicio"], mes["fin"]))
+        return {
+            "activos": len(activos),
+            "nuevos_mes": len(del_mes),
+            "generado_mes": sum(float(p.importe_total or 0) for p in del_mes),
+            "generado_mes_fmt": dinero(sum(float(p.importe_total or 0) for p in del_mes)),
+            "cobrado_mes_fmt": dinero(cobrado_mes),
+            "cobrado_mes": cobrado_mes,
+            "entregas_mes": entregas_mes,
+            "entregas_hoy": entregas_hoy,
+            "en_ruta_ahora": sum(1 for p in todos if p.estado == "En ruta"),
+            "por_cobrar": sum(float(p.saldo or 0) for p in pendientes_cobro),
+            "por_cobrar_fmt": dinero(sum(float(p.saldo or 0) for p in pendientes_cobro)),
+            "por_cobrar_cuenta": len(pendientes_cobro),
+        }
+
+    @app.route("/crm/tablero/pdf")
+    @protegido()
+    def crm_tablero_pdf():
+        mes = contexto_mes(request.args.get("mes"))
+        m = metricas_tablero(mes, datetime.utcnow())
+        del_mes = pedidos_del_mes(mes["inicio"], mes["fin"], incluir_cancelados=True)
+        por_estado = {}
+        for p in del_mes:
+            fila = por_estado.setdefault(p.estado, [0, Decimal("0")])
+            fila[0] += 1
+            fila[1] += p.importe_total
+        buffer = generar_pdf(
+            titulo="Tablero de pedidos",
+            subtitulo=f"{mes['etiqueta'].capitalize()} · generado el {fecha_larga_es(datetime.utcnow())}",
+            secciones=[
+                {
+                    "titulo": "Indicadores",
+                    "columnas": ["Indicador", "Valor"],
+                    "filas": [
+                        [celda(f"Generado en {mes['etiqueta']}"), celda(f"{dinero2(m['generado_mes'])} ({m['nuevos_mes']} pedidos)")],
+                        [celda(f"Cobrado en {mes['etiqueta']}"), celda(dinero2(m["cobrado_mes"]))],
+                        [celda(f"Entregas en {mes['etiqueta']}"), celda(m["entregas_mes"])],
+                        [celda("Pedidos activos hoy"), celda(m["activos"])],
+                        [celda("Por cobrar hoy"), celda(f"{dinero2(m['por_cobrar'])} ({m['por_cobrar_cuenta']} pedidos)")],
+                    ],
+                    "anchos": [9, 9.4],
+                },
+                {
+                    "titulo": "Pedidos del mes por estado",
+                    "columnas": ["Estado", "Pedidos", "Importe"],
+                    "filas": [[celda(e), celda(v[0]), celda(dinero2(v[1]))] for e, v in por_estado.items()],
+                    "anchos": [8, 4, 6.4],
+                    "vacio": "No hubo pedidos en este mes.",
+                },
+            ],
+        )
+        return respuesta_pdf(buffer, f"tablero-{mes['valor']}.pdf")
+
     @app.route("/crm/tablero")
     @protegido()
     def crm_tablero():
         ahora = datetime.utcnow()
-        pedidos = PedidoCRM.query.order_by(PedidoCRM.fecha_actualizacion.desc()).all()
+        mes = contexto_mes(request.args.get("mes"))
+        cerrados = {"Entregado", "Cancelado", "Devuelto"}
+        # Los pedidos abiertos siempre se ven; los ya cerrados solo en el mes en que se cerraron.
+        pedidos = [
+            p for p in PedidoCRM.query.order_by(PedidoCRM.fecha_actualizacion.desc()).all()
+            if p.estado not in cerrados or mes["inicio"] <= p.fecha_actualizacion < mes["fin"]
+        ]
 
         ordenes_por_pedido = {}
         for orden in OrdenLlenadoCRM.query.all():
@@ -1189,6 +1948,8 @@ def registrar_crm(app, db, MP, PT, Receta, RecetaIngrediente, MovimientoMP, Ajus
                 return "Pedido devuelto", True
             if p.estado == "Intento fallido":
                 return "Intento de entrega fallido, reprogramar", True
+            if p.urgente and p.estado in ESTADOS_POR_RUTEAR | {"En ruta"}:
+                return f"Entrega urgente (+{dinero(p.cargo_urgente)})", True
             return None, False
 
         columnas = []
@@ -1230,29 +1991,80 @@ def registrar_crm(app, db, MP, PT, Receta, RecetaIngrediente, MovimientoMP, Ajus
                 "total_fmt": dinero(sum(float(p.importe_total or 0) for p in pedidos if p.estado in estados)),
             })
 
-        activos = [p for p in pedidos if p.estado not in {"Entregado", "Cancelado", "Devuelto"}]
-        nuevos_semana = sum(1 for p in pedidos if p.fecha >= ahora - timedelta(days=7))
-        entregas_hoy = sum(1 for p in pedidos if p.estado == "Entregado" and p.fecha_actualizacion.date() == ahora.date())
-        en_ruta_ahora = sum(1 for p in pedidos if p.estado == "En ruta")
-        pendientes_cobro = [p for p in activos if p.saldo > 0]
-
-        metricas = {
-            "activos": len(activos),
-            "nuevos_semana": nuevos_semana,
-            "valor_gestion_fmt": dinero(sum(float(p.importe_total or 0) for p in activos)),
-            "entregas_hoy": entregas_hoy,
-            "en_ruta_ahora": en_ruta_ahora,
-            "por_cobrar_fmt": dinero(sum(float(p.saldo or 0) for p in pendientes_cobro)),
-            "por_cobrar_cuenta": len(pendientes_cobro),
-        }
+        metricas = metricas_tablero(mes, ahora)
 
         return render_template(
             "crm_tablero.html",
             columnas=columnas,
             metricas=metricas,
+            mes=mes,
             hoy_es=fecha_larga_es(ahora),
             nombre_usuario=session.get("crm_nombre") or ("Administrador ERP" if session.get("admin_logueado") else "Equipo NYDS"),
             rol=rol_crm_actual(),
+        )
+
+    @app.route("/api/crm/pedidos/<int:id_pedido>/documentos", methods=["GET", "POST"])
+    @protegido_json()
+    def documentos_pedido(id_pedido):
+        pedido = db.session.get(PedidoCRM, id_pedido)
+        if not pedido:
+            return jsonify({"error": "Pedido no encontrado"}), 404
+
+        if request.method == "GET":
+            docs = (
+                PedidoDocumentoCRM.query.filter_by(pedido_id=id_pedido, activo=True)
+                .order_by(PedidoDocumentoCRM.fecha.desc())
+                .all()
+            )
+            return jsonify([
+                {
+                    "id": d.id,
+                    "tipo_documento": d.tipo_documento,
+                    "nombre_original": d.nombre_original,
+                    "tamano_bytes": d.tamano_bytes,
+                    "usuario": d.usuario,
+                    "fecha": d.fecha.strftime("%d/%m/%Y %H:%M"),
+                    "url_descarga": url_for("descargar_documento_pedido", id_documento=d.id),
+                }
+                for d in docs
+            ])
+
+        archivo = request.files.get("archivo")
+        tipo = (request.form.get("tipo_documento") or "Otro").strip()
+        if tipo not in TIPOS_DOCUMENTO_PEDIDO:
+            tipo = "Otro"
+        if not archivo or not archivo.filename:
+            return jsonify({"error": "Archivo requerido"}), 400
+        if not allowed_file(archivo.filename):
+            return jsonify({"error": "Tipo de archivo no permitido"}), 400
+
+        nombre_original = archivo.filename
+        ext = nombre_original.rsplit(".", 1)[1].lower()
+        nombre_guardado = secure_filename(f"pedido_{id_pedido}_{int(datetime.utcnow().timestamp())}.{ext}")
+        ruta_guardado = os.path.join(UPLOAD_FOLDER, nombre_guardado)
+        archivo.save(ruta_guardado)
+
+        doc = PedidoDocumentoCRM(
+            pedido_id=id_pedido,
+            tipo_documento=tipo,
+            nombre_original=nombre_original,
+            nombre_archivo_guardado=nombre_guardado,
+            tamano_bytes=os.path.getsize(ruta_guardado),
+            usuario=crm_usuario_actual(),
+        )
+        db.session.add(doc)
+        registrar_evento(pedido, "Documento", f"Se subio: {tipo} ({nombre_original})")
+        db.session.commit()
+        return jsonify({"id": doc.id}), 201
+
+    @app.route("/api/crm/pedidos/documentos/<int:id_documento>/descargar", methods=["GET"])
+    @protegido()
+    def descargar_documento_pedido(id_documento):
+        doc = db.session.get(PedidoDocumentoCRM, id_documento)
+        if not doc or not doc.activo:
+            abort(404)
+        return send_from_directory(
+            UPLOAD_FOLDER, doc.nombre_archivo_guardado, as_attachment=True, download_name=doc.nombre_original
         )
 
     return (
@@ -1266,4 +2078,7 @@ def registrar_crm(app, db, MP, PT, Receta, RecetaIngrediente, MovimientoMP, Ajus
         MovimientoPT,
         EventoCRM,
         EvidenciaEntregaCRM,
+        PedidoDocumentoCRM,
+        crear_pedido_desde_datos,
+        MovimientoTruequeCRM,
     )

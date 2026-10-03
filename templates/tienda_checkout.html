@@ -1,0 +1,49 @@
+{% extends 'tienda_base.html' %}
+{% block titulo %}Finalizar pedido - Tienda NYDS{% endblock %}
+{% block contenido %}
+<h2 class="fw-bold text-dark mb-4">Finalizar pedido</h2>
+{% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+<div class="row g-4">
+<div class="col-md-7">
+<div class="card border-0 shadow-sm p-4">
+<form method="post">
+    <h5 class="fw-bold mb-3">Dirección de entrega</h5>
+    {% if domicilios %}
+    <div class="mb-3">
+        {% for d in domicilios %}
+        <div class="form-check mb-2">
+            <input class="form-check-input" type="radio" name="domicilio_id" value="{{ d.id }}" id="dom{{ d.id }}" {% if loop.first %}checked{% endif %}>
+            <label class="form-check-label" for="dom{{ d.id }}"><strong>{{ d.alias }}</strong> — {{ d.direccion }}{% if not d.cobertura %} <span class="badge bg-warning text-dark">Fuera de cobertura</span>{% endif %}</label>
+        </div>
+        {% endfor %}
+        <div class="form-check mt-2">
+            <input class="form-check-input" type="radio" name="domicilio_id" value="" id="domNueva">
+            <label class="form-check-label" for="domNueva">Usar una dirección nueva</label>
+        </div>
+    </div>
+    {% endif %}
+    <div class="row g-3 mb-3">
+        <div class="col-12"><label class="form-label">Dirección nueva</label><input type="text" name="direccion" class="form-control" placeholder="Calle, número, colonia"></div>
+        <div class="col-md-6"><label class="form-label">Referencias</label><input type="text" name="referencias" class="form-control" placeholder="Entre calles, color de fachada, etc."></div>
+        <div class="col-md-6"><label class="form-label">Zona</label><input type="text" name="zona" class="form-control" value="Cancun"></div>
+    </div>
+    <h5 class="fw-bold mb-3">Forma de pago</h5>
+    <select name="forma_pago" class="form-select mb-4">
+        {% for fp in formas_pago %}<option value="{{ fp }}">{{ fp }}</option>{% endfor %}
+    </select>
+    <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold">Confirmar pedido</button>
+</form>
+</div>
+</div>
+<div class="col-md-5">
+<div class="card border-0 shadow-sm p-4">
+<h5 class="fw-bold mb-3">Resumen</h5>
+{% for item in items %}
+<div class="d-flex justify-content-between small mb-2"><span>{{ item.cantidad | float }} × {{ item.producto.nombre }}</span><span>${{ '%.2f' | format(item.subtotal) }}</span></div>
+{% endfor %}
+<hr>
+<div class="d-flex justify-content-between fw-bold fs-5"><span>Total</span><span>${{ '%.2f' | format(total) }}</span></div>
+</div>
+</div>
+</div>
+{% endblock %}

@@ -13,8 +13,10 @@
         <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
             <div>
                 <h2>Pedidos y entregas</h2>
-                <p class="text-muted mb-0">Reservas, llenado, pagos, ruta y evidencia conectados al ERP.</p>
+                <p class="text-muted mb-0">Pedidos de {{ mes.etiqueta }} y los que siguen abiertos de meses anteriores.</p>
             </div>
+            {% set pdf_url = '/crm/pedidos/pdf' %}
+            {% include 'crm_mes.html' %}
         </div>
 
         <div class="row g-4">
@@ -26,15 +28,33 @@
                     </div>
                     <div class="card-body">
                         <form id="pedidoForm" class="row g-3">
+                            <input type="hidden" name="cliente_id">
+                            <input type="hidden" name="domicilio_id">
+                            <div class="col-12 position-relative">
+                                <label class="form-label" for="buscarClientePedido">Buscar cliente existente</label>
+                                <input class="form-control" id="buscarClientePedido" autocomplete="off" placeholder="Nombre, apellido, RFC, dirección o teléfono">
+                                <div id="resultadosClientePedido" class="list-group position-absolute w-100 shadow-sm" style="z-index:20; max-height:320px; overflow-y:auto" hidden></div>
+                                <div id="clienteSeleccionado" class="small mt-2" hidden>
+                                    Cliente existente seleccionado. <button type="button" class="btn btn-link btn-sm p-0 align-baseline" id="limpiarClientePedido">Capturar cliente nuevo</button>
+                                </div>
+                            </div>
                             <div class="col-md-3">
-                                <label class="form-label">Cliente</label>
+                                <label class="form-label">Nombre</label>
                                 <input class="form-control" name="cliente_nombre" required placeholder="Nombre del cliente">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Apellidos</label>
+                                <input class="form-control" name="cliente_apellidos" placeholder="Apellidos">
                             </div>
                             <div class="col-md-2">
                                 <label class="form-label">Teléfono</label>
-                                <input class="form-control" name="cliente_telefono" required placeholder="998...">
+                                <input class="form-control" name="cliente_telefono" placeholder="Opcional">
                             </div>
-                            <div class="col-md-3">
+                            <div class="col-md-2">
+                                <label class="form-label">RFC</label>
+                                <input class="form-control text-uppercase" name="cliente_rfc" maxlength="13" placeholder="Opcional">
+                            </div>
+                            <div class="col-md-8">
                                 <label class="form-label">Dirección</label>
                                 <input class="form-control" name="direccion" required placeholder="Calle, número, colonia">
                             </div>
@@ -113,8 +133,8 @@
                                 {% for p in pedidos %}
                                 <tr id="pedido-{{ p.id }}">
                                     <td><strong>{{ p.folio }}</strong><div class="text-muted small">{{ p.canal }}</div></td>
-                                    <td>{{ p.cliente.nombre }}<div class="text-muted small">{{ p.cliente.telefono }}</div>{% if saldos_trueque.get(p.cliente_id, 0) > 0 %}<div class="text-muted small">Trueque a favor: ${{ '%.2f' | format(saldos_trueque.get(p.cliente_id, 0)) }}</div>{% endif %}</td>
-                                    <td><span class="badge {{ 'bg-success' if p.estado == 'Entregado' else 'bg-warning text-dark' if p.estado in ['Pendiente de pago','Pendiente de produccion','Intento fallido'] else 'bg-primary' if p.estado in ['Confirmado','En ruta'] else 'bg-secondary' }}">{{ p.estado }}</span></td>
+                                    <td>{{ p.cliente.nombre_completo }}<div class="text-muted small">{{ p.cliente.telefono }}</div>{% if saldos_trueque.get(p.cliente_id, 0) > 0 %}<div class="text-success small">Trueque a favor: ${{ '%.2f' | format(saldos_trueque.get(p.cliente_id, 0)) }}</div>{% endif %}</td>
+                                    <td><span class="badge {{ 'bg-success' if p.estado == 'Entregado' else 'bg-warning text-dark' if p.estado in ['Pendiente de pago','Pendiente de produccion','Intento fallido'] else 'bg-primary' if p.estado in ['Confirmado','En ruta'] else 'bg-secondary' }}">{{ p.estado }}</span>{% if p.urgente %}<div><span class="badge bg-danger mt-1">Urgente +${{ '%.2f' | format(p.cargo_urgente) }}</span></div>{% endif %}{% if p.fecha_ruta and p.estado not in ['Entregado', 'Cancelado', 'Devuelto'] %}<div class="text-muted small">Ruta {{ p.fecha_ruta.strftime('%d/%m') }}</div>{% endif %}<div class="text-muted small">{{ p.fecha.strftime('%d/%m/%Y') }}</div></td>
                                     <td>
                                         {% for l in p.lineas %}
                                         <div><strong>{{ l.cantidad | float }}</strong> {{ l.producto.nombre if l.producto else 'Producto' }}</div>
@@ -129,7 +149,7 @@
                                             <button class="btn btn-outline-primary btn-sm" data-action="confirmar" data-pedido="{{ p.id }}">Reservar</button>
                                             {% endif %}
                                             {% if rol in ['supervisor', 'cobranza'] and p.saldo > 0 %}
-                                            <button class="btn btn-outline-primary btn-sm" data-action="pago" data-pedido="{{ p.id }}" data-cliente="{{ p.cliente_id }}" data-saldo="{{ '%.2f' | format(p.saldo) }}" data-saldo-trueque="{{ '%.2f' | format(saldos_trueque.get(p.cliente_id, 0)) }}">Pago</button>
+                                            <button class="btn btn-outline-primary btn-sm" data-action="pago" data-pedido="{{ p.id }}" data-saldo="{{ '%.2f' | format(p.saldo) }}" data-saldo-trueque="{{ '%.2f' | format(saldos_trueque.get(p.cliente_id, 0)) }}">Pago</button>
                                             {% endif %}
                                             {% if rol in ['supervisor', 'cobranza'] %}
                                             <button class="btn btn-outline-secondary btn-sm" data-action="trueque" data-cliente="{{ p.cliente_id }}">Registrar trueque</button>
@@ -146,13 +166,14 @@
                                             {% if rol in ['supervisor', 'reparto'] and p.estado == 'En ruta' %}
                                             <button class="btn btn-outline-danger btn-sm" data-action="fallo" data-pedido="{{ p.id }}">Incidencia</button>
                                             {% endif %}
+                                            <button class="btn btn-outline-secondary btn-sm" data-action="documentos" data-pedido="{{ p.id }}" data-folio="{{ p.folio }}">Documentos</button>
                                         </div>
                                     </td>
                                 </tr>
                                 {% else %}
                                 <tr>
                                     <td colspan="7" class="text-center py-5">
-                                        <strong>Aún no hay pedidos CRM</strong>
+                                        <strong>No hay pedidos en {{ mes.etiqueta }}</strong>
                                         <p class="text-muted mt-2 mb-0">Captura el primer pedido desde el formulario superior.</p>
                                     </td>
                                 </tr>
@@ -190,8 +211,91 @@
         </div>
     </main>
     {% include 'crm_modal.html' %}
+    <div class="nyds-modal-backdrop" id="documentosModalBackdrop" aria-hidden="true">
+        <div class="nyds-modal" role="dialog" aria-modal="true" aria-labelledby="documentosModalTitle" style="width:min(640px,100%)">
+            <div class="nyds-modal-header">
+                <div>
+                    <h5 id="documentosModalTitle" class="mb-0">Documentos</h5>
+                    <small id="documentosModalSubtitle"></small>
+                </div>
+                <button class="btn btn-outline-light btn-sm" type="button" id="documentosModalClose">Cerrar</button>
+            </div>
+            <div class="nyds-modal-body">
+                <form id="documentosUploadForm" class="row g-2 align-items-end mb-3">
+                    <div class="col-md-5">
+                        <label class="form-label small">Tipo de documento</label>
+                        <select class="form-select form-select-sm" name="tipo_documento" required>
+                            {% for t in ['Recibido firmado', 'Factura', 'CXC / Comprobante de cobro', 'Otro'] %}
+                            <option>{{ t }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-5">
+                        <label class="form-label small">Archivo (PDF, JPG, PNG)</label>
+                        <input class="form-control form-control-sm" type="file" name="archivo" accept=".pdf,.jpg,.jpeg,.png" required>
+                    </div>
+                    <div class="col-md-2 d-grid">
+                        <button class="btn btn-primary btn-sm" type="submit">Subir</button>
+                    </div>
+                </form>
+                <div id="documentosLista"></div>
+            </div>
+        </div>
+    </div>
     <script>
         const pedidoForm = document.getElementById('pedidoForm');
+        const documentosModalBackdrop = document.getElementById('documentosModalBackdrop');
+        const documentosModalSubtitle = document.getElementById('documentosModalSubtitle');
+        const documentosModalClose = document.getElementById('documentosModalClose');
+        const documentosUploadForm = document.getElementById('documentosUploadForm');
+        const documentosLista = document.getElementById('documentosLista');
+
+        function cerrarDocumentos() {
+            documentosModalBackdrop.dataset.open = 'false';
+            documentosModalBackdrop.setAttribute('aria-hidden', 'true');
+        }
+        documentosModalClose.addEventListener('click', cerrarDocumentos);
+        documentosModalBackdrop.addEventListener('click', (event) => {
+            if (event.target === documentosModalBackdrop) cerrarDocumentos();
+        });
+
+        async function cargarDocumentos(pedidoId) {
+            const res = await fetch(`/api/crm/pedidos/${pedidoId}/documentos`);
+            const docs = await res.json().catch(() => []);
+            documentosLista.innerHTML = docs.length ? docs.map(d => `
+                <div class="d-flex justify-content-between align-items-center border-bottom py-2">
+                    <div>
+                        <div class="fw-semibold">${d.tipo_documento}</div>
+                        <div class="text-muted small">${d.nombre_original} · ${d.fecha} · ${d.usuario}</div>
+                    </div>
+                    <a class="btn btn-sm btn-outline-primary" href="${d.url_descarga}" target="_blank">Descargar</a>
+                </div>`).join('') : '<p class="text-muted mb-0">Aún no hay documentos para este pedido.</p>';
+        }
+
+        async function abrirDocumentos(pedidoId, folio) {
+            documentosModalSubtitle.textContent = folio || '';
+            documentosUploadForm.dataset.pedido = pedidoId;
+            documentosLista.innerHTML = '<p class="text-muted mb-0">Cargando...</p>';
+            documentosModalBackdrop.dataset.open = 'true';
+            documentosModalBackdrop.setAttribute('aria-hidden', 'false');
+            await cargarDocumentos(pedidoId);
+        }
+
+        documentosUploadForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const pedidoId = documentosUploadForm.dataset.pedido;
+            const formData = new FormData(documentosUploadForm);
+            try {
+                const res = await fetch(`/api/crm/pedidos/${pedidoId}/documentos`, { method: 'POST', body: formData });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(data.error || 'No se pudo subir el documento.');
+                documentosUploadForm.reset();
+                await cargarDocumentos(pedidoId);
+                showToast('Documento cargado.', 'success');
+            } catch (error) {
+                showToast(error.message);
+            }
+        });
 
         async function crearPedido(confirmar) {
             const form = new FormData(pedidoForm);
@@ -199,12 +303,16 @@
                 method: 'POST',
                 body: JSON.stringify({
                     token: token('pedido'),
+                    cliente_id: form.get('cliente_id') ? Number(form.get('cliente_id')) : null,
+                    domicilio_id: form.get('domicilio_id') ? Number(form.get('domicilio_id')) : null,
                     canal: form.get('canal'),
                     forma_pago: form.get('forma_pago'),
                     entrega_propia: form.has('entrega_propia'),
                     cliente: {
                         nombre: form.get('cliente_nombre'),
+                        apellidos: form.get('cliente_apellidos'),
                         telefono: form.get('cliente_telefono'),
+                        rfc: form.get('cliente_rfc'),
                     },
                     domicilio: {
                         direccion: form.get('direccion'),
@@ -225,6 +333,74 @@
         }
 
         if (pedidoForm) {
+            const buscarCliente = document.getElementById('buscarClientePedido');
+            const resultadosCliente = document.getElementById('resultadosClientePedido');
+            const avisoCliente = document.getElementById('clienteSeleccionado');
+            const camposCliente = ['cliente_nombre', 'cliente_apellidos', 'cliente_telefono', 'cliente_rfc'];
+            let esperaBusqueda = null;
+
+            function fijarCliente(cliente, domicilio) {
+                pedidoForm.elements.cliente_id.value = cliente ? cliente.id : '';
+                pedidoForm.elements.domicilio_id.value = domicilio ? domicilio.id : '';
+                pedidoForm.elements.cliente_nombre.value = cliente ? cliente.nombre : '';
+                pedidoForm.elements.cliente_apellidos.value = cliente ? cliente.apellidos : '';
+                pedidoForm.elements.cliente_telefono.value = cliente ? cliente.telefono : '';
+                pedidoForm.elements.cliente_rfc.value = cliente ? cliente.rfc : '';
+                pedidoForm.elements.direccion.value = domicilio ? domicilio.direccion : '';
+                camposCliente.forEach((campo) => { pedidoForm.elements[campo].readOnly = Boolean(cliente); });
+                pedidoForm.elements.direccion.readOnly = Boolean(domicilio);
+                avisoCliente.hidden = !cliente;
+                resultadosCliente.hidden = true;
+                buscarCliente.value = '';
+            }
+
+            function opcionCliente(cliente, domicilio) {
+                const boton = document.createElement('button');
+                boton.type = 'button';
+                boton.className = 'list-group-item list-group-item-action';
+                const titulo = document.createElement('strong');
+                titulo.textContent = cliente.nombre_completo;
+                const detalle = document.createElement('div');
+                detalle.className = 'small text-muted';
+                detalle.textContent = [cliente.telefono, cliente.rfc, domicilio ? domicilio.direccion : 'Nuevo domicilio'].filter(Boolean).join(' · ');
+                boton.append(titulo, detalle);
+                boton.addEventListener('click', () => fijarCliente(cliente, domicilio));
+                return boton;
+            }
+
+            buscarCliente.addEventListener('input', () => {
+                clearTimeout(esperaBusqueda);
+                const q = buscarCliente.value.trim();
+                if (q.length < 2) {
+                    resultadosCliente.hidden = true;
+                    return;
+                }
+                esperaBusqueda = setTimeout(async () => {
+                    try {
+                        const clientes = await jsonFetch(`/api/crm/clientes?q=${encodeURIComponent(q)}`);
+                        resultadosCliente.replaceChildren();
+                        if (!clientes.length) {
+                            const vacio = document.createElement('div');
+                            vacio.className = 'list-group-item small text-muted';
+                            vacio.textContent = 'Sin coincidencias. Captura los datos abajo para crear un cliente nuevo.';
+                            resultadosCliente.append(vacio);
+                        }
+                        clientes.forEach((cliente) => {
+                            cliente.domicilios.forEach((domicilio) => resultadosCliente.append(opcionCliente(cliente, domicilio)));
+                            resultadosCliente.append(opcionCliente(cliente, null));
+                        });
+                        resultadosCliente.hidden = false;
+                    } catch (error) {
+                        showToast(error.message);
+                    }
+                }, 250);
+            });
+
+            document.getElementById('limpiarClientePedido').addEventListener('click', () => fijarCliente(null, null));
+            document.addEventListener('click', (event) => {
+                if (!event.target.closest('#resultadosClientePedido, #buscarClientePedido')) resultadosCliente.hidden = true;
+            });
+
             pedidoForm.addEventListener('submit', async (event) => {
                 event.preventDefault();
                 try {
@@ -256,11 +432,11 @@
                     const saldoTrueque = parseFloat(button.dataset.saldoTrueque || '0');
                     const pago = await openModal({
                         title: 'Registrar pago',
-                        subtitle: `El pago actualiza el saldo del pedido sin mover inventario. Saldo a favor por trueque del cliente: $${saldoTrueque.toFixed(2)}.`,
+                        subtitle: `El pago actualiza el saldo del pedido sin mover inventario. Trueque a favor del cliente: $${saldoTrueque.toFixed(2)}.`,
                         submitText: 'Registrar pago',
                         fields: [
                             { name: 'monto', label: 'Monto recibido', type: 'number', value: button.dataset.saldo || '', min: '0.01', step: '0.01', required: true },
-                            { name: 'metodo', label: 'Metodo de pago', type: 'select', value: 'Transferencia', options: ['Transferencia', 'Efectivo', 'Tarjeta', 'Contra entrega', 'Trueque'], required: true },
+                            { name: 'metodo', label: 'Método de pago', type: 'select', value: 'Transferencia', options: {{ metodos_pago | tojson }}, required: true },
                             { name: 'categoria_trueque_id', label: 'Giro del intercambio', type: 'select', optionsMap: categorias, showIf: { field: 'metodo', equals: 'Trueque' }, required: true },
                             { name: 'porcentaje_trueque', label: '% del pago cubierto con trueque', type: 'number', value: '100', min: '1', max: '100', step: '1', showIf: { field: 'metodo', equals: 'Trueque' }, required: true },
                             { name: 'referencia', label: 'Referencia', value: 'Pago registrado', required: true },
@@ -273,10 +449,12 @@
                         cuerpoPago.categoria_trueque_id = Number(pago.categoria_trueque_id);
                         cuerpoPago.porcentaje_trueque = pago.porcentaje_trueque;
                     }
-                    await jsonFetch(`/api/crm/pedidos/${pedido}/pagos`, { method: 'POST', body: JSON.stringify(cuerpoPago) });
+                    await jsonFetch(`/api/crm/pedidos/${pedido}/pagos`, {
+                        method: 'POST',
+                        body: JSON.stringify(cuerpoPago),
+                    });
                 }
                 if (action === 'trueque') {
-                    const cliente = button.dataset.cliente;
                     const categorias = await opcionesCategoriasTrueque();
                     const trueque = await openModal({
                         title: 'Registrar trueque',
@@ -285,12 +463,12 @@
                         fields: [
                             { name: 'categoria_id', label: 'Giro del intercambio', type: 'select', optionsMap: categorias, required: true },
                             { name: 'monto', label: 'Valor del intercambio', type: 'number', min: '0.01', step: '0.01', required: true },
-                            { name: 'descripcion', label: 'Descripcion', value: '', required: true },
+                            { name: 'descripcion', label: 'Descripción', required: true },
                         ],
                         onFieldChange: alManejarNuevaCategoriaTrueque,
                     });
                     if (!trueque) return;
-                    await jsonFetch(`/api/crm/clientes/${cliente}/trueque`, {
+                    await jsonFetch(`/api/crm/clientes/${button.dataset.cliente}/trueque`, {
                         method: 'POST',
                         body: JSON.stringify({ token: token('trueque'), categoria_id: Number(trueque.categoria_id), monto: trueque.monto, descripcion: trueque.descripcion }),
                     });
@@ -337,6 +515,10 @@
                         method: 'POST',
                         body: JSON.stringify({ token: token('llenado'), ubicacion_mp: 'Produccion' }),
                     });
+                }
+                if (action === 'documentos') {
+                    await abrirDocumentos(pedido, button.dataset.folio);
+                    return;
                 }
                 window.location.reload();
             } catch (error) {

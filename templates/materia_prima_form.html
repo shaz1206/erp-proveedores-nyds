@@ -53,8 +53,8 @@
                     <hr class="my-4">
                     <h5 class="fw-bold mb-3">Unidades y conversiones</h5>
                     <div class="row g-3">
-                        <div class="col-md-3"><label class="form-label">Unidad base *</label><select id="unidad_base" class="form-select" required><option value="">Seleccione...</option><option>kg</option><option>L</option><option>g</option><option>mL</option><option>pieza</option></select></div>
-                        <div class="col-md-3"><label class="form-label">Unidad preferida en receta</label><select id="unidad_preferida_receta" class="form-select"><option value="">Igual a unidad base</option><option>kg</option><option>L</option><option>g</option><option>mL</option><option>pieza</option></select></div>
+                        <div class="col-md-3"><label class="form-label">Unidad base *</label><select id="unidad_base" class="form-select" required><option value="">Seleccione...</option><option>kg</option><option>pieza</option></select></div>
+                        <div class="col-md-3"><label class="form-label">Unidad preferida en receta</label><select id="unidad_preferida_receta" class="form-select"><option value="">Igual a unidad base</option><option>kg</option><option>pieza</option></select></div>
                         <div class="col-md-2"><label class="form-label">Decimales *</label><input id="decimales_inventario" type="number" min="0" max="6" class="form-control" value="3" required></div>
                         <div class="col-md-2"><label class="form-label">Densidad kg/L</label><input id="densidad_kg_l" type="number" min="0" step="0.000001" class="form-control"></div>
                         <div class="col-md-2"><label class="form-label">Factor manual</label><input id="factor_conversion_manual" type="number" min="0" step="0.000001" class="form-control"></div>
@@ -120,7 +120,7 @@
                         <div class="col-md-2"><label class="form-label">Presentación *</label><input id="presentacion_compra" class="form-control" placeholder="Tambo, saco..."></div>
                         <div class="col-md-2 d-flex align-items-end"><div class="form-check mb-2"><input id="prov_principal" type="checkbox" class="form-check-input"><label class="form-check-label">Principal</label></div></div>
                         <div class="col-md-2"><label class="form-label">Contenido *</label><input id="contenido_presentacion" type="number" min="0" step="0.000001" class="form-control"></div>
-                        <div class="col-md-2"><label class="form-label">Unidad contenido *</label><select id="unidad_contenido" class="form-select"><option>kg</option><option>L</option><option>g</option><option>mL</option><option>pieza</option></select></div>
+                        <div class="col-md-2"><label class="form-label">Unidad contenido *</label><select id="unidad_contenido" class="form-select"><option>kg</option><option>pieza</option></select></div>
                         <div class="col-md-2"><label class="form-label">Factor a unidad base *</label><input id="factor_a_unidad_base" type="number" min="0" step="0.000001" class="form-control"><div class="form-text"><button class="btn btn-link btn-sm p-0" type="button" onclick="calcularFactor()">Calcular</button></div></div>
                         <div class="col-12"><h6 class="border-top pt-3">Precio y condiciones del proveedor seleccionado</h6></div><div class="col-md-2"><label class="form-label">Precio vigente *</label><input id="precio_vigente" type="number" min="0" step="0.0001" class="form-control"></div>
                         <div class="col-md-2"><label class="form-label">Tipo de precio *</label><select id="tipo_precio" class="form-select"><option>Por presentación</option><option>Por kg</option><option>Por L</option><option>Por pieza</option></select></div>

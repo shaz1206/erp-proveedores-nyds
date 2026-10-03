@@ -13,10 +13,20 @@
         <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
             <div>
                 <h2>Clientes</h2>
-                <p class="text-muted mb-0">Directorio de clientes, historial de pedidos y saldo a favor por trueque.</p>
+                <p class="text-muted mb-0">Directorio de clientes, compras de {{ mes.etiqueta }} e historial completo.</p>
             </div>
-            <input id="buscadorClientes" class="form-control" style="max-width:260px" placeholder="Buscar cliente o teléfono">
+            <div class="d-flex gap-2 flex-wrap align-items-center">
+                {% set pdf_url = '/crm/clientes/pdf' %}
+                {% include 'crm_mes.html' %}
+                {% if rol in ['supervisor', 'ventas', 'cobranza'] %}
+                <button type="button" class="btn btn-primary" data-action="nuevo-cliente">+ Nuevo cliente</button>
+                {% endif %}
+            </div>
         </div>
+        <form method="get" action="/crm/clientes" class="mb-3" style="max-width:420px">
+            <input type="hidden" name="mes" value="{{ mes.valor }}">
+            <input id="buscadorClientes" name="q" value="{{ q }}" class="form-control" placeholder="Buscar por nombre, apellido, RFC, dirección o teléfono" aria-label="Buscar cliente">
+        </form>
 
         <section class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
@@ -28,34 +38,48 @@
                     <thead>
                         <tr>
                             <th>Cliente</th>
+                            <th>RFC</th>
+                            <th>Dirección</th>
                             <th>Canal</th>
-                            <th>Pedidos</th>
-                            <th>Total comprado</th>
-                            <th>Pendiente por cobrar</th>
-                            <th>Saldo trueque</th>
-                            <th>Acciones</th>
+                            <th>Pedidos {{ mes.etiqueta }}</th>
+                            <th>Comprado {{ mes.etiqueta }}</th>
+                            <th>Histórico</th>
+                            <th>Por cobrar</th>
+                            <th>Trueque a favor</th>
+                            <th></th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for fila in filas %}
-                        <tr data-buscar="{{ (fila.cliente.nombre ~ ' ' ~ fila.cliente.telefono) | lower }}">
-                            <td><strong>{{ fila.cliente.nombre }}</strong><div class="text-muted small">{{ fila.cliente.telefono }}{% if fila.cliente.correo %} · {{ fila.cliente.correo }}{% endif %}</div></td>
+                        <tr>
+                            <td><strong>{{ fila.cliente.nombre_completo }}</strong><div class="text-muted small">{{ fila.cliente.telefono or 'Sin teléfono' }}{% if fila.cliente.correo %} · {{ fila.cliente.correo }}{% endif %}</div></td>
+                            <td>{{ fila.cliente.rfc or '—' }}</td>
+                            <td>{% for d in fila.cliente.domicilios %}<div class="small">{{ d.direccion }}{% if d.zona %} <span class="text-muted">· {{ d.zona }}</span>{% endif %}</div>{% else %}<span class="text-muted">—</span>{% endfor %}</td>
                             <td>{{ fila.cliente.canal_origen }}</td>
-                            <td>{{ fila.pedidos }}</td>
-                            <td>${{ '%.2f' | format(fila.total_comprado) }}</td>
+                            <td>{{ fila.pedidos_mes }}</td>
+                            <td>${{ '%.2f' | format(fila.comprado_mes) }}</td>
+                            <td>${{ '%.2f' | format(fila.total_comprado) }}<div class="text-muted small">{{ fila.pedidos }} pedido(s)</div></td>
                             <td>{% if fila.total_pendiente > 0 %}<span class="text-danger fw-semibold">${{ '%.2f' | format(fila.total_pendiente) }}</span>{% else %}$0.00{% endif %}</td>
                             <td>{% if fila.saldo_trueque > 0 %}<span class="badge bg-success">${{ '%.2f' | format(fila.saldo_trueque) }}</span>{% else %}$0.00{% endif %}</td>
                             <td>
-                                {% if rol in ['supervisor', 'cobranza'] %}
-                                <button class="btn btn-outline-secondary btn-sm" data-action="trueque" data-cliente="{{ fila.cliente.id }}">Registrar trueque</button>
-                                {% endif %}
+                                <div class="d-flex flex-wrap gap-2">
+                                    <a class="btn btn-outline-secondary btn-sm" target="_blank" href="/crm/clientes/{{ fila.cliente.id }}/pdf" title="Historial del cliente en PDF">&#8681; Historial</a>
+                                    {% if rol in ['supervisor', 'cobranza'] %}
+                                    <button class="btn btn-outline-secondary btn-sm" data-action="trueque" data-cliente="{{ fila.cliente.id }}" title="Registrar trueque a favor">+ Trueque</button>
+                                    {% endif %}
+                                </div>
                             </td>
                         </tr>
                         {% else %}
                         <tr>
-                            <td colspan="7" class="text-center py-5">
+                            <td colspan="10" class="text-center py-5">
+                                {% if q %}
+                                <strong>Ningún cliente coincide con “{{ q }}”</strong>
+                                <p class="text-muted mt-2 mb-0">Busca por nombre, apellido, RFC, dirección o teléfono. <a href="/crm/clientes">Ver todos</a></p>
+                                {% else %}
                                 <strong>Aún no hay clientes registrados</strong>
-                                <p class="text-muted mt-2 mb-0">Los clientes se crean automáticamente al capturar un pedido en el CRM.</p>
+                                <p class="text-muted mt-2 mb-0">Da de alta uno con “Nuevo cliente” o se crea solo al capturar un pedido.</p>
+                                {% endif %}
                             </td>
                         </tr>
                         {% endfor %}
@@ -66,39 +90,50 @@
     </main>
     {% include 'crm_modal.html' %}
     <script>
-        const buscador = document.getElementById('buscadorClientes');
-        if (buscador) {
-            buscador.addEventListener('input', () => {
-                const q = buscador.value.trim().toLowerCase();
-                document.querySelectorAll('[data-buscar]').forEach((fila) => {
-                    fila.style.display = !q || fila.dataset.buscar.includes(q) ? '' : 'none';
-                });
-            });
-        }
-
         document.addEventListener('click', async (event) => {
-            const button = event.target.closest('[data-action="trueque"]');
+            const button = event.target.closest('[data-action]');
             if (!button) return;
             try {
-                const cliente = button.dataset.cliente;
-                const categorias = await opcionesCategoriasTrueque();
-                const trueque = await openModal({
-                    title: 'Registrar trueque',
-                    subtitle: 'Genera saldo a favor del cliente por bienes o servicios recibidos a cambio.',
-                    submitText: 'Registrar trueque',
-                    fields: [
-                        { name: 'categoria_id', label: 'Giro del intercambio', type: 'select', optionsMap: categorias, required: true },
-                        { name: 'monto', label: 'Valor del intercambio', type: 'number', min: '0.01', step: '0.01', required: true },
-                        { name: 'descripcion', label: 'Descripcion', required: true },
-                    ],
-                    onFieldChange: alManejarNuevaCategoriaTrueque,
-                });
-                if (!trueque) return;
-                await jsonFetch(`/api/crm/clientes/${cliente}/trueque`, {
-                    method: 'POST',
-                    body: JSON.stringify({ token: token('trueque'), categoria_id: Number(trueque.categoria_id), monto: trueque.monto, descripcion: trueque.descripcion }),
-                });
-                window.location.reload();
+                if (button.dataset.action === 'nuevo-cliente') {
+                    const cliente = await openModal({
+                        title: 'Nuevo cliente',
+                        subtitle: 'Solo el nombre es obligatorio; lo demás puedes dejarlo en blanco.',
+                        submitText: 'Guardar cliente',
+                        fields: [
+                            { name: 'nombre', label: 'Nombre o negocio', required: true },
+                            { name: 'apellidos', label: 'Apellidos' },
+                            { name: 'telefono', label: 'Teléfono' },
+                            { name: 'correo', label: 'Correo', type: 'email' },
+                            { name: 'rfc', label: 'RFC' },
+                            { name: 'direccion', label: 'Dirección' },
+                            { name: 'zona', label: 'Zona', value: 'Cancun' },
+                            { name: 'canal_origen', label: 'Canal', type: 'select', value: 'Manual', options: ['Manual', 'WhatsApp', 'Instagram', 'Facebook'] },
+                        ],
+                    });
+                    if (!cliente) return;
+                    await jsonFetch('/api/crm/clientes', { method: 'POST', body: JSON.stringify(cliente) });
+                    window.location.reload();
+                }
+                if (button.dataset.action === 'trueque') {
+                    const categorias = await opcionesCategoriasTrueque();
+                    const trueque = await openModal({
+                        title: 'Registrar trueque',
+                        subtitle: 'Genera saldo a favor del cliente por bienes o servicios recibidos a cambio.',
+                        submitText: 'Registrar trueque',
+                        fields: [
+                            { name: 'categoria_id', label: 'Giro del intercambio', type: 'select', optionsMap: categorias, required: true },
+                            { name: 'monto', label: 'Valor del intercambio', type: 'number', min: '0.01', step: '0.01', required: true },
+                            { name: 'descripcion', label: 'Descripción', required: true },
+                        ],
+                        onFieldChange: alManejarNuevaCategoriaTrueque,
+                    });
+                    if (!trueque) return;
+                    await jsonFetch(`/api/crm/clientes/${button.dataset.cliente}/trueque`, {
+                        method: 'POST',
+                        body: JSON.stringify({ token: token('trueque'), categoria_id: Number(trueque.categoria_id), monto: trueque.monto, descripcion: trueque.descripcion }),
+                    });
+                    window.location.reload();
+                }
             } catch (error) {
                 showToast(error.message);
             }

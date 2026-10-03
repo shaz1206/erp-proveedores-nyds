@@ -106,7 +106,9 @@
                 <h1>Flujo de pedidos</h1>
                 <div style="color:#607086;font-size:13px;margin-top:2px">Hoy es {{ hoy_es }} &middot; {{ metricas.activos }} pedidos activos</div>
             </div>
-            <div style="display:flex;gap:10px;align-items:center">
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+                {% set pdf_url = '/crm/tablero/pdf' %}
+                {% include 'crm_mes.html' %}
                 <input id="buscadorTablero" placeholder="Buscar cliente" style="border:1px solid #d9e3e8;border-radius:12px;padding:11px 14px;font-size:13px;min-width:190px;color:#132441;background:#fff">
                 <a href="/crm/pedidos" style="background:var(--nyds-lapis);color:#fff;border-radius:11px;padding:11px 18px;font-size:13px;font-weight:700;text-decoration:none;white-space:nowrap">+ Nuevo pedido</a>
             </div>
@@ -114,26 +116,26 @@
 
         <div class="tab-metrics">
             <div class="metric">
-                <span class="metric-dot {{ 'dot-verde' if metricas.nuevos_semana > 0 else 'dot-amarillo' }}"></span>
+                <span class="metric-dot {{ 'dot-verde' if metricas.nuevos_mes > 0 else 'dot-amarillo' }}"></span>
                 <span class="metric-label">Pedidos activos</span>
                 <strong>{{ metricas.activos }}</strong>
-                {% if metricas.nuevos_semana > 0 %}
-                <small>+{{ metricas.nuevos_semana }} esta semana</small>
+                {% if metricas.nuevos_mes > 0 %}
+                <small>+{{ metricas.nuevos_mes }} {{ 'este mes' if mes.es_actual else 'en ' ~ mes.etiqueta }}</small>
                 {% else %}
-                <small style="color:#607086">Sin pedidos nuevos esta semana</small>
+                <small style="color:#607086">Sin pedidos nuevos {{ 'este mes' if mes.es_actual else 'en ' ~ mes.etiqueta }}</small>
                 {% endif %}
             </div>
             <div class="metric">
                 <span class="metric-dot dot-azul"></span>
-                <span class="metric-label">Valor en gesti&oacute;n</span>
-                <strong>{{ metricas.valor_gestion_fmt }}</strong>
-                <small>MXN</small>
+                <span class="metric-label">{{ 'Generado este mes' if mes.es_actual else 'Generado en ' ~ mes.etiqueta }}</span>
+                <strong>{{ metricas.generado_mes_fmt }}</strong>
+                <small>MXN &middot; cobrado {{ metricas.cobrado_mes_fmt }}</small>
             </div>
             <div class="metric">
-                <span class="metric-dot {{ 'dot-verde' if metricas.entregas_hoy > 0 else 'dot-amarillo' }}"></span>
-                <span class="metric-label">Entregas de hoy</span>
-                <strong>{{ metricas.entregas_hoy }}</strong>
-                <small>{{ metricas.en_ruta_ahora }} en ruta ahora</small>
+                <span class="metric-dot {{ 'dot-verde' if metricas.entregas_mes > 0 else 'dot-amarillo' }}"></span>
+                <span class="metric-label">{{ 'Entregas del mes' if mes.es_actual else 'Entregas en ' ~ mes.etiqueta }}</span>
+                <strong>{{ metricas.entregas_mes }}</strong>
+                <small>{{ metricas.entregas_hoy }} hoy &middot; {{ metricas.en_ruta_ahora }} en ruta ahora</small>
             </div>
             <div class="metric">
                 <span class="metric-dot {{ 'dot-rojo' if metricas.por_cobrar_cuenta > 0 else 'dot-verde' }}"></span>

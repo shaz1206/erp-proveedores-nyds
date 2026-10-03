@@ -4,7 +4,7 @@ from decimal import Decimal,InvalidOperation
 from functools import wraps
 import secrets,hashlib,json
 from flask import request,session,redirect,render_template,url_for,abort
-from sqlalchemy import update
+from sqlalchemy import update,select,func
 from sqlalchemy.exc import IntegrityError,OperationalError
 
 if __package__:
@@ -52,6 +52,30 @@ def registrar_inventario(app,db,MP,Entrada,usuario_actual):
 
     def clave(r):return (r['mp_id'],r['unidad'],r['ubicacion'],r['lote'],r['caducidad'],r['demo'])
 
+    def reservado_por_mp():
+        # Las reservas las crea el CRM (se registra despues); se leen por la tabla para no depender del orden de registro.
+        t=db.metadata.tables.get('crm_reservas_erp')
+        if t is None:return {}
+        filas=db.session.execute(select(t.c.mp_id,func.sum(t.c.cantidad)).where(t.c.tipo=='Materia prima',t.c.estado=='Activa').group_by(t.c.mp_id)).all()
+        return {mp_id:Decimal(str(total or 0)) for mp_id,total in filas}
+
+    def resumen_por_mp(filtrados,demo):
+        """Una fila por materia prima: existencia total, lo reservado por pedidos, lo disponible y su alerta de reorden."""
+        totales={}
+        for r in filtrados:totales[r['mp_id']]=totales.get(r['mp_id'],Decimal(0))+r['cantidad']
+        reservado={} if demo else reservado_por_mp()
+        filas=[]
+        for m in MP.query.order_by(MP.nombre_oficial).all():
+            if not m.activo and m.id_mp not in totales:continue
+            existencia=totales.get(m.id_mp,Decimal(0));res=reservado.get(m.id_mp,Decimal(0));disponible=existencia-res
+            cfg=m.inventario_config;minimo=cfg.stock_minimo if cfg else Decimal(0);reorden=cfg.punto_reorden if cfg else Decimal(0)
+            if existencia<=0:estado='Sin existencia'
+            elif minimo and disponible<minimo:estado='Bajo mínimo'
+            elif reorden and disponible<=reorden:estado='Reordenar'
+            else:estado='OK'
+            filas.append(dict(mp=m,existencia=existencia,reservado=res,disponible=disponible,minimo=minimo or Decimal(0),reorden=reorden or Decimal(0),estado=estado))
+        return filas
+
     @app.route('/admin/inventario-mp')
     @protegido
     def inventario_mp():
@@ -61,7 +85,8 @@ def registrar_inventario(app,db,MP,Entrada,usuario_actual):
             k=clave(r)
             if k not in saldos:saldos[k]={**r,'cantidad':Decimal(0)}
             saldos[k]['cantidad']+=r['cantidad']
-        return render_template('inventario_mp.html',saldos=saldos.values(),movimientos=filtrados,demo=demo,hay_demo=any(r['demo'] for r in todos),hoy=date.today())
+        resumen=resumen_por_mp(filtrados,demo)
+        return render_template('inventario_mp.html',saldos=saldos.values(),movimientos=filtrados,demo=demo,hay_demo=any(r['demo'] for r in todos),hoy=date.today(),resumen=resumen,alertas=sum(1 for f in resumen if f['estado']!='OK'))
 
     @app.route('/admin/inventario-mp/pdf')
     @protegido
@@ -81,10 +106,18 @@ def registrar_inventario(app,db,MP,Entrada,usuario_actual):
                 celda((s['lote'] or 'Sin lote')+vencido, muted=bool(vencido)),
                 celda(f"{s['cantidad']:g} {s['unidad']}"),
             ])
+        resumen=resumen_por_mp(filtrados,demo)
         buffer=generar_pdf(
             titulo='Inventario de materia prima'+(' (DEMO)' if demo else ''),
-            subtitulo='Saldo actual por materia prima, ubicación, lote y caducidad.',
+            subtitulo='Existencias por materia prima y saldo por ubicación, lote y caducidad.',
             secciones=[{
+                'titulo':'Existencias por materia prima',
+                'columnas':['Materia prima','Existencia','Reservado','Disponible','Punto de reorden','Estado'],
+                'filas':[[celda(f['mp'].nombre_oficial),celda(f"{f['existencia']:g} {f['mp'].unidad_base}"),celda(f"{f['reservado']:g}",muted=True),celda(f"{f['disponible']:g}",negrita=True),celda(f"{f['reorden']:g}",muted=True),celda(f['estado'],negrita=f['estado']!='OK')] for f in resumen],
+                'anchos':[5.6,2.8,2.2,2.4,2.6,2.8],
+                'vacio':'No hay materias primas activas.',
+            },{
+                'titulo':'Saldo por ubicación y lote',
                 'columnas':['Materia prima','Ubicación','Lote / caducidad','Saldo'],
                 'filas':filas,
                 'anchos':[7,4,4,3.7],
