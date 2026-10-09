@@ -33,7 +33,7 @@ class ProductoTerminadoTest(unittest.TestCase):
         respuesta = self.client.post('/admin/productos-terminados/nuevo', data=datos)
         self.assertEqual(respuesta.status_code, 302)
         p = ProductoTerminado.query.one()
-        self.assertEqual(p.sku, 'A-001')
+        self.assertEqual(p.sku, 'PT-000001')
         self.assertEqual(p.puntos_venta, ['Ruta', 'Arpelab'])
         self.assertEqual(self.client.get(f'/admin/productos-terminados/{p.id}/imagen').mimetype, 'image/png')
         self.assertEqual(self.client.get(f'/admin/productos-terminados/{p.id}').status_code, 200)
@@ -56,8 +56,12 @@ class ProductoTerminadoTest(unittest.TestCase):
         self.assertEqual(self.client.post('/admin/productos-terminados/nuevo', data=datos).status_code, 400)
         self.assertEqual(ProductoTerminado.query.count(), 0)
         self.client.post('/admin/productos-terminados/nuevo', data=self.datos())
-        self.assertEqual(self.client.post('/admin/productos-terminados/nuevo', data=self.datos()).status_code, 400)
-        self.assertEqual(ProductoTerminado.query.count(), 1)
+        self.client.post('/admin/productos-terminados/nuevo', data=self.datos())
+        self.assertEqual([p.sku for p in ProductoTerminado.query.order_by(ProductoTerminado.id)], ['PT-000001', 'PT-000002'])
+        datos = self.datos()
+        datos['presentacion'] = '2 L'
+        self.assertEqual(self.client.post('/admin/productos-terminados/nuevo', data=datos).status_code, 400)
+        self.assertEqual(ProductoTerminado.query.count(), 2)
         with self.client.session_transaction() as sesion:
             sesion.clear()
         for url in ['/admin/productos-terminados', '/admin/productos-terminados/nuevo', '/admin/productos-terminados/1/imagen']:

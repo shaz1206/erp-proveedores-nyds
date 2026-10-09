@@ -35,7 +35,5 @@
 </button>
 <div class="erp-toolbar">
     <span class="erp-context">CRM / {{ session.get('crm_nombre', 'Administrador ERP') }} / {{ rol or session.get('crm_rol', 'supervisor') }}</span>
-    {% if session.get('admin_logueado') %}
-    <a href="/admin/catalogo" class="btn btn-outline-secondary btn-sm">Volver al ERP</a>
-    {% endif %}
+    <a href="/admin/operaciones" class="btn btn-outline-secondary btn-sm">Volver al ERP</a>
 </div>

@@ -15,6 +15,7 @@ def registrar_productos_terminados(app, db):
         sku = db.Column(db.String(40), unique=True, nullable=False)
         nombre = db.Column(db.String(150), nullable=False)
         categoria = db.Column(db.String(100), nullable=False)
+        presentacion = db.Column(db.String(20))
         estatus = db.Column(db.String(20), nullable=False, default='Borrador')
         stock_minimo = db.Column(db.Numeric(18, 6), nullable=False, default=0)
         precio = db.Column(db.Numeric(18, 2))
@@ -30,8 +31,18 @@ def registrar_productos_terminados(app, db):
         creado_en = db.Column(db.DateTime, default=datetime.utcnow)
 
     puntos = ['Ruta', 'Vendss Clean', 'Arpelab', 'Vending']
+    presentaciones = ['1 L', '5 L', '20 L']
     estados = ['Borrador', 'Activo', 'Inactivo']
     biodegradabilidad = ['Sí', 'No', 'No especificada']
+
+    def generar_sku():
+        # Consecutivo PT-000001, tomando el mayor existente para no repetir tras borrados.
+        mayor = 0
+        for (sku,) in db.session.query(ProductoTerminado.sku).filter(ProductoTerminado.sku.like('PT-%')):
+            sufijo = sku[3:]
+            if sufijo.isdigit():
+                mayor = max(mayor, int(sufijo))
+        return f'PT-{mayor + 1:06d}'
 
     def autorizado():
         return bool(session.get('admin_logueado'))
@@ -72,8 +83,12 @@ def registrar_productos_terminados(app, db):
                     datos[campo] = datos[campo].upper()
                 if len(datos[campo]) > limite:
                     errores.append(f'{campo}: máximo {limite} caracteres.')
+            if not id_producto:
+                datos['sku'] = generar_sku()  # en el alta siempre es automático
+            elif not datos['sku']:
+                datos['sku'] = producto.sku
             if any(not datos[c] for c in ['sku', 'nombre', 'categoria']):
-                errores.append('SKU, nombre y categoría son obligatorios.')
+                errores.append('Nombre y categoría son obligatorios.')
             for campo in ['stock_minimo', 'ppm']:
                 texto = request.form.get(campo, '').strip()
                 try:
@@ -93,6 +108,9 @@ def registrar_productos_terminados(app, db):
                 errores.append('precio: usa un número mayor a cero, con máximo 2 decimales, o déjalo en blanco si aún no se define.')
             datos['estatus'] = request.form.get('estatus')
             datos['biodegradabilidad'] = request.form.get('biodegradabilidad', '')
+            datos['presentacion'] = request.form.get('presentacion', '').strip() or None
+            if datos['presentacion'] not in presentaciones + [None]:
+                errores.append('Selecciona una presentación válida (1 L, 5 L o 20 L).')
             datos['puntos_venta'] = list(dict.fromkeys(valores['puntos_venta']))
             if datos['estatus'] not in estados:
                 errores.append('Selecciona un estatus válido.')
@@ -135,7 +153,7 @@ def registrar_productos_terminados(app, db):
                     errores.append('El SKU ya existe. Usa uno diferente.')
         categorias = [c[0] for c in db.session.query(ProductoTerminado.categoria).distinct().order_by(ProductoTerminado.categoria)]
         return render_template('producto_terminado_form.html', producto=producto, valores=valores,
-            errores=errores, puntos=puntos, estados=estados, biodegradabilidad=biodegradabilidad, categorias=categorias), (400 if errores else 200)
+            errores=errores, puntos=puntos, estados=estados, presentaciones=presentaciones, biodegradabilidad=biodegradabilidad, categorias=categorias), (400 if errores else 200)
 
     @app.route('/admin/productos-terminados/<int:id_producto>/ver')
     def ver_producto_terminado(id_producto):

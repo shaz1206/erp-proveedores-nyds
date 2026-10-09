@@ -9,10 +9,11 @@
 <div class="card-body p-4">
     <h5 class="pt-section mt-0"><span>ⓘ</span>Información Básica</h5>
     <div class="row g-4">
-        <div class="col-md-3"><label for="sku" class="form-label">SKU *</label><input id="sku" name="sku" class="form-control" required maxlength="40" placeholder="Ej. A-001" value="{{ valores.sku or '' }}"></div>
+        <div class="col-md-3"><label for="sku" class="form-label">SKU</label>{% if producto %}<input id="sku" name="sku" class="form-control" maxlength="40" value="{{ valores.sku or '' }}">{% else %}<input id="sku" class="form-control" value="Automático" disabled>{% endif %}</div>
         <div class="col-md-5"><label for="nombre" class="form-label">Nombre del producto *</label><input id="nombre" name="nombre" class="form-control" required maxlength="150" placeholder="Nombre comercial" value="{{ valores.nombre or '' }}"></div>
         <div class="col-md-4"><label for="categoria" class="form-label">Categoría *</label><input id="categoria" name="categoria" list="categorias" class="form-control" required maxlength="100" placeholder="Selecciona o escribe una categoría" value="{{ valores.categoria or '' }}"><datalist id="categorias">{% for categoria in categorias %}<option value="{{ categoria }}">{% endfor %}</datalist></div>
-        <div class="col-md-4"><label for="estatus" class="form-label">{{ 'Estatus' if producto else 'Estatus inicial' }} *</label><select id="estatus" name="estatus" class="form-select" required>{% for estado in estados %}<option {% if valores.estatus == estado %}selected{% endif %}>{{ estado }}</option>{% endfor %}</select></div>
+        <div class="col-md-4"><label for="presentacion" class="form-label">Presentación</label><select id="presentacion" name="presentacion" class="form-select"><option value="">Seleccionar...</option>{% for p in presentaciones %}<option {% if valores.presentacion == p %}selected{% endif %}>{{ p }}</option>{% endfor %}</select></div>
+        <div class="col-md-4"><label for="estatus"class="form-label">{{ 'Estatus' if producto else 'Estatus inicial' }} *</label><select id="estatus" name="estatus" class="form-select" required>{% for estado in estados %}<option {% if valores.estatus == estado %}selected{% endif %}>{{ estado }}</option>{% endfor %}</select></div>
         <div class="col-md-4"><label for="stock_minimo" class="form-label">Mínimo stock</label><input id="stock_minimo" name="stock_minimo" type="number" min="0" max="999999999999" step="0.000001" class="form-control" value="{{ valores.stock_minimo if valores.stock_minimo is defined else 0 }}"></div>
     </div>
     <h5 class="pt-section"><span>♧</span>Características Físicas</h5>

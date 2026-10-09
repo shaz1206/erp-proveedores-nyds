@@ -21,6 +21,7 @@
                 <div class="row g-3">
                     <div class="col-md-3"><small class="text-muted d-block">SKU</small><strong>{{ producto.sku }}</strong></div>
                     <div class="col-md-5"><small class="text-muted d-block">Categoría</small><strong>{{ producto.categoria }}</strong></div>
+                    <div class="col-md-3"><small class="text-muted d-block">Presentación</small><strong>{{ producto.presentacion or '—' }}</strong></div>
                     <div class="col-md-4"><small class="text-muted d-block">Estatus</small><span class="badge {{ 'bg-success' if producto.estatus == 'Activo' else 'bg-secondary' if producto.estatus == 'Inactivo' else 'bg-warning text-dark' }}">{{ producto.estatus }}</span></div>
                     <div class="col-md-4"><small class="text-muted d-block">Mínimo stock</small><strong>{{ producto.stock_minimo | float }}</strong></div>
                     <div class="col-md-4"><small class="text-muted d-block">Precio de lista</small><strong>{% if producto.precio is not none %}${{ '%.2f' | format(producto.precio) }}{% else %}<span class="text-muted">Sin precio</span>{% endif %}</strong></div>

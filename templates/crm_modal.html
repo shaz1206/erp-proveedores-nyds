@@ -1,7 +1,8 @@
 <style>
-    .nyds-modal-backdrop{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(19,36,65,.52);z-index:1050;padding:24px}
+    .nyds-modal-backdrop{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(19,36,65,.52);z-index:1050;padding:24px;overflow-y:auto}
     .nyds-modal-backdrop[data-open="true"]{display:flex}
-    .nyds-modal{width:min(520px,100%);background:#fff;border:1px solid #d9e3e8;border-radius:16px;box-shadow:0 24px 70px rgba(19,36,65,.28);overflow:hidden}
+    .nyds-modal{width:min(520px,100%);background:#fff;border:1px solid #d9e3e8;border-radius:16px;box-shadow:0 24px 70px rgba(19,36,65,.28);max-height:calc(100vh - 48px);overflow-y:auto;overscroll-behavior:contain}
+    .nyds-modal-header{position:sticky;top:0;z-index:1}
     .nyds-modal-header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:20px 22px;border-bottom:1px solid #edf2f5;background:#132441;color:#fff}
     .nyds-modal-header h5{color:#fff;margin:0;font-size:1rem}.nyds-modal-header small{display:block;color:#b8cbe4;margin-top:4px}
     .nyds-modal-body{padding:22px}.nyds-modal-actions{display:flex;justify-content:flex-end;gap:10px;padding:0 22px 22px}
