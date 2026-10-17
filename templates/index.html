@@ -13,68 +13,72 @@
     <div class="container mb-5" style="max-width: 800px;">
         <div class="card shadow-sm border-0">
             <div class="card-body p-4">
-                <h4 class="fw-bold mb-4 text-dark">Nuevo proveedor</h4>
-                
+                <h4 class="fw-bold mb-1 text-dark">Nuevo proveedor</h4>
+                <p class="text-muted mb-4">Solo el nombre es obligatorio. Teléfono y demás datos los capturas cuando los tengas.</p>
+
                 <form id="formProveedor">
-                    <h6 class="text-muted fw-bold mb-3">DATOS GENERALES Y FISCALES</h6>
                     <div class="row g-3 mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label fw-semibold">Razón Social *</label>
-                            <input type="text" id="razon_social" class="form-control" required placeholder="Ej. Químicos Industriales del Sureste S.A.">
+                        <div class="col-md-7">
+                            <label class="form-label fw-semibold" for="razon_social">Nombre *</label>
+                            <input type="text" id="razon_social" class="form-control" required autofocus placeholder="Ej. Químicos Industriales del Sureste">
                         </div>
-                        <div class="col-md-3">
-                            <label class="form-label fw-semibold">RFC *</label>
-                            <input type="text" id="rfc" class="form-control" required placeholder="XAXX010101000">
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label fw-semibold">Tipo Suministro *</label>
-                            <select id="tipo_proveedor" class="form-select">
-                                <option value="Materia Prima">Materia Prima (Químicos)</option>
-                                <option value="Empaque">Material de Empaque</option>
-                                <option value="Servicios">Servicios Industriales</option>
-                                <option value="Mixto">Mixto (Varios)</option>
-                            </select>
+                        <div class="col-md-5">
+                            <label class="form-label fw-semibold" for="contacto_telefono">Teléfono</label>
+                            <input type="tel" id="contacto_telefono" class="form-control" placeholder="Opcional">
                         </div>
                     </div>
 
-                    <div class="row g-3 mb-4">
-                        <div class="col-md-4">
-                            <label class="form-label fw-semibold">Código Postal *</label>
-                            <input type="text" id="codigo_postal" class="form-control" required placeholder="77500">
+                    <details class="mb-4">
+                        <summary class="fw-semibold text-secondary mb-3" style="cursor:pointer">Más datos (opcionales)</summary>
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-4">
+                                <label class="form-label" for="rfc">RFC</label>
+                                <input type="text" id="rfc" class="form-control" placeholder="XAXX010101000">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label" for="tipo_proveedor">Qué te vende</label>
+                                <select id="tipo_proveedor" class="form-select">
+                                    <option value="Materia Prima">Materia prima (químicos)</option>
+                                    <option value="Empaque">Material de empaque</option>
+                                    <option value="Servicios">Servicios industriales</option>
+                                    <option value="Mixto">Mixto (varios)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label" for="codigo_postal">Código postal</label>
+                                <input type="text" id="codigo_postal" class="form-control" inputmode="numeric" maxlength="5" placeholder="77500">
+                            </div>
                         </div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-semibold">Condición de Pago *</label>
-                            <select id="condicion_pago" class="form-select">
-                                <option value="Contado">Contado</option>
-                                <option value="Crédito 15 días">Crédito 15 días</option>
-                                <option value="Crédito 30 días">Crédito 30 días</option>
-                                <option value="Crédito 60 días">Crédito 60 días</option>
-                            </select>
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-4">
+                                <label class="form-label" for="condicion_pago">Condición de pago</label>
+                                <select id="condicion_pago" class="form-select">
+                                    <option value="">Sin definir</option>
+                                    <option value="Contado">Contado</option>
+                                    <option value="Crédito 15 días">Crédito 15 días</option>
+                                    <option value="Crédito 30 días">Crédito 30 días</option>
+                                    <option value="Crédito 60 días">Crédito 60 días</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label" for="lead_time_habitual">Días de entrega</label>
+                                <input type="number" step="0.1" min="0" id="lead_time_habitual" class="form-control" placeholder="Ej. 3">
+                            </div>
                         </div>
-                        <div class="col-md-4">
-                            <!-- CAMBIADO: Texto claro en español -->
-                            <label class="form-label fw-semibold">Tiempo de Entrega Normal (Días) *</label>
-                            <input type="number" step="0.1" id="lead_time_habitual" class="form-control" required placeholder="Ej. 3">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label" for="contacto_nombre">Nombre del contacto</label>
+                                <input type="text" id="contacto_nombre" class="form-control" placeholder="Si lo dejas vacío se usa el nombre del proveedor">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="contacto_correo">Correo electrónico</label>
+                                <input type="email" id="contacto_correo" class="form-control">
+                            </div>
                         </div>
-                    </div>
+                    </details>
 
-                    <h6 class="text-muted fw-bold mb-3">CONTACTO PRINCIPAL</h6>
-                    <div class="row g-3 mb-4">
-                        <div class="col-md-4">
-                            <label class="form-label fw-semibold">Nombre *</label>
-                            <input type="text" id="contacto_nombre" class="form-control" required>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-semibold">Correo Electrónico *</label>
-                            <input type="email" id="contacto_correo" class="form-control" required>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-semibold">Teléfono *</label>
-                            <input type="text" id="contacto_telefono" class="form-control" required>
-                        </div>
-                    </div>
-
-                    <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold">Registrar Proveedor en el Sistema</button>
+                    <div id="errorProveedor" class="alert alert-danger d-none"></div>
+                    <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold" id="guardarProveedor">Guardar proveedor</button>
                 </form>
             </div>
         </div>
@@ -83,34 +87,41 @@
     <script>
         document.getElementById('formProveedor').addEventListener('submit', async (e) => {
             e.preventDefault();
+            const v = (id) => document.getElementById(id).value.trim();
+            const error = document.getElementById('errorProveedor');
+            const boton = document.getElementById('guardarProveedor');
+            error.classList.add('d-none');
             const data = {
-                razon_social: document.getElementById('razon_social').value,
-                rfc: document.getElementById('rfc').value,
-                tipo_proveedor: document.getElementById('tipo_proveedor').value,
-                codigo_postal: document.getElementById('codigo_postal').value,
-                condicion_pago: document.getElementById('condicion_pago').value,
-                tiempo_entrega_normal: parseFloat(document.getElementById('lead_time_habitual').value),
-                contactos: [{
-                    nombre: document.getElementById('contacto_nombre').value,
-                    correo: document.getElementById('contacto_correo').value,
-                    telefono: document.getElementById('contacto_telefono').value,
-                    tipo_contacto: "Comercial Principal",
-                    es_principal: true
-                }]
+                razon_social: v('razon_social'),
+                estatus_inicial: 'Activo',
+                tipo_proveedor: v('tipo_proveedor'),
             };
+            if (v('contacto_telefono')) data.telefono = v('contacto_telefono');
+            if (v('rfc')) data.rfc = v('rfc');
+            if (v('codigo_postal')) data.codigo_postal = v('codigo_postal');
+            if (v('condicion_pago')) data.condicion_pago = v('condicion_pago');
+            if (v('lead_time_habitual')) data.tiempo_entrega_normal = parseFloat(v('lead_time_habitual'));
+            if (v('contacto_nombre')) data.contacto_nombre = v('contacto_nombre');
+            if (v('contacto_correo')) data.correo = v('contacto_correo');
 
-            const res = await fetch('/api/proveedores', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            });
-            const result = await res.json();
-            if(res.ok) {
-                alert(result.mensaje + " | Código: " + result.codigo);
-                window.location.href = '/admin/catalogo';
-            } else {
-                alert("Error: " + result.error);
-            }
+            boton.disabled = true;
+            try {
+                const res = await fetch('/api/proveedores', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                const result = await res.json();
+                if (res.ok) {
+                    window.location.href = '/admin/catalogo';
+                    return;
+                }
+                error.textContent = result.error || 'No se pudo guardar el proveedor.';
+                error.classList.remove('d-none');
+            } catch (err) {
+                error.textContent = 'No se pudo conectar con el servidor.';
+                error.classList.remove('d-none');
+            } finally { boton.disabled = false; }
         });
     </script>
 </body>

@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Tablero - ERP NYDS</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20260911-nyds-white-logo') }}">
+    <style>
+        .tb-kpi{background:#fff;border:1px solid #d9e3e8;border-radius:12px;padding:14px 16px;height:100%}
+        .tb-kpi .etq{font-size:11.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#5b6b84}
+        .tb-kpi strong{display:block;font-size:26px;line-height:1.15;color:#132441;font-variant-numeric:tabular-nums}
+        .tb-kpi small{color:#5b6b84}
+        .tb-chart{width:100%;height:auto;display:block}
+        .tb-chart .eje{stroke:#d9e3e8;stroke-width:1}
+        .tb-chart .base{stroke:#9fb0c3;stroke-width:1}
+        .tb-chart text{fill:#5b6b84;font-size:11px;font-family:inherit}
+        .tb-chart .val{fill:#132441;font-weight:700;font-size:10.5px}
+        .tb-chart .barra{fill:#87bbd7}
+        .tb-chart .barra.sel{fill:#3451a3}
+        .tb-chart .barra.prod{fill:#a9c97a}
+        .tb-chart .barra.prod.sel{fill:#4c7a1f}
+        .tb-hbar{height:10px;border-radius:6px;background:#eef3f6;overflow:hidden}
+        .tb-hbar span{display:block;height:100%;background:#3451a3;border-radius:6px}
+        .tb-scroll{overflow-x:auto}
+        .tb-scroll .tb-chart{min-width:520px}
+    </style>
+</head>
+<body class="bg-light">
+{% include 'erp_header.html' %}
+<div class="container-fluid px-4 mb-5">
+    <div class="d-flex justify-content-between align-items-end flex-wrap gap-3 mb-3">
+        <div>
+            <h4 class="fw-bold mb-1">Tablero</h4>
+            <p class="text-muted mb-0">Ventas y producción de {{ mes.etiqueta }}.</p>
+        </div>
+        {% include 'crm_mes.html' %}
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-lg-3"><div class="tb-kpi"><span class="etq">Ventas del mes</span><strong>{{ dinero(resumen.facturado) }}</strong><small>{{ resumen.pedidos }} pedido(s) · ticket {{ dinero(resumen.ticket) }}</small></div></div>
+        <div class="col-6 col-lg-3"><div class="tb-kpi"><span class="etq">Cobrado en el mes</span><strong>{{ dinero(resumen.cobrado) }}</strong><small>Pagos registrados</small></div></div>
+        <div class="col-6 col-lg-3"><div class="tb-kpi"><span class="etq">Producción del mes</span><strong>{{ '%g'|format(resumen.unidades) }}</strong><small>unidades en {{ resumen.producciones }} entrada(s) a almacén PT</small></div></div>
+        <div class="col-6 col-lg-3"><div class="tb-kpi"><span class="etq">Pendientes ahora</span><strong>{{ resumen.por_confirmar }}</strong><small>por confirmar · {{ resumen.sin_insumos }} sin insumos</small></div></div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-xl-7">
+            <div class="card shadow-sm border-0 h-100"><div class="card-body">
+                <h6 class="fw-bold mb-1">Ventas por mes</h6>
+                <div class="small text-muted mb-2">Importe facturado, sin pedidos cancelados ni devueltos. Mes elegido en azul oscuro.</div>
+                {% if sin_datos_ventas %}<div class="text-muted py-5 text-center">Aún no hay ventas en estos 12 meses.</div>
+                {% else %}{% set g = grafica_ventas %}{% set clase = '' %}{% include 'tablero_grafica.html' %}{% endif %}
+            </div></div>
+        </div>
+        <div class="col-xl-5">
+            <div class="card shadow-sm border-0 h-100"><div class="card-body">
+                <h6 class="fw-bold mb-1">Producción por mes</h6>
+                <div class="small text-muted mb-2">Unidades que entraron al almacén PT (órdenes de producción y llenados).</div>
+                {% if sin_datos_produccion %}<div class="text-muted py-5 text-center">Aún no hay producción registrada.</div>
+                {% else %}{% set g = grafica_produccion %}{% set clase = 'prod' %}{% include 'tablero_grafica.html' %}{% endif %}
+            </div></div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-lg-7">
+            <div class="card shadow-sm border-0 h-100"><div class="card-body">
+                <h6 class="fw-bold mb-3">Productos más vendidos del mes</h6>
+                {% for t in top_productos %}
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between gap-2 small"><span class="fw-semibold">{{ t.nombre }}</span><span class="text-muted">{{ '%g'|format(t.unidades) }} u · {{ dinero(t.importe) }}</span></div>
+                    <div class="tb-hbar mt-1" role="img" aria-label="{{ t.nombre }}: {{ dinero(t.importe) }}"><span style="width:{{ t.pct }}%"></span></div>
+                </div>
+                {% else %}<div class="text-muted py-4 text-center">Sin ventas este mes.</div>{% endfor %}
+            </div></div>
+        </div>
+        <div class="col-lg-5">
+            <div class="card shadow-sm border-0 h-100"><div class="card-body">
+                <h6 class="fw-bold mb-3">Ventas por canal</h6>
+                {% for c in canales %}
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between gap-2 small"><span class="fw-semibold">{{ c.nombre }}</span><span class="text-muted">{{ dinero(c.importe) }}</span></div>
+                    <div class="tb-hbar mt-1" role="img" aria-label="{{ c.nombre }}: {{ dinero(c.importe) }}"><span style="width:{{ c.pct }}%"></span></div>
+                </div>
+                {% else %}<div class="text-muted py-4 text-center">Sin ventas este mes.</div>{% endfor %}
+            </div></div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-lg-6">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-white fw-bold d-flex justify-content-between">Últimas ventas <a class="small fw-normal" href="/crm/pedidos">Ver pedidos</a></div>
+                <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+                    <tbody>
+                    {% for v in ultimas_ventas %}
+                    <tr><td class="font-monospace">{{ v.folio }}</td><td>{{ v.cliente }}</td><td class="text-end">{{ dinero(v.total) }}</td><td><span class="badge bg-light text-dark border">{{ v.estado }}</span></td><td class="small text-muted text-nowrap">{{ v.hace }}</td></tr>
+                    {% else %}<tr><td class="text-center text-muted py-4">Aún no hay ventas.</td></tr>{% endfor %}
+                    </tbody>
+                </table></div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-white fw-bold d-flex justify-content-between">Últimas producciones <a class="small fw-normal" href="/admin/produccion">Ver órdenes</a></div>
+                <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+                    <tbody>
+                    {% for p in ultimas_producciones %}
+                    <tr><td class="font-monospace">{{ p.referencia }}</td><td>{{ p.producto }}</td><td class="text-end">{{ '%g'|format(p.cantidad) }} u</td><td class="small text-muted">{{ p.origen }}</td><td class="small text-muted text-nowrap">{{ p.hace }}</td></tr>
+                    {% else %}<tr><td class="text-center text-muted py-4">Aún no hay producciones.</td></tr>{% endfor %}
+                    </tbody>
+                </table></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0">
+        <div class="card-body d-flex flex-wrap gap-2 align-items-center">
+            <span class="fw-bold me-2">Acciones rápidas</span>
+            <a class="btn btn-primary btn-sm" href="/crm/pedidos">Nuevo pedido</a>
+            <a class="btn btn-outline-primary btn-sm" href="/admin/produccion">Planear producción</a>
+            <a class="btn btn-outline-primary btn-sm" href="/admin/produccion/lista-compra">Lista de compra</a>
+            <a class="btn btn-outline-primary btn-sm" href="/admin/compras/nueva">Orden de compra</a>
+            <a class="btn btn-outline-secondary btn-sm" href="/crm/ventas/confirmar">Confirmar ventas</a>
+            <a class="btn btn-outline-secondary btn-sm" href="/crm/reportes">Reportes del CRM</a>
+        </div>
+    </div>
+</div>
+</body>
+</html>

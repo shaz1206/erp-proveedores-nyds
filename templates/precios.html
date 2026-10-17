@@ -1,0 +1,49 @@
+{% extends 'precios_base.html' %}
+{% block titulo %}Listas de precios{% endblock %}
+{% block contenido %}
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body p-4">
+        <h4 class="fw-bold mb-1">Listas de precios</h4>
+        <p class="text-muted mb-4">Cada cliente puede tener su propia lista. Si una presentación no tiene precio en su lista, se cobra el precio base de la presentación.</p>
+        {% if not total_presentaciones %}
+        <div class="alert alert-warning">Aún no hay presentaciones activas. Primero da de alta las presentaciones de tus productos (1 L, 5 L, 20 L) en <a href="{{ url_for('precios_presentaciones') }}">Presentaciones</a>.</div>
+        {% endif %}
+        <form method="post" action="{{ url_for('precios_lista_crear') }}" class="row g-2 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label small fw-semibold" for="nombreLista">Nombre de la lista</label>
+                <input id="nombreLista" name="nombre" class="form-control" required maxlength="100" placeholder="Ej. Distribuidores">
+            </div>
+            <div class="col-md-5">
+                <label class="form-label small fw-semibold" for="descLista">Descripción (opcional)</label>
+                <input id="descLista" name="descripcion" class="form-control" maxlength="300" placeholder="Para quién es esta lista">
+            </div>
+            <div class="col-md-3 d-grid"><button class="btn btn-primary" type="submit">+ Crear lista</button></div>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body p-0"><div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-dark"><tr><th>Lista</th><th>Precios capturados</th><th>Clientes</th><th>Estatus</th><th class="text-end">Acciones</th></tr></thead>
+            <tbody>
+            {% for fila in resumen %}
+            <tr>
+                <td class="fw-semibold">{{ fila.lista.nombre }}{% if fila.lista.descripcion %}<div class="small text-muted fw-normal">{{ fila.lista.descripcion }}</div>{% endif %}</td>
+                <td>{{ fila.precios }}</td>
+                <td>{{ fila.clientes }}</td>
+                <td><span class="badge {{ 'bg-success' if fila.lista.activa else 'bg-secondary' }}">{{ 'Activa' if fila.lista.activa else 'Inactiva' }}</span></td>
+                <td class="text-end text-nowrap">
+                    <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('precios_lista_pdf', id_lista=fila.lista.id) }}">PDF</a>
+                    <a class="btn btn-sm btn-primary" href="{{ url_for('precios_lista', id_lista=fila.lista.id) }}">Abrir</a>
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5" class="text-center text-muted py-5">Aún no hay listas. Crea la primera arriba.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div></div>
+    <div class="card-footer bg-white small text-muted">{{ sin_lista }} cliente(s) sin lista usan el precio base.</div>
+</div>
+{% endblock %}

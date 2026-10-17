@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ 'Editar envase' if envase else 'Nuevo envase' }} - ERP NYDS</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20260911-nyds-white-logo') }}">
+</head>
+<body class="bg-light">
+{% include 'erp_header.html' %}
+<div class="container-fluid px-4 mb-5">
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-4">
+            <h4 class="fw-bold mb-1">{{ ('Editar envase ' ~ envase.sku) if envase else 'Nuevo envase' }}</h4>
+            <p class="text-muted mb-4">{{ 'Nombre, tamaño y precio. El SKU se genera solo.' if not envase else 'El SKU no cambia.' }}</p>
+            {% if errores %}<div class="alert alert-danger"><ul class="mb-0">{% for e in errores %}<li>{{ e }}</li>{% endfor %}</ul></div>{% endif %}
+            <form method="post" class="row g-3">
+                <input type="hidden" name="csrf" value="{{ csrf }}">
+                <div class="col-md-6">
+                    <label class="form-label small fw-semibold" for="envNombre">Nombre</label>
+                    <input id="envNombre" name="nombre" class="form-control" required maxlength="150" value="{{ valores.nombre }}" placeholder="Ej. Bote 5 L con asa">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small fw-semibold" for="envMaterial">Material</label>
+                    <select id="envMaterial" name="material" class="form-select">
+                        {% for m in materiales %}<option value="{{ m }}" {{ 'selected' if m == valores.material else '' }}>{{ m }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small fw-semibold" for="envCapacidad">Capacidad (L)</label>
+                    <input id="envCapacidad" name="capacidad" class="form-control" required inputmode="decimal" value="{{ valores.capacidad }}" placeholder="5">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small fw-semibold" for="envColor">Color</label>
+                    <input id="envColor" name="color" class="form-control" maxlength="60" value="{{ valores.color }}" placeholder="Blanco">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label small fw-semibold" for="envProveedor">Proveedor</label>
+                    <select id="envProveedor" name="proveedor_id" class="form-select">
+                        <option value="">Sin proveedor</option>
+                        {% for p in proveedores %}<option value="{{ p.id_proveedor }}" {{ 'selected' if valores.proveedor_id|string == p.id_proveedor|string else '' }}>{{ p.razon_social }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small fw-semibold" for="envPrecio">Precio por pieza</label>
+                    <input id="envPrecio" name="precio" class="form-control" inputmode="decimal" value="{{ valores.precio }}" placeholder="Opcional">
+                </div>
+                <div class="col-12">
+                    <label class="form-label small fw-semibold">Presentaciones que usan este envase</label>
+                    <div id="listaPresentaciones" class="d-flex flex-wrap gap-3">
+                        {% for p in presentaciones %}
+                        <label class="form-check small" data-cap="{{ '%g'|format(p.capacidad) }}">
+                            <input class="form-check-input" type="checkbox" name="presentaciones" value="{{ p.id }}" {{ 'checked' if p.id in valores.presentaciones else '' }}>
+                            {{ p.producto.nombre }} · {{ p.nombre }}
+                        </label>
+                        {% else %}<span class="text-muted small">Aún no hay presentaciones activas. Créalas en Precios → Presentaciones.</span>{% endfor %}
+                    </div>
+                    <div id="sinCoincidencia" class="text-muted small" hidden>No hay presentaciones de esa capacidad.</div>
+                </div>
+                <div class="col-12"><details class="border rounded p-3" {% if valores.mp_id or valores.notas %}open{% endif %}><summary class="fw-semibold text-secondary" style="cursor:pointer">Más opciones (ligar a inventario, notas)</summary><div class="row g-3 mt-1">
+                <div class="col-md-6">
+                    <label class="form-label small fw-semibold" for="envMp">Materia prima en inventario (opcional)</label>
+                    <select id="envMp" name="mp_id" class="form-select">
+                        <option value="">Sin ligar</option>
+                        {% for m in materias %}<option value="{{ m.id_mp }}" {{ 'selected' if valores.mp_id|string == m.id_mp|string else '' }}>{{ m.sku_mp }} · {{ m.nombre_oficial }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label small fw-semibold" for="envNotas">Notas</label>
+                    <input id="envNotas" name="notas" class="form-control" maxlength="500" value="{{ valores.notas }}">
+                </div>
+                </div></details></div>
+                {% if envase %}
+                <div class="col-12"><label class="form-check"><input class="form-check-input" type="checkbox" name="activo" value="1" {{ 'checked' if valores.activo else '' }}> Envase activo</label></div>
+                {% endif %}
+                <div class="col-12 d-flex gap-2">
+                    <button class="btn btn-primary" type="submit">Guardar</button>
+                    <a class="btn btn-outline-secondary" href="{{ url_for('envases_catalogo') }}">Cancelar</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<script>
+    (function () {
+        var cap = document.getElementById('envCapacidad');
+        var items = document.querySelectorAll('#listaPresentaciones [data-cap]');
+        var vacio = document.getElementById('sinCoincidencia');
+        function filtrar() {
+            var valor = parseFloat((cap.value || '').replace(',', '.'));
+            var visibles = 0;
+            items.forEach(function (el) {
+                var coincide = !isNaN(valor) && Math.abs(parseFloat(el.dataset.cap) - valor) < 0.0005;
+                el.hidden = !coincide;
+                if (!coincide) el.querySelector('input').checked = false;
+                if (coincide) visibles++;
+            });
+            vacio.hidden = visibles > 0 || !items.length;
+        }
+        cap.addEventListener('input', filtrar);
+        filtrar();
+    })();
+</script>
+</body>
+</html>

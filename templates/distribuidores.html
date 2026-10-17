@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Distribuidores - ERP NYDS</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20260911-nyds-white-logo') }}">
+</head>
+<body class="bg-light">
+{% include 'erp_header.html' %}
+<div class="container-fluid px-4 mb-5">
+    {% with mensajes = get_flashed_messages(with_categories=true) %}
+    {% for categoria, mensaje in mensajes %}<div class="alert alert-{{ categoria }} py-2">{{ mensaje }}</div>{% endfor %}
+    {% endwith %}
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body p-4">
+            <h4 class="fw-bold mb-1">Distribuidores</h4>
+            <p class="text-muted mb-3">Elige quién atiende a cada cliente: se guarda al elegir. Los distribuidores salen de <a href="/admin/personas">Personas</a> (rol ventas o supervisor).</p>
+            <div class="d-flex flex-wrap gap-2 mb-3">
+                {% for d, cuantos in resumen %}<span class="badge bg-light text-dark border fs-6 fw-normal">{{ d.nombre }} · {{ cuantos }} cliente{{ '' if cuantos == 1 else 's' }}</span>{% else %}<span class="text-muted">Aún no hay personas con rol ventas.</span>{% endfor %}
+                <span class="badge bg-secondary fs-6 fw-normal">{{ sin_asignar }} sin distribuidor</span>
+            </div>
+            <div class="d-flex flex-wrap gap-2 align-items-center">
+                <input class="form-control" id="distBuscar" style="max-width:380px" value="{{ q }}" placeholder="Buscar cliente por nombre o teléfono" aria-label="Buscar cliente" autofocus>
+                <div class="btn-group btn-group-sm" role="group" aria-label="Filtrar" id="distFiltros"><button type="button" class="btn btn-secondary" data-f="">Todos</button><button type="button" class="btn btn-outline-secondary" data-f="sin">Sin distribuidor ({{ sin_asignar }})</button></div>
+            </div>
+        </div>
+    </div>
+    <div class="card shadow-sm border-0"><div class="card-body p-0"><div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-dark"><tr><th>Cliente</th><th>Teléfono</th><th style="min-width:280px">Distribuidor</th></tr></thead>
+            <tbody>
+            {% for c in clientes %}
+            {% set actual = asignados.get(c.id) %}
+            <tr data-buscar="{{ (c.nombre_completo ~ ' ' ~ (c.telefono or ''))|lower }}" data-sin="{{ '1' if not actual else '' }}">
+                <td class="fw-semibold">{{ c.nombre_completo }}</td>
+                <td class="text-muted">{{ c.telefono }}</td>
+                <td>
+                    <form method="post" action="{{ url_for('admin_distribuidor_asignar') }}" class="d-flex gap-2">
+                        <input type="hidden" name="cliente_id" value="{{ c.id }}"><input type="hidden" name="q" value="{{ q }}">
+                        <select class="form-select form-select-sm" name="persona_id" onchange="this.form.submit()" aria-label="Distribuidor de {{ c.nombre_completo }}">
+                            <option value="">Sin distribuidor</option>
+                            {% for d in distribuidores %}<option value="{{ d.id }}" {{ 'selected' if actual and actual.id == d.id else '' }}>{{ d.nombre }}</option>{% endfor %}
+                        </select>
+                        <noscript><button class="btn btn-sm btn-outline-primary" type="submit">Guardar</button></noscript>
+                    </form>
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="3" class="text-center text-muted py-5">No hay clientes{{ ' con esa búsqueda' if q else ' todavía' }}.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div></div></div>
+</div>
+<script>
+(function(){const q=document.getElementById('distBuscar'),bs=[...document.querySelectorAll('#distFiltros button')],filas=[...document.querySelectorAll('tbody tr[data-buscar]')];let f='';
+function aplicar(){const t=q.value.trim().toLowerCase();filas.forEach(r=>{r.hidden=!((!t||r.dataset.buscar.includes(t))&&(!f||r.dataset.sin==='1'))});bs.forEach(b=>{const on=b.dataset.f===f;b.classList.toggle('btn-secondary',on);b.classList.toggle('btn-outline-secondary',!on)})}
+bs.forEach(b=>b.addEventListener('click',()=>{f=b.dataset.f;aplicar()}));q.addEventListener('input',aplicar);aplicar();q.setSelectionRange(q.value.length,q.value.length);})();
+</script>
+</body>
+</html>

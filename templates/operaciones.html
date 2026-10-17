@@ -6,6 +6,18 @@
     <title>Operaciones - ERP NYDS</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20260915-operaciones') }}">
+    <style>
+        .acciones-grupo{margin-bottom:16px}
+        .acciones-grupo h6{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#5b6b84;font-weight:800;margin:0 0 8px}
+        .acciones-fila{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px}
+        .accion-rapida{display:flex;flex-direction:column;gap:2px;padding:10px 12px;border:1px solid #d9e3e8;border-radius:12px;background:#fff;color:#132441;text-decoration:none;transition:border-color .15s,box-shadow .15s}
+        .accion-rapida strong{font-size:14px}
+        .accion-rapida small{color:#5b6b84;font-size:12px}
+        .accion-rapida:hover,.accion-rapida:focus-visible{border-color:#3451a3;box-shadow:0 4px 14px rgba(19,36,65,.12);color:#132441;outline:none}
+        .accion-rapida.principal{background:#132441;border-color:#132441}
+        .accion-rapida.principal strong{color:#daf561}
+        .accion-rapida.principal small{color:#d9e3e8}
+    </style>
 </head>
 <body class="bg-light">
     {% include 'erp_header.html' %}
@@ -14,13 +26,12 @@
             <div>
                 <span class="ops-kicker">NYDS operaciones</span>
                 <h1>Trabajo pendiente</h1>
-                <p>Accesos y alertas del ERP/CRM. Aqui solo aparece lo que ayuda a avanzar la operacion.</p>
+                <p>Lo que necesita tu atención hoy y accesos directos para hacerlo en un clic.</p>
             </div>
             <div class="ops-actions">
-                <a class="btn btn-primary" href="/crm/pedidos">Nuevo pedido</a>
-                <a class="btn btn-outline-primary" href="/admin/compras/nueva">Orden de compra</a>
-                <a class="btn btn-outline-primary" href="/admin/inventario-mp/registrar">Movimiento MP</a>
-                <a class="btn btn-outline-secondary" href="/admin/operaciones/ciclo-pedido">Ciclo del pedido</a>
+                <a class="btn btn-primary" href="/crm/pedidos">Nueva venta</a>
+                <a class="btn btn-outline-primary" href="/admin/compras/nueva">Registrar compra</a>
+                <a class="btn btn-outline-primary" href="/admin/produccion">Registrar producción</a>
             </div>
         </section>
 
@@ -57,7 +68,7 @@
                         <div class="ops-empty">
                             <h5>Sin pendientes estructurales</h5>
                             <p>El flujo ERP/CRM no tiene bloqueos detectados. Sigue con la operacion diaria.</p>
-                            <a class="btn btn-primary" href="/crm/pedidos">Abrir pedidos</a>
+                            <a class="btn btn-primary" href="/crm/pedidos">Hacer una venta</a>
                         </div>
                         {% endif %}
                     </div>
@@ -67,19 +78,47 @@
             <section class="col-xl-5">
                 <div class="card h-100">
                     <div class="card-header">
-                        <h5 class="mb-0">Continuar flujo</h5>
-                        <small class="text-muted">Entradas rápidas al proceso real de NYDS.</small>
+                        <h5 class="mb-0">¿Qué quieres hacer?</h5>
+                        <small class="text-muted">Cada botón te lleva directo a la acción.</small>
                     </div>
                     <div class="card-body">
-                        <div class="ops-flow">
-                            <a href="/admin/catalogo"><span>1</span><strong>Proveedores</strong><small>Expedientes y condiciones</small></a>
-                            <a href="/admin/materias-primas"><span>2</span><strong>Materias primas</strong><small>Unidad base, ubicacion y precios</small></a>
-                            <a href="/admin/productos-terminados"><span>3</span><strong>Productos</strong><small>Catalogo que vende CRM</small></a>
-                            <a href="/admin/recetas"><span>4</span><strong>Recetas</strong><small>Componentes para llenar</small></a>
-                            <a href="/admin/compras"><span>5</span><strong>Compras</strong><small>Ordenes y recepcion</small></a>
-                            <a href="/admin/inventario-mp"><span>6</span><strong>Inventario</strong><small>Saldos reales y ajustes</small></a>
-                            <a href="/crm/pedidos"><span>7</span><strong>CRM</strong><small>Pedido, reserva y ruta</small></a>
-                            <a href="/admin/productos-entregados"><span>8</span><strong>Entregas</strong><small>Evidencia y salida final</small></a>
+                        <div class="acciones-grupo">
+                            <h6>Vender</h6>
+                            <div class="acciones-fila">
+                                <a class="accion-rapida principal" href="/crm/pedidos"><strong>Nueva venta</strong><small>Cliente, productos y listo</small></a>
+                                <a class="accion-rapida" href="/crm/pedidos"><strong>Pedidos por atender</strong><small>Confirmar, preparar, entregar</small></a>
+                            </div>
+                        </div>
+                        <div class="acciones-grupo">
+                            <h6>Producir</h6>
+                            <div class="acciones-fila">
+                                <a class="accion-rapida principal" href="/admin/produccion"><strong>Registrar producción</strong><small>Producto, cantidad y producir</small></a>
+                                <a class="accion-rapida" href="/admin/produccion/lista-compra"><strong>Qué falta comprar</strong><small>Según lo que hay que producir</small></a>
+                            </div>
+                        </div>
+                        <div class="acciones-grupo">
+                            <h6>Comprar</h6>
+                            <div class="acciones-fila">
+                                <a class="accion-rapida principal" href="/admin/compras/nueva"><strong>Registrar compra</strong><small>Proveedor y materias primas</small></a>
+                                <a class="accion-rapida" href="/admin/compras"><strong>Compras y recepciones</strong><small>Ver lo pedido y lo recibido</small></a>
+                            </div>
+                        </div>
+                        <div class="acciones-grupo">
+                            <h6>Inventario</h6>
+                            <div class="acciones-fila">
+                                <a class="accion-rapida" href="/admin/inventario-mp/registrar"><strong>Mover o ajustar materia prima</strong><small>Entradas, salidas y conteos</small></a>
+                                <a class="accion-rapida" href="/admin/inventario-pt"><strong>Producto terminado</strong><small>Existencias por ubicación</small></a>
+                                <a class="accion-rapida" href="/admin/envases"><strong>Envases</strong><small>Stock de botes y botellas</small></a>
+                            </div>
+                        </div>
+                        <div class="acciones-grupo mb-0">
+                            <h6>Agregar al catálogo</h6>
+                            <div class="acciones-fila">
+                                <a class="accion-rapida" href="/admin/productos-terminados/nuevo"><strong>Producto</strong><small>Lo que vendes</small></a>
+                                <a class="accion-rapida" href="/admin/materias-primas/nueva"><strong>Materia prima</strong><small>Lo que compras</small></a>
+                                <a class="accion-rapida" href="/admin/alta"><strong>Proveedor</strong><small>Alta nueva</small></a>
+                                <a class="accion-rapida" href="/admin/precios"><strong>Precios</strong><small>Listas por cliente</small></a>
+                            </div>
                         </div>
                     </div>
                 </div>

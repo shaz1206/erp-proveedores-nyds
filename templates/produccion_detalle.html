@@ -1,0 +1,59 @@
+{% extends 'produccion_base.html' %}
+{% block titulo %}{{ orden.folio }}{% endblock %}
+{% block contenido %}
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body p-4">
+        <div class="d-flex justify-content-between flex-wrap gap-2 mb-3">
+            <div>
+                <h4 class="fw-bold mb-1">{{ orden.folio }} · {{ orden.producto.nombre }}</h4>
+                <div class="text-muted">{{ '%g'|format(orden.cantidad) }} {{ orden.unidad or '' }} · creada {{ orden.creada_en.strftime('%d/%m/%Y %H:%M') }} por {{ orden.creada_por }}</div>
+                {% if orden.notas %}<div class="small mt-1">{{ orden.notas }}</div>{% endif %}
+                {% if orden.cerrada_en %}<div class="small text-muted mt-1">{{ orden.estado }} el {{ orden.cerrada_en.strftime('%d/%m/%Y %H:%M') }} por {{ orden.cerrada_por }}</div>{% endif %}
+            </div>
+            <div><span class="badge fs-6 {{ 'bg-warning text-dark' if orden.estado == 'Planeada' else 'bg-success' if orden.estado == 'Producida' else 'bg-secondary' }}">{{ 'Por producir' if orden.estado == 'Planeada' else orden.estado }}</span></div>
+        </div>
+
+        <h6 class="fw-bold">Materia prima que se usará</h6>
+        <div class="table-responsive mb-3">
+            <table class="table table-sm align-middle">
+                <thead class="table-light"><tr><th>Materia prima</th><th class="text-end">Requerido</th>{% if orden.estado == 'Planeada' %}<th class="text-end">Disponible</th><th class="text-end">Faltante</th>{% endif %}</tr></thead>
+                <tbody>
+                {% for f in filas %}
+                <tr>
+                    <td>{{ f.mp.nombre_oficial }}</td>
+                    <td class="text-end">{{ '%g'|format(f.requerido) }} {{ f.unidad }}</td>
+                    {% if orden.estado == 'Planeada' %}
+                    <td class="text-end">{{ '%g'|format(f.disponible) }} {{ f.unidad }}</td>
+                    <td class="text-end {{ 'text-danger fw-semibold' if f.faltante > 0 else 'text-success' }}">{{ ('%g'|format(f.faltante) ~ ' ' ~ f.unidad) if f.faltante > 0 else 'Suficiente' }}</td>
+                    {% endif %}
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if orden.estado == 'Planeada' %}
+        {% if faltan %}
+        <div class="alert alert-warning d-flex justify-content-between align-items-center flex-wrap gap-2"><span><strong>Falta materia prima</strong> para producir esta orden. Compra lo que falta y vuelve aquí.</span><a class="btn btn-warning btn-sm" href="{{ url_for('produccion_lista_compra') }}">Ver qué comprar</a></div>
+        {% else %}
+        <div class="alert alert-success py-2">Hay materia prima suficiente. Al producir se descuenta del inventario y el producto terminado entra a PT.</div>
+        {% endif %}
+        <div class="d-flex flex-wrap gap-3 align-items-end">
+            <form method="post" action="{{ url_for('produccion_producir', id_orden=orden.id) }}" class="d-flex flex-wrap gap-2 align-items-end">
+                <input type="hidden" name="csrf" value="{{ csrf }}">
+                <div>
+                    <label class="form-label small fw-semibold" for="ubicacion">¿De dónde sale la materia prima?</label>
+                    <input id="ubicacion" name="ubicacion" class="form-control" value="{{ ubicacion }}" maxlength="220" placeholder="Almacén · ubicación">
+                </div>
+                <button class="btn btn-primary btn-lg" type="submit" {{ 'disabled' if faltan else '' }}>Producir ahora</button>
+            </form>
+            <form method="post" action="{{ url_for('produccion_cancelar', id_orden=orden.id) }}" onsubmit="return confirm('¿Cancelar esta orden?')" class="ms-auto">
+                <input type="hidden" name="csrf" value="{{ csrf }}">
+                <button class="btn btn-link text-danger btn-sm" type="submit">Cancelar orden</button>
+            </form>
+        </div>
+        {% endif %}
+    </div>
+</div>
+<a href="{{ url_for('produccion_ordenes') }}" class="btn btn-outline-secondary btn-sm">← Volver a órdenes</a>
+{% endblock %}

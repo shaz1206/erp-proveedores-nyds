@@ -1,0 +1,13 @@
+<div class="tb-scroll">
+<svg class="tb-chart" viewBox="0 0 {{ g.ancho }} {{ g.alto }}" role="img" aria-label="Gráfica de barras de los últimos 12 meses">
+    {% for m in g.marcas %}
+    <line class="{{ 'base' if loop.first else 'eje' }}" x1="{{ g.izq }}" x2="{{ g.der }}" y1="{{ m.y }}" y2="{{ m.y }}"/>
+    <text x="{{ g.izq - 6 }}" y="{{ m.y + 4 }}" text-anchor="end">{{ m.texto }}</text>
+    {% endfor %}
+    {% for b in g.barras %}
+    <rect class="barra {{ clase }} {{ 'sel' if b.resaltada else '' }}" x="{{ b.x }}" y="{{ b.y }}" width="{{ b.ancho }}" height="{{ b.alto }}" rx="3"><title>{{ b.titulo }}</title></rect>
+    {% if b.valor %}<text class="val" x="{{ b.cx }}" y="{{ b.y - 4 }}" text-anchor="middle">{{ b.valor }}</text>{% endif %}
+    <text x="{{ b.cx }}" y="{{ g.base + 16 }}" text-anchor="middle">{{ b.etiqueta }}</text>
+    {% endfor %}
+</svg>
+</div>

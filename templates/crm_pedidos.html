@@ -6,6 +6,69 @@
     <title>CRM de pedidos - NYDS</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20260914-crm') }}">
+    <style>
+        .venta-inicio{border-left:5px solid #3451a3;max-width:1000px}
+        .venta-titulo{display:flex;align-items:center;gap:10px;color:#3451a3;font-weight:800;margin-bottom:18px}
+        .venta-etq{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#5b6b84}
+        .venta-ayuda{color:#5b6b84;font-size:12.5px;margin:6px 2px 0}
+        #pedidoForm .input-group-text{background:#eef3f6;color:#132441;border-color:#d9e3e8}
+        .venta-etapa{margin-top:22px;padding-top:18px;border-top:1px solid #d9e3e8}
+        .venta-barra{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+        .venta-quien strong{display:block;color:#132441;font-size:16px}
+        .venta-quien span{color:#5b6b84;font-size:12.5px}
+        .venta-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+        .venta-chip{border:1px solid #d9e3e8;background:#fff;color:#132441;border-radius:999px;padding:3px 12px;font-size:12.5px;font-weight:600;cursor:pointer}
+        .venta-chip[aria-pressed="true"]{background:#132441;border-color:#132441;color:#daf561}
+        .venta-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px}
+        .venta-tarjeta{border:1px solid #d9e3e8;border-radius:14px;background:#fff;display:flex;flex-direction:column;overflow:hidden;padding:0;text-align:center;cursor:pointer;position:relative;transition:border-color .15s,box-shadow .15s,transform .15s}
+        .venta-tarjeta:hover,.venta-tarjeta:focus-visible{border-color:#3451a3;box-shadow:0 6px 18px rgba(19,36,65,.14);transform:translateY(-1px);outline:none}
+        .venta-foto{aspect-ratio:1/1;background:#eef3f6;display:flex;align-items:center;justify-content:center;color:#132441;font-weight:800;font-size:34px;overflow:hidden}
+        .venta-foto img{width:100%;height:100%;object-fit:cover}
+        .venta-info{padding:10px 10px 12px;display:flex;flex-direction:column;gap:2px}
+        .venta-nombre{font-weight:700;font-size:14px;line-height:1.25;color:#132441}
+        .venta-desde{font-size:12.5px;color:#5b6b84}
+        .venta-seguido{position:absolute;top:8px;left:8px;background:#daf561;color:#132441;border-radius:999px;font-size:11px;font-weight:800;padding:2px 9px;box-shadow:0 1px 4px rgba(19,36,65,.2)}
+        .venta-seccion{grid-column:1/-1;font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#132441;padding:6px 0 2px;border-bottom:2px solid #daf561}
+        .venta-seccion:not(:first-child){margin-top:10px}
+        .pedidos-filtros{padding:12px 16px;display:flex;flex-direction:column;gap:10px;border-bottom:1px solid #d9e3e8}
+        .pedidos-filtros .venta-chip span{opacity:.75;font-weight:700;margin-left:2px}
+        .pedidos-tabla th{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:#5b6b84}
+        .pedido-linea{font-size:13px;line-height:1.35}
+        .pedido-mas-productos summary,.pedido-mas summary{cursor:pointer;font-size:12.5px;color:#3451a3;font-weight:600;list-style:none;padding:2px 0}
+        .pedido-mas summary::-webkit-details-marker,.pedido-mas-productos summary::-webkit-details-marker{display:none}
+        .pedido-mas{margin-top:6px}
+        .pedido-mas[open] summary{color:#132441}
+        .pedido-mas-menu{display:flex;flex-direction:column;align-items:stretch;gap:6px;margin-top:6px;min-width:150px}
+        .pedido-mas-menu:empty{display:none}
+        .venta-vacio{color:#5b6b84;font-size:13px;padding:22px 4px;text-align:center;grid-column:1/-1}
+        .venta-flotante{position:fixed;right:24px;bottom:24px;width:64px;height:64px;border-radius:50%;border:0;background:#3451a3;color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 22px rgba(19,36,65,.35);z-index:1030;cursor:pointer}
+        .venta-flotante:hover,.venta-flotante:focus-visible{background:#132441;outline:3px solid #daf561}
+        .venta-flotante[hidden]{display:none}
+        .venta-badge{position:absolute;top:-4px;right:-4px;min-width:24px;height:24px;border-radius:999px;background:#daf561;color:#132441;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 6px}
+        .venta-dialogo{border:0;border-radius:16px;padding:0;width:min(560px,94vw);max-height:92vh;box-shadow:0 24px 60px rgba(19,36,65,.4);color:#132441;overflow:hidden}
+        .venta-dialogo[open]{display:flex;flex-direction:column}
+        .venta-dialogo::backdrop{background:rgba(19,36,65,.55)}
+        .venta-dialogo-ancho{width:min(760px,94vw)}
+        .venta-dlg-cab{display:flex;justify-content:space-between;align-items:center;gap:10px;background:#132441;color:#fff;padding:14px 18px}
+        .venta-dlg-cab h2{font-size:17px;margin:0;font-weight:800;color:#daf561}
+        .venta-dlg-cab button{border:0;background:none;color:#fff;font-size:26px;line-height:1;cursor:pointer;padding:0 4px}
+        .venta-dlg-cuerpo{padding:16px 18px;overflow-y:auto}
+        .venta-dlg-pie{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;padding:12px 18px;border-top:1px solid #d9e3e8;background:#f6f9fa}
+        .venta-prod-foto{width:100%;max-height:220px;object-fit:contain;background:#eef3f6;border-radius:12px;margin-bottom:12px}
+        .venta-pres{display:grid;grid-template-columns:1fr 110px;gap:8px 12px;align-items:center}
+        .venta-pres small{display:block;color:#5b6b84}
+        .venta-aviso{border-radius:8px;padding:8px 12px;font-size:13px;margin-top:12px}
+        .venta-aviso.err{background:#fbe9ee;color:#97334c}
+        .venta-tabla td,.venta-tabla th{vertical-align:middle;font-size:13px}
+        .venta-tabla input{width:78px;text-align:right}
+        .venta-tabla .quitar{border:0;background:none;color:#97334c;font-size:20px;line-height:1;cursor:pointer}
+        .venta-total{display:flex;justify-content:space-between;align-items:baseline;border-top:2px solid #132441;margin:10px 0 14px;padding-top:8px;font-size:15px}
+        .venta-total strong{font-size:26px;font-variant-numeric:tabular-nums}
+        .venta-pagos{display:flex;flex-wrap:wrap;gap:8px}
+        .venta-pagos label{border:1px solid #d9e3e8;border-radius:10px;padding:6px 12px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px}
+        .venta-pagos input:checked + span{color:#3451a3}
+        .venta-pagos label:has(input:checked){border-color:#3451a3;background:#eef2fb}
+    </style>
 </head>
 <body class="bg-light">
     {% include 'crm_header.html' %}
@@ -21,166 +84,272 @@
 
         <div class="row g-4">
             {% if rol in ['supervisor', 'ventas'] %}
-            <section class="col-12">
-                <div class="card">
-                    <div class="card-header">
-                        <h5 class="mb-0">Nuevo pedido</h5>
-                    </div>
+            <section class="col-12" id="nuevaVenta">
+                <div class="card venta-inicio">
                     <div class="card-body">
-                        <form id="pedidoForm" class="row g-3">
+                        <form id="pedidoForm" autocomplete="off" novalidate>
                             <input type="hidden" name="cliente_id">
                             <input type="hidden" name="domicilio_id">
-                            <div class="col-12 position-relative">
-                                <label class="form-label" for="buscarClientePedido">Buscar cliente existente</label>
-                                <input class="form-control" id="buscarClientePedido" autocomplete="off" placeholder="Nombre, apellido, RFC, dirección o teléfono">
-                                <div id="resultadosClientePedido" class="list-group position-absolute w-100 shadow-sm" style="z-index:20; max-height:320px; overflow-y:auto" hidden></div>
-                                <div id="clienteSeleccionado" class="small mt-2" hidden>
-                                    Cliente existente seleccionado. <button type="button" class="btn btn-link btn-sm p-0 align-baseline" id="limpiarClientePedido">Capturar cliente nuevo</button>
+                            <input type="hidden" name="cliente_nombre">
+                            <input type="hidden" name="cliente_apellidos">
+                            <input type="hidden" name="cliente_telefono">
+                            <input type="hidden" name="cliente_rfc">
+                            <h5 class="venta-titulo">
+                                <svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor" aria-hidden="true"><path d="M4 3h16v6H4zm1 8h14l2 4v6H3v-6zm3 3v2h8v-2z"/></svg>
+                                Nueva venta
+                            </h5>
+                            <label class="form-label venta-etq" for="buscarClientePedido">Cliente</label>
+                            <div class="position-relative">
+                                <div class="input-group">
+                                    <span class="input-group-text"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10zm0 2c-4.4 0-8 2.2-8 5v2h16v-2c0-2.8-3.6-5-8-5z"/></svg></span>
+                                    <input class="form-control" id="buscarClientePedido" role="combobox" aria-expanded="false" aria-controls="resultadosClientePedido" placeholder="Buscar o seleccionar cliente…">
                                 </div>
+                                <div id="resultadosClientePedido" class="list-group position-absolute w-100 shadow-sm" style="z-index:20; max-height:320px; overflow-y:auto" role="listbox" hidden></div>
                             </div>
-                            <div class="col-md-3">
-                                <label class="form-label">Nombre</label>
-                                <input class="form-control" name="cliente_nombre" required placeholder="Nombre del cliente">
+                            <div class="venta-ayuda" id="clienteDatos" hidden></div>
+                            <div class="d-grid gap-2 mt-3">
+                                <button type="button" class="btn btn-primary btn-lg" id="mostrarProductos">Mostrar productos</button>
+                                <button type="button" class="btn btn-link" id="nuevoClientePedido">¿Cliente nuevo? Regístralo aquí</button>
                             </div>
-                            <div class="col-md-3">
-                                <label class="form-label">Apellidos</label>
-                                <input class="form-control" name="cliente_apellidos" placeholder="Apellidos">
+
+                            <div class="venta-etapa" id="ventaProductos" hidden>
+                                <div class="venta-barra">
+                                    <div class="venta-quien">
+                                        <strong id="ventaQuien"></strong>
+                                        <span id="ventaHistorial"></span>
+                                        <span id="avisoLista" hidden></span>
+                                    </div>
+                                    <button type="button" class="btn btn-outline-primary btn-sm" id="repetirUltimo" hidden>Repetir último pedido</button>
+                                </div>
+                                <input class="form-control mb-2" id="buscarProducto" type="search" autocomplete="off" placeholder="Buscar producto, SKU o categoría">
+                                <div class="venta-chips" id="chipsCategoria" role="group" aria-label="Categorías"></div>
+                                <div class="venta-grid" id="catalogoVenta" aria-live="polite"></div>
                             </div>
-                            <div class="col-md-2">
-                                <label class="form-label">Teléfono</label>
-                                <input class="form-control" name="cliente_telefono" placeholder="Opcional">
-                            </div>
-                            <div class="col-md-2">
-                                <label class="form-label">RFC</label>
-                                <input class="form-control text-uppercase" name="cliente_rfc" maxlength="13" placeholder="Opcional">
-                            </div>
-                            <div class="col-md-8">
-                                <label class="form-label">Dirección</label>
-                                <input class="form-control" name="direccion" required placeholder="Calle, número, colonia">
-                            </div>
-                            <div class="col-md-2">
-                                <label class="form-label">Canal</label>
-                                <select class="form-select" name="canal">
-                                    <option>WhatsApp</option>
-                                    <option>Instagram</option>
-                                    <option>Facebook</option>
-                                    <option>Manual</option>
-                                </select>
-                            </div>
-                            <div class="col-md-2">
-                                <label class="form-label">Pago</label>
-                                <select class="form-select" name="forma_pago">
-                                    <option>Contra entrega</option>
-                                    <option>Transferencia</option>
-                                    <option>Efectivo</option>
-                                    <option>Tarjeta</option>
-                                    <option>Trueque</option>
-                                </select>
-                            </div>
-                            <div class="col-md-5">
-                                <label class="form-label">Producto</label>
-                                <select class="form-select" name="producto_id" required>
-                                    <option value="">Selecciona producto terminado</option>
-                                    {% for producto in productos %}
-                                    <option value="{{ producto.id }}">{{ producto.sku }} · {{ producto.nombre }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div class="col-md-2">
-                                <label class="form-label">Cantidad</label>
-                                <input class="form-control" name="cantidad" type="number" min="0.000001" step="0.000001" required value="1">
-                            </div>
-                            <div class="col-md-2">
-                                <label class="form-label">Precio unitario</label>
-                                <input class="form-control" name="precio_unitario" type="number" min="0" step="0.01" required placeholder="0.00">
-                            </div>
-                            <div class="col-md-3 d-flex align-items-end gap-2">
-                                <label class="form-check mb-2">
-                                    <input class="form-check-input" type="checkbox" name="entrega_propia">
-                                    <span class="form-check-label">Entregar yo mismo</span>
-                                </label>
-                            </div>
-                            <div class="col-12 d-flex justify-content-end gap-2">
-                                <button class="btn btn-outline-primary" type="button" id="crearSinConfirmar">Crear pedido</button>
-                                <button class="btn btn-primary" type="submit">Crear y reservar ERP</button>
-                            </div>
+
+                            <button type="button" class="venta-flotante" id="abrirCarrito" aria-label="Ver carrito" hidden>
+                                <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor" aria-hidden="true"><path d="M7 18a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm10 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM1 2v2h2l3.6 7.6-1.4 2.4c-.1.3-.2.6-.2 1a2 2 0 0 0 2 2h12v-2H7.4l1.1-2h7.5c.8 0 1.4-.4 1.7-1l3.6-6.5A1 1 0 0 0 20.4 4H5.2l-.9-2H1z"/></svg>
+                                <span class="venta-badge" id="badgeCarrito">0</span>
+                            </button>
+
+                            <dialog class="venta-dialogo" id="dlgProducto" aria-labelledby="dlgProductoTitulo">
+                                <div class="venta-dlg-cab"><h2 id="dlgProductoTitulo"></h2><button type="button" data-cerrar aria-label="Cerrar">×</button></div>
+                                <div class="venta-dlg-cuerpo">
+                                    <img class="venta-prod-foto" id="dlgProductoFoto" alt="" hidden>
+                                    <p class="small text-muted mb-2">Selecciona la cantidad por presentación</p>
+                                    <div class="venta-pres" id="dlgProductoFilas"></div>
+                                    <div class="venta-aviso err" id="dlgProductoAviso" role="alert" hidden></div>
+                                </div>
+                                <div class="venta-dlg-pie">
+                                    <button type="button" class="btn btn-outline-secondary" data-cerrar>Cerrar</button>
+                                    <button type="button" class="btn btn-primary" id="agregarProducto">Agregar al carrito</button>
+                                </div>
+                            </dialog>
+
+                            <dialog class="venta-dialogo venta-dialogo-ancho" id="dlgCarrito" aria-labelledby="dlgCarritoTitulo">
+                                <div class="venta-dlg-cab"><h2 id="dlgCarritoTitulo">Carrito de compras</h2><button type="button" data-cerrar aria-label="Cerrar">×</button></div>
+                                <div class="venta-dlg-cuerpo">
+                                    <div id="carritoVenta" aria-live="polite"></div>
+                                    <div class="venta-total"><span>Total</span><strong id="totalVenta">$0.00</strong></div>
+                                    <div class="row g-3">
+                                        <div class="col-12">
+                                            <label class="form-label venta-etq" for="domicilioPedido">Entregar en</label>
+                                            <select class="form-select mb-2" id="domicilioPedido"></select>
+                                            <div id="cajaDireccion">
+                                                <input class="form-control" id="direccionPedido" name="direccion" placeholder="Calle, número, colonia">
+                                            </div>
+                                        </div>
+                                        <div class="col-12">
+                                            <div class="venta-etq mb-1" id="etqPago">Método de pago</div>
+                                            <div class="venta-pagos" role="radiogroup" aria-labelledby="etqPago">
+                                                <label><input type="radio" name="forma_pago" value="Contra entrega" checked><span>Contra entrega</span></label>
+                                                <label><input type="radio" name="forma_pago" value="Efectivo"><span>Efectivo</span></label>
+                                                <label><input type="radio" name="forma_pago" value="Transferencia"><span>Transferencia</span></label>
+                                                <label><input type="radio" name="forma_pago" value="Tarjeta"><span>Tarjeta</span></label>
+                                                <label><input type="radio" name="forma_pago" value="Trueque"><span>Trueque</span></label>
+                                            </div>
+                                        </div>
+                                        <div class="col-sm-6">
+                                            <label class="form-label venta-etq" for="canalPedido">Canal</label>
+                                            <select class="form-select" id="canalPedido" name="canal">
+                                                <option>WhatsApp</option>
+                                                <option>Instagram</option>
+                                                <option>Facebook</option>
+                                                <option>Manual</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-sm-6 d-flex align-items-end">
+                                            <label class="form-check mb-2">
+                                                <input class="form-check-input" type="checkbox" name="entrega_propia">
+                                                <span class="form-check-label">Entregar yo mismo</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="venta-dlg-pie">
+                                    <button type="button" class="btn btn-outline-secondary" data-cerrar>Seguir comprando</button>
+                                    <button type="button" class="btn btn-outline-primary" id="crearSinConfirmar" disabled>Guardar sin confirmar</button>
+                                    <button type="button" class="btn btn-primary" id="crearYReservar" disabled>Finalizar venta</button>
+                                </div>
+                            </dialog>
                         </form>
+
+                        <dialog class="venta-dialogo" id="dlgClienteNuevo" aria-labelledby="dlgClienteNuevoTitulo">
+                            <form id="formClienteNuevo" class="d-flex flex-column" style="min-height:0">
+                                <div class="venta-dlg-cab"><h2 id="dlgClienteNuevoTitulo">Cliente nuevo</h2><button type="button" data-cerrar aria-label="Cerrar">×</button></div>
+                                <div class="venta-dlg-cuerpo">
+                                    <div class="row g-3">
+                                        <div class="col-sm-6">
+                                            <label class="form-label" for="cnNombre">Nombre</label>
+                                            <input class="form-control" id="cnNombre" required maxlength="180" placeholder="Nombre del cliente">
+                                        </div>
+                                        <div class="col-sm-6">
+                                            <label class="form-label" for="cnApellidos">Apellidos</label>
+                                            <input class="form-control" id="cnApellidos" maxlength="180" placeholder="Opcional">
+                                        </div>
+                                        <div class="col-sm-6">
+                                            <label class="form-label" for="cnTelefono">Teléfono</label>
+                                            <input class="form-control" id="cnTelefono" inputmode="tel" maxlength="40" placeholder="Opcional">
+                                        </div>
+                                        <div class="col-sm-6">
+                                            <label class="form-label" for="cnRfc">RFC</label>
+                                            <input class="form-control text-uppercase" id="cnRfc" maxlength="13" placeholder="Opcional">
+                                        </div>
+                                        <div class="col-12">
+                                            <label class="form-label" for="cnDireccion">Dirección de entrega</label>
+                                            <input class="form-control" id="cnDireccion" maxlength="280" placeholder="Calle, número, colonia (opcional, se puede capturar al finalizar)">
+                                        </div>
+                                    </div>
+                                    <div class="venta-aviso err" id="cnError" role="alert" hidden></div>
+                                </div>
+                                <div class="venta-dlg-pie">
+                                    <button type="button" class="btn btn-outline-secondary" data-cerrar>Cancelar</button>
+                                    <button type="submit" class="btn btn-primary" id="cnGuardar">Guardar y continuar</button>
+                                </div>
+                            </form>
+                        </dialog>
                     </div>
                 </div>
             </section>
             {% endif %}
 
             <section class="col-xl-8">
+                {% macro boton_paso(p, paso, clase) -%}
+                    {%- if paso == 'confirmar' -%}<button type="button" class="btn {{ clase }}" data-action="confirmar" data-pedido="{{ p.id }}">Confirmar pedido</button>
+                    {%- elif paso == 'reservar' -%}<button type="button" class="btn {{ clase }}" data-action="confirmar" data-pedido="{{ p.id }}">Reservar inventario</button>
+                    {%- elif paso == 'pago' -%}<button type="button" class="btn {{ clase }}" data-action="pago" data-pedido="{{ p.id }}" data-saldo="{{ '%.2f' | format(p.saldo) }}" data-saldo-trueque="{{ '%.2f' | format(saldos_trueque.get(p.cliente_id, 0)) }}">Registrar pago</button>
+                    {%- elif paso == 'trueque' -%}<button type="button" class="btn {{ clase }}" data-action="trueque" data-cliente="{{ p.cliente_id }}">Registrar trueque</button>
+                    {%- elif paso == 'listo' -%}<button type="button" class="btn {{ clase }}" data-action="estado" data-estado="Listo para entrega" data-pedido="{{ p.id }}">Marcar listo</button>
+                    {%- elif paso == 'ruta' -%}<button type="button" class="btn {{ clase }}" data-action="estado" data-estado="En ruta" data-pedido="{{ p.id }}">Salir a ruta</button>
+                    {%- elif paso == 'entrega' -%}<button type="button" class="btn {{ clase }}" data-action="entrega" data-pedido="{{ p.id }}">Entregar</button>
+                    {%- elif paso == 'fallo' -%}<button type="button" class="btn {{ clase }}" data-action="fallo" data-pedido="{{ p.id }}">No se pudo entregar</button>
+                    {%- elif paso == 'documentos' -%}<button type="button" class="btn {{ clase }}" data-action="documentos" data-pedido="{{ p.id }}" data-folio="{{ p.folio }}">Documentos</button>
+                    {%- endif -%}
+                {%- endmacro %}
+                {% set nombre_estado = {'Recibido': 'Por confirmar', 'Pendiente de produccion': 'Esperando producción', 'Confirmado': 'Confirmado', 'Intento fallido': 'No se pudo entregar'} %}
                 <div class="card">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0">Pedidos CRM</h5>
-                        <span class="badge bg-primary">{{ pedidos | length }} pedidos</span>
+                    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <h5 class="mb-0">Pedidos</h5>
+                        <span class="text-muted small" id="contadorPedidos">{{ pedidos | length }} pedidos</span>
                     </div>
+                    {% if pedidos %}
+                    <div class="pedidos-filtros">
+                        <input class="form-control" id="buscarPedido" type="search" autocomplete="off" placeholder="Buscar por folio, cliente, teléfono o producto" aria-label="Buscar pedido">
+                        <div class="venta-chips mb-0" id="chipsPedidos" role="group" aria-label="Filtrar pedidos">
+                            <button type="button" class="venta-chip" data-grupo="" aria-pressed="true">Todos <span data-cuenta></span></button>
+                            <button type="button" class="venta-chip" data-grupo="confirmar" aria-pressed="false">Por confirmar <span data-cuenta></span></button>
+                            <button type="button" class="venta-chip" data-grupo="preparar" aria-pressed="false">Por preparar <span data-cuenta></span></button>
+                            <button type="button" class="venta-chip" data-grupo="ruta" aria-pressed="false">En ruta <span data-cuenta></span></button>
+                            <button type="button" class="venta-chip" data-grupo="cobrar" aria-pressed="false">Por cobrar <span data-cuenta></span></button>
+                            <button type="button" class="venta-chip" data-grupo="entregado" aria-pressed="false">Entregados <span data-cuenta></span></button>
+                        </div>
+                    </div>
+                    {% endif %}
                     <div class="table-responsive">
-                        <table class="table align-middle mb-0">
+                        <table class="table align-middle mb-0 pedidos-tabla">
                             <thead>
                                 <tr>
-                                    <th>Folio</th>
-                                    <th>Cliente</th>
+                                    <th>Pedido</th>
+                                    <th>Productos</th>
                                     <th>Estado</th>
-                                    <th>Reserva ERP</th>
                                     <th>Total</th>
-                                    <th>Saldo</th>
-                                    <th>Acciones</th>
+                                    <th>Siguiente paso</th>
                                 </tr>
                             </thead>
-                            <tbody>
+                            <tbody id="listaPedidos">
                                 {% for p in pedidos %}
-                                <tr id="pedido-{{ p.id }}">
-                                    <td><strong>{{ p.folio }}</strong><div class="text-muted small">{{ p.canal }}</div></td>
-                                    <td>{{ p.cliente.nombre_completo }}<div class="text-muted small">{{ p.cliente.telefono }}</div>{% if saldos_trueque.get(p.cliente_id, 0) > 0 %}<div class="text-success small">Trueque a favor: ${{ '%.2f' | format(saldos_trueque.get(p.cliente_id, 0)) }}</div>{% endif %}</td>
-                                    <td><span class="badge {{ 'bg-success' if p.estado == 'Entregado' else 'bg-warning text-dark' if p.estado in ['Pendiente de pago','Pendiente de produccion','Intento fallido'] else 'bg-primary' if p.estado in ['Confirmado','En ruta'] else 'bg-secondary' }}">{{ p.estado }}</span>{% if p.urgente %}<div><span class="badge bg-danger mt-1">Urgente +${{ '%.2f' | format(p.cargo_urgente) }}</span></div>{% endif %}{% if p.fecha_ruta and p.estado not in ['Entregado', 'Cancelado', 'Devuelto'] %}<div class="text-muted small">Ruta {{ p.fecha_ruta.strftime('%d/%m') }}</div>{% endif %}<div class="text-muted small">{{ p.fecha.strftime('%d/%m/%Y') }}</div></td>
+                                {% set st = p.estado %}
+                                {% set paso = '' %}
+                                {% if rol in ['supervisor', 'ventas'] and st in ['Recibido', 'Pendiente de pago', 'Pendiente de produccion'] %}{% set paso = 'confirmar' %}
+                                {% elif rol in ['supervisor', 'preparacion'] and st == 'Confirmado' %}{% set paso = 'listo' %}
+                                {% elif rol in ['supervisor', 'reparto'] and st in ['Confirmado', 'Listo para entrega'] %}{% set paso = 'ruta' %}
+                                {% elif rol in ['supervisor', 'reparto'] and st == 'En ruta' %}{% set paso = 'entrega' %}
+                                {% elif rol in ['supervisor', 'cobranza'] and p.saldo > 0 and st not in ['Cancelado', 'Devuelto'] %}{% set paso = 'pago' %}
+                                {% endif %}
+                                {% set otras = [] %}
+                                {% if rol in ['supervisor', 'ventas'] and st in ['Recibido', 'Pendiente de pago', 'Pendiente de produccion', 'Confirmado'] %}{% set _ = otras.append('confirmar' if st != 'Confirmado' else 'reservar') %}{% endif %}
+                                {% if rol in ['supervisor', 'preparacion'] and st == 'Confirmado' %}{% set _ = otras.append('listo') %}{% endif %}
+                                {% if rol in ['supervisor', 'reparto'] and st in ['Confirmado', 'Listo para entrega'] %}{% set _ = otras.append('ruta') %}{% endif %}
+                                {% if rol in ['supervisor', 'reparto'] and st in ['Confirmado', 'Listo para entrega', 'En ruta'] %}{% set _ = otras.append('entrega') %}{% endif %}
+                                {% if rol in ['supervisor', 'cobranza'] and p.saldo > 0 and st not in ['Cancelado', 'Devuelto'] %}{% set _ = otras.append('pago') %}{% endif %}
+                                {% if rol in ['supervisor', 'cobranza'] %}{% set _ = otras.append('trueque') %}{% endif %}
+                                {% if rol in ['supervisor', 'reparto'] and st == 'En ruta' %}{% set _ = otras.append('fallo') %}{% endif %}
+                                {% set _ = otras.append('documentos') %}
+                                {% set grupos = [] %}
+                                {% if st in ['Recibido', 'Pendiente de pago', 'Pendiente de produccion'] %}{% set _ = grupos.append('confirmar') %}{% endif %}
+                                {% if st in ['Confirmado', 'Listo para entrega'] %}{% set _ = grupos.append('preparar') %}{% endif %}
+                                {% if st in ['En ruta', 'Intento fallido'] %}{% set _ = grupos.append('ruta') %}{% endif %}
+                                {% if p.saldo > 0 and st not in ['Cancelado', 'Devuelto'] %}{% set _ = grupos.append('cobrar') %}{% endif %}
+                                {% if st == 'Entregado' %}{% set _ = grupos.append('entregado') %}{% endif %}
+                                <tr id="pedido-{{ p.id }}" data-grupos="{{ grupos | join(' ') }}" data-buscar="{{ ([p.folio, p.cliente.nombre_completo, p.cliente.telefono or ''] + (p.lineas | map(attribute='producto.nombre') | select | list)) | join(' ') | lower }}">
                                     <td>
-                                        {% for l in p.lineas %}
-                                        <div><strong>{{ l.cantidad | float }}</strong> {{ l.producto.nombre if l.producto else 'Producto' }}</div>
-                                        <div class="text-muted small">{{ l.modo_reserva }}</div>
-                                        {% endfor %}
+                                        <strong>{{ p.folio }}</strong>
+                                        <div>{{ p.cliente.nombre_completo }}</div>
+                                        <div class="text-muted small">{{ p.cliente.telefono }}{% if p.cliente.telefono %} · {% endif %}{{ p.canal }} · {{ p.fecha.strftime('%d/%m/%Y') }}</div>
+                                        {% if saldos_trueque.get(p.cliente_id, 0) > 0 %}<div class="text-success small">Trueque a favor: ${{ '%.2f' | format(saldos_trueque.get(p.cliente_id, 0)) }}</div>{% endif %}
                                     </td>
-                                    <td>${{ '%.2f' | format(p.importe_total) }}</td>
-                                    <td>${{ '%.2f' | format(p.saldo) }}</td>
                                     <td>
-                                        <div class="d-flex flex-wrap gap-2">
-                                            {% if rol in ['supervisor', 'ventas'] and p.estado in ['Recibido', 'Pendiente de pago', 'Pendiente de produccion', 'Confirmado'] %}
-                                            <button class="btn btn-outline-primary btn-sm" data-action="confirmar" data-pedido="{{ p.id }}">Reservar</button>
-                                            {% endif %}
-                                            {% if rol in ['supervisor', 'cobranza'] and p.saldo > 0 %}
-                                            <button class="btn btn-outline-primary btn-sm" data-action="pago" data-pedido="{{ p.id }}" data-saldo="{{ '%.2f' | format(p.saldo) }}" data-saldo-trueque="{{ '%.2f' | format(saldos_trueque.get(p.cliente_id, 0)) }}">Pago</button>
-                                            {% endif %}
-                                            {% if rol in ['supervisor', 'cobranza'] %}
-                                            <button class="btn btn-outline-secondary btn-sm" data-action="trueque" data-cliente="{{ p.cliente_id }}">Registrar trueque</button>
-                                            {% endif %}
-                                            {% if rol in ['supervisor', 'preparacion'] and p.estado == 'Confirmado' %}
-                                            <button class="btn btn-outline-primary btn-sm" data-action="estado" data-estado="Listo para entrega" data-pedido="{{ p.id }}">Listo</button>
-                                            {% endif %}
-                                            {% if rol in ['supervisor', 'reparto'] and p.estado in ['Confirmado', 'Listo para entrega'] %}
-                                            <button class="btn btn-outline-primary btn-sm" data-action="estado" data-estado="En ruta" data-pedido="{{ p.id }}">En ruta</button>
-                                            {% endif %}
-                                            {% if rol in ['supervisor', 'reparto'] and p.estado in ['Confirmado', 'Listo para entrega', 'En ruta'] %}
-                                            <button class="btn btn-success btn-sm" data-action="entrega" data-pedido="{{ p.id }}">Entregar</button>
-                                            {% endif %}
-                                            {% if rol in ['supervisor', 'reparto'] and p.estado == 'En ruta' %}
-                                            <button class="btn btn-outline-danger btn-sm" data-action="fallo" data-pedido="{{ p.id }}">Incidencia</button>
-                                            {% endif %}
-                                            <button class="btn btn-outline-secondary btn-sm" data-action="documentos" data-pedido="{{ p.id }}" data-folio="{{ p.folio }}">Documentos</button>
-                                        </div>
+                                        {% for l in p.lineas[:2] %}
+                                        <div class="pedido-linea"><strong>{{ '%g' | format(l.cantidad | float) }}</strong> × {{ l.producto.nombre if l.producto else 'Producto' }}</div>
+                                        {% endfor %}
+                                        {% if p.lineas | length > 2 %}
+                                        <details class="pedido-mas-productos"><summary>+ {{ p.lineas | length - 2 }} más</summary>
+                                            {% for l in p.lineas[2:] %}<div class="pedido-linea"><strong>{{ '%g' | format(l.cantidad | float) }}</strong> × {{ l.producto.nombre if l.producto else 'Producto' }}</div>{% endfor %}
+                                        </details>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge {{ 'bg-success' if st == 'Entregado' else 'bg-warning text-dark' if st in ['Recibido','Pendiente de pago','Pendiente de produccion','Intento fallido'] else 'bg-primary' if st in ['Confirmado','En ruta','Listo para entrega'] else 'bg-secondary' }}">{{ nombre_estado.get(st, st) }}</span>
+                                        {% if p.urgente %}<div><span class="badge bg-danger mt-1">Urgente +${{ '%.2f' | format(p.cargo_urgente) }}</span></div>{% endif %}
+                                        {% if p.fecha_ruta and st not in ['Entregado', 'Cancelado', 'Devuelto'] %}<div class="text-muted small">Ruta {{ p.fecha_ruta.strftime('%d/%m') }}</div>{% endif %}
+                                    </td>
+                                    <td>
+                                        <strong>${{ '%.2f' | format(p.importe_total) }}</strong>
+                                        {% if st in ['Cancelado', 'Devuelto'] %}<div class="text-muted small">—</div>
+                                        {% elif p.saldo > 0 %}<div class="text-danger small fw-semibold">Debe ${{ '%.2f' | format(p.saldo) }}</div>
+                                        {% else %}<div class="text-success small fw-semibold">Pagado</div>{% endif %}
+                                    </td>
+                                    <td>
+                                        {% if paso %}{{ boton_paso(p, paso, 'btn-primary btn-sm') }}{% elif st == 'Entregado' %}<span class="text-success small fw-semibold">Todo listo</span>{% else %}<span class="text-muted small">Sin pendientes</span>{% endif %}
+                                        <details class="pedido-mas">
+                                            <summary>Más acciones</summary>
+                                            <div class="pedido-mas-menu">
+                                                {% for a in otras if a != paso %}{{ boton_paso(p, a, 'btn-outline-secondary btn-sm') }}{% endfor %}
+                                            </div>
+                                        </details>
                                     </td>
                                 </tr>
                                 {% else %}
                                 <tr>
-                                    <td colspan="7" class="text-center py-5">
-                                        <strong>No hay pedidos en {{ mes.etiqueta }}</strong>
-                                        <p class="text-muted mt-2 mb-0">Captura el primer pedido desde el formulario superior.</p>
+                                    <td colspan="5" class="text-center py-5">
+                                        <strong>Todavía no hay pedidos en {{ mes.etiqueta }}</strong>
+                                        <p class="text-muted mt-2 mb-0">Empieza con «Nueva venta»: busca al cliente y elige sus productos.</p>
                                     </td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
                         </table>
                     </div>
+                    <div class="text-center text-muted py-4" id="sinResultadosPedidos" hidden>Ningún pedido coincide con la búsqueda o el filtro.</div>
                 </div>
             </section>
 
@@ -297,8 +466,23 @@
             }
         });
 
+        const carrito = [];
+        function lineasCarrito() {
+            return carrito.map((l) => ({
+                producto_id: l.producto_id,
+                cantidad: String(l.cantidad),
+                precio_unitario: Number(l.precio).toFixed(2),
+                notas: l.presentacion ? 'Presentación: ' + l.presentacion : undefined,
+            }));
+        }
+
         async function crearPedido(confirmar) {
+            if (!carrito.length) throw new Error('Agrega al menos un producto al pedido.');
+            if (carrito.some((l) => !(Number(l.precio) > 0) || !(Number(l.cantidad) > 0))) {
+                throw new Error('Revisa cantidades y precios: deben ser mayores a cero.');
+            }
             const form = new FormData(pedidoForm);
+            if (!String(form.get('direccion') || '').trim()) throw new Error('Captura la dirección de entrega.');
             const pedido = await jsonFetch('/api/crm/pedidos', {
                 method: 'POST',
                 body: JSON.stringify({
@@ -319,11 +503,7 @@
                         zona: 'Cancun',
                         cobertura: true,
                     },
-                    lineas: [{
-                        producto_id: Number(form.get('producto_id')),
-                        cantidad: form.get('cantidad'),
-                        precio_unitario: form.get('precio_unitario'),
-                    }],
+                    lineas: lineasCarrito(),
                 }),
             });
             if (confirmar) {
@@ -333,90 +513,520 @@
         }
 
         if (pedidoForm) {
-            const buscarCliente = document.getElementById('buscarClientePedido');
-            const resultadosCliente = document.getElementById('resultadosClientePedido');
-            const avisoCliente = document.getElementById('clienteSeleccionado');
-            const camposCliente = ['cliente_nombre', 'cliente_apellidos', 'cliente_telefono', 'cliente_rfc'];
+            const f = pedidoForm.elements;
+            const $ = (id) => document.getElementById(id);
+            const buscarCliente = $('buscarClientePedido');
+            const resultadosCliente = $('resultadosClientePedido');
+            const datosCliente = $('clienteDatos');
+            const etapaProductos = $('ventaProductos');
+            const gridVenta = $('catalogoVenta');
+            const chipsVenta = $('chipsCategoria');
+            const cajaBusqueda = $('buscarProducto');
+            const cajaCarrito = $('carritoVenta');
+            const totalVenta = $('totalVenta');
+            const botonCarrito = $('abrirCarrito');
+            const badgeCarrito = $('badgeCarrito');
+            const botonMostrar = $('mostrarProductos');
+            const botonRepetir = $('repetirUltimo');
+            const dlgProducto = $('dlgProducto');
+            const dlgCarrito = $('dlgCarrito');
+            const dlgNuevo = $('dlgClienteNuevo');
+            const selDomicilio = $('domicilioPedido');
+            const cajaDireccion = $('cajaDireccion');
+            const botonesCrear = [$('crearYReservar'), $('crearSinConfirmar')];
+            let clienteActual = null;
+            let carritoDe = null;
+            let catalogo = [];
+            let categoriaActiva = '';
+            let habituales = new Map();   // "producto|presentacion" -> compra anterior
+            let rangoProducto = new Map(); // producto -> posicion entre los que mas compra
+            let ultimoPedido = null;
             let esperaBusqueda = null;
+            let turnoBusqueda = 0;
+            const dinero = (n) => '$' + Number(n || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const normalizar = (t) => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
-            function fijarCliente(cliente, domicilio) {
-                pedidoForm.elements.cliente_id.value = cliente ? cliente.id : '';
-                pedidoForm.elements.domicilio_id.value = domicilio ? domicilio.id : '';
-                pedidoForm.elements.cliente_nombre.value = cliente ? cliente.nombre : '';
-                pedidoForm.elements.cliente_apellidos.value = cliente ? cliente.apellidos : '';
-                pedidoForm.elements.cliente_telefono.value = cliente ? cliente.telefono : '';
-                pedidoForm.elements.cliente_rfc.value = cliente ? cliente.rfc : '';
-                pedidoForm.elements.direccion.value = domicilio ? domicilio.direccion : '';
-                camposCliente.forEach((campo) => { pedidoForm.elements[campo].readOnly = Boolean(cliente); });
-                pedidoForm.elements.direccion.readOnly = Boolean(domicilio);
-                avisoCliente.hidden = !cliente;
-                resultadosCliente.hidden = true;
-                buscarCliente.value = '';
+            function elemento(tag, clase, texto) {
+                const el = document.createElement(tag);
+                if (clase) el.className = clase;
+                if (texto !== undefined) el.textContent = texto;
+                return el;
             }
 
-            function opcionCliente(cliente, domicilio) {
-                const boton = document.createElement('button');
+            // ---- Ventanas (cerrar con la X, el boton o tocando fuera) ----
+            document.querySelectorAll('.venta-dialogo').forEach((dlg) => {
+                dlg.addEventListener('click', (event) => {
+                    if (event.target === dlg || event.target.closest('[data-cerrar]')) dlg.close();
+                });
+            });
+
+            // ---- Paso 1: cliente ----
+            function soltarCliente() {
+                clienteActual = null;
+                f.cliente_id.value = ''; f.domicilio_id.value = '';
+                ['cliente_nombre', 'cliente_apellidos', 'cliente_telefono', 'cliente_rfc'].forEach((c) => { f[c].value = ''; });
+                datosCliente.hidden = true;
+                etapaProductos.hidden = true;
+                botonCarrito.hidden = true;
+                botonMostrar.hidden = false;
+            }
+
+            function llenarDomicilios() {
+                selDomicilio.replaceChildren();
+                const ds = clienteActual ? clienteActual.domicilios : [];
+                ds.forEach((d) => {
+                    const op = elemento('option', '', (d.alias ? d.alias + ' · ' : '') + d.direccion);
+                    op.value = d.id; op.dataset.dir = d.direccion;
+                    selDomicilio.append(op);
+                });
+                const otra = elemento('option', '', ds.length ? 'Otra dirección…' : 'Escribir dirección');
+                otra.value = '';
+                selDomicilio.append(otra);
+                selDomicilio.hidden = !ds.length;
+                aplicarDomicilio();
+            }
+
+            function aplicarDomicilio() {
+                const op = selDomicilio.selectedOptions[0];
+                const id = op ? op.value : '';
+                f.domicilio_id.value = id;
+                cajaDireccion.hidden = Boolean(id);
+                f.direccion.value = id ? op.dataset.dir : '';
+            }
+            selDomicilio.addEventListener('change', () => { aplicarDomicilio(); if (!f.domicilio_id.value) f.direccion.focus(); });
+
+            function seleccionarCliente(c) {
+                clienteActual = c;
+                f.cliente_id.value = c.id;
+                f.cliente_nombre.value = c.nombre; f.cliente_apellidos.value = c.apellidos;
+                f.cliente_telefono.value = c.telefono || ''; f.cliente_rfc.value = c.rfc || '';
+                buscarCliente.value = c.nombre_completo;
+                resultadosCliente.hidden = true;
+                buscarCliente.setAttribute('aria-expanded', 'false');
+                datosCliente.textContent = [c.telefono, c.rfc, c.domicilios.length ? c.domicilios[0].direccion : 'Sin dirección registrada'].filter(Boolean).join(' · ');
+                datosCliente.hidden = false;
+                llenarDomicilios();
+                if (carritoDe !== null && carritoDe !== c.id && carrito.length) { carrito.length = 0; pintarCarrito(); } // el carrito es de otro cliente
+                carritoDe = c.id;
+            }
+
+            function opcionCliente(c) {
+                const boton = elemento('button', 'list-group-item list-group-item-action');
                 boton.type = 'button';
-                boton.className = 'list-group-item list-group-item-action';
-                const titulo = document.createElement('strong');
-                titulo.textContent = cliente.nombre_completo;
-                const detalle = document.createElement('div');
-                detalle.className = 'small text-muted';
-                detalle.textContent = [cliente.telefono, cliente.rfc, domicilio ? domicilio.direccion : 'Nuevo domicilio'].filter(Boolean).join(' · ');
-                boton.append(titulo, detalle);
-                boton.addEventListener('click', () => fijarCliente(cliente, domicilio));
+                boton.setAttribute('role', 'option');
+                boton.append(elemento('strong', '', c.nombre_completo));
+                boton.append(elemento('div', 'small text-muted', [c.telefono, c.rfc, c.domicilios.length ? c.domicilios[0].direccion : ''].filter(Boolean).join(' · ') || 'Sin más datos'));
+                boton.addEventListener('click', () => { seleccionarCliente(c); mostrarProductos(); });
                 return boton;
             }
 
             buscarCliente.addEventListener('input', () => {
+                if (clienteActual && buscarCliente.value !== clienteActual.nombre_completo) soltarCliente();
                 clearTimeout(esperaBusqueda);
                 const q = buscarCliente.value.trim();
-                if (q.length < 2) {
-                    resultadosCliente.hidden = true;
-                    return;
-                }
+                if (q.length < 2) { resultadosCliente.hidden = true; return; }
                 esperaBusqueda = setTimeout(async () => {
+                    const turno = ++turnoBusqueda;
                     try {
-                        const clientes = await jsonFetch(`/api/crm/clientes?q=${encodeURIComponent(q)}`);
+                        const clientes = await jsonFetch('/api/crm/clientes?q=' + encodeURIComponent(q));
+                        if (turno !== turnoBusqueda || clienteActual) return;
                         resultadosCliente.replaceChildren();
                         if (!clientes.length) {
-                            const vacio = document.createElement('div');
-                            vacio.className = 'list-group-item small text-muted';
-                            vacio.textContent = 'Sin coincidencias. Captura los datos abajo para crear un cliente nuevo.';
-                            resultadosCliente.append(vacio);
+                            resultadosCliente.append(elemento('div', 'list-group-item small text-muted', 'No encontramos a nadie con ese dato.'));
+                            const crear = elemento('button', 'list-group-item list-group-item-action fw-semibold', 'Registrar «' + q + '» como cliente nuevo');
+                            crear.type = 'button';
+                            crear.addEventListener('click', () => abrirClienteNuevo(q));
+                            resultadosCliente.append(crear);
                         }
-                        clientes.forEach((cliente) => {
-                            cliente.domicilios.forEach((domicilio) => resultadosCliente.append(opcionCliente(cliente, domicilio)));
-                            resultadosCliente.append(opcionCliente(cliente, null));
-                        });
+                        clientes.forEach((c) => resultadosCliente.append(opcionCliente(c)));
                         resultadosCliente.hidden = false;
-                    } catch (error) {
-                        showToast(error.message);
-                    }
+                        buscarCliente.setAttribute('aria-expanded', 'true');
+                    } catch (error) { showToast(error.message); }
                 }, 250);
             });
-
-            document.getElementById('limpiarClientePedido').addEventListener('click', () => fijarCliente(null, null));
+            buscarCliente.addEventListener('keydown', (event) => {
+                if (event.key !== 'Enter') return;
+                event.preventDefault();
+                const primero = resultadosCliente.hidden ? null : resultadosCliente.querySelector('[role="option"]');
+                if (primero) primero.click(); else mostrarProductos();
+            });
             document.addEventListener('click', (event) => {
                 if (!event.target.closest('#resultadosClientePedido, #buscarClientePedido')) resultadosCliente.hidden = true;
             });
+            pedidoForm.addEventListener('submit', (event) => event.preventDefault());
 
-            pedidoForm.addEventListener('submit', async (event) => {
+            // ---- Cliente nuevo (aparte, como en Vendss) ----
+            function abrirClienteNuevo(texto) {
+                $('formClienteNuevo').reset();
+                $('cnError').hidden = true;
+                if (texto) $('cnNombre').value = texto;
+                resultadosCliente.hidden = true;
+                dlgNuevo.showModal();
+                $('cnNombre').focus();
+            }
+            $('nuevoClientePedido').addEventListener('click', () => abrirClienteNuevo(clienteActual ? '' : buscarCliente.value.trim()));
+            dlgNuevo.addEventListener('click', (event) => {
+                if (event.target === dlgNuevo || event.target.closest('[data-cerrar]')) dlgNuevo.close();
+            });
+            $('formClienteNuevo').addEventListener('submit', async (event) => {
                 event.preventDefault();
+                const guardar = $('cnGuardar');
+                guardar.disabled = true;
+                $('cnError').hidden = true;
                 try {
-                    await crearPedido(true);
+                    const cliente = await jsonFetch('/api/crm/clientes', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            nombre: $('cnNombre').value.trim(), apellidos: $('cnApellidos').value.trim(),
+                            telefono: $('cnTelefono').value.trim(), rfc: $('cnRfc').value.trim(),
+                            direccion: $('cnDireccion').value.trim(), zona: 'Cancun',
+                        }),
+                    });
+                    dlgNuevo.close();
+                    seleccionarCliente(cliente);
+                    showToast('Cliente registrado.', 'success');
+                    await mostrarProductos();
+                } catch (error) {
+                    $('cnError').textContent = error.message;
+                    $('cnError').hidden = false;
+                } finally { guardar.disabled = false; }
+            });
+
+            // ---- Paso 2: productos ----
+            function pintarCategorias() {
+                const categorias = [...new Set(catalogo.map((p) => p.categoria).filter(Boolean))].sort();
+                chipsVenta.replaceChildren();
+                if (categorias.length < 2) return;
+                ['', ...categorias].forEach((cat) => {
+                    const chip = elemento('button', 'venta-chip', cat || 'Todos');
+                    chip.type = 'button';
+                    chip.setAttribute('aria-pressed', String(cat === categoriaActiva));
+                    chip.addEventListener('click', () => { categoriaActiva = cat; pintarCategorias(); pintarCatalogo(); });
+                    chipsVenta.append(chip);
+                });
+            }
+
+            function precioDesde(p) {
+                const precios = (p.presentaciones.length ? p.presentaciones.map((x) => x.precio) : [p.precio])
+                    .filter((x) => x !== null && x !== undefined);
+                return precios.length ? Math.min(...precios) : null;
+            }
+
+            function tarjetaProducto(p) {
+                const tarjeta = elemento('button', 'venta-tarjeta');
+                tarjeta.type = 'button';
+                tarjeta.setAttribute('aria-label', 'Elegir cantidades de ' + p.nombre);
+                const foto = elemento('div', 'venta-foto');
+                if (p.imagen) {
+                    const img = document.createElement('img');
+                    img.src = p.imagen; img.alt = ''; img.loading = 'lazy';
+                    foto.append(img);
+                } else {
+                    foto.textContent = p.nombre.slice(0, 2).toUpperCase();
+                }
+                const info = elemento('div', 'venta-info');
+                info.append(elemento('div', 'venta-nombre', p.nombre));
+                const desde = precioDesde(p);
+                info.append(elemento('div', 'venta-desde', desde === null ? 'Precio manual' : (p.presentaciones.length > 1 ? 'Desde ' : '') + dinero(desde)));
+                tarjeta.append(foto, info);
+                if (rangoProducto.has(p.id)) tarjeta.append(elemento('span', 'venta-seguido', 'Lo compra seguido'));
+                tarjeta.addEventListener('click', () => abrirProducto(p));
+                return tarjeta;
+            }
+
+            function pintarCatalogo() {
+                const q = normalizar(cajaBusqueda.value.trim());
+                const visibles = catalogo.filter((p) =>
+                    (!categoriaActiva || p.categoria === categoriaActiva)
+                    && (!q || normalizar([p.nombre, p.sku, p.categoria].join(' ')).includes(q)));
+                const rango = (p) => (rangoProducto.has(p.id) ? rangoProducto.get(p.id) : Infinity);
+                visibles.sort((a, b) => (rango(a) === rango(b) ? 0 : (rango(a) < rango(b) ? -1 : 1))); // sort estable: primero lo que ya compra
+                const seguidos = visibles.filter((p) => rangoProducto.has(p.id));
+                const nodos = [];
+                if (seguidos.length && seguidos.length < visibles.length) {
+                    // Cliente con historial: lo que suele comprar arriba, y el resto del catalogo debajo para pedir algo distinto.
+                    nodos.push(elemento('div', 'venta-seccion', 'Lo que suele comprar'));
+                    seguidos.forEach((p) => nodos.push(tarjetaProducto(p)));
+                    nodos.push(elemento('div', 'venta-seccion', 'Otros productos del catálogo'));
+                    visibles.filter((p) => !rangoProducto.has(p.id)).forEach((p) => nodos.push(tarjetaProducto(p)));
+                } else {
+                    visibles.forEach((p) => nodos.push(tarjetaProducto(p)));
+                }
+                gridVenta.replaceChildren(...nodos);
+                if (!visibles.length) {
+                    gridVenta.append(elemento('div', 'venta-vacio', catalogo.length ? 'Ningún producto coincide con la búsqueda.' : 'No hay productos activos.'));
+                }
+            }
+
+            async function cargarCatalogo() {
+                const aviso = $('avisoLista');
+                try {
+                    const data = await jsonFetch('/api/precios/catalogo' + (f.cliente_id.value ? '?cliente_id=' + f.cliente_id.value : ''));
+                    catalogo = data.productos;
+                    aviso.hidden = !data.lista;
+                    aviso.textContent = data.lista ? ' · Lista de precios ' + data.lista : '';
+                    // Los precios de lista se actualizan al cambiar de cliente; los editados a mano se respetan.
+                    carrito.forEach((l) => {
+                        if (l.manual) return;
+                        const p = catalogo.find((x) => x.id === l.producto_id);
+                        const pres = p && p.presentaciones.find((x) => x.presentacion_id === l.presentacion_id);
+                        if (pres && pres.precio !== null) l.precio = pres.precio;
+                    });
+                    return true;
+                } catch (error) {
+                    showToast('No se pudo cargar el catálogo. Intenta de nuevo.');
+                    return false;
+                }
+            }
+
+            async function cargarHabituales() {
+                habituales = new Map(); rangoProducto = new Map(); ultimoPedido = null;
+                botonRepetir.hidden = true;
+                $('ventaHistorial').textContent = '';
+                if (!f.cliente_id.value) return;
+                try {
+                    const data = await jsonFetch('/api/crm/clientes/' + f.cliente_id.value + '/habituales');
+                    data.productos.forEach((h, i) => {
+                        habituales.set(h.producto_id + '|' + h.presentacion, h);
+                        if (!rangoProducto.has(h.producto_id)) rangoProducto.set(h.producto_id, i);
+                    });
+                    ultimoPedido = data.ultimo_pedido;
+                    $('ventaHistorial').textContent = data.pedidos
+                        ? data.pedidos + (data.pedidos === 1 ? ' compra' : ' compras') + (ultimoPedido ? ' · última el ' + ultimoPedido.fecha : '')
+                        : 'Aún no tiene compras';
+                    botonRepetir.hidden = !ultimoPedido;
+                    botonRepetir.textContent = ultimoPedido ? 'Repetir último pedido (' + ultimoPedido.folio + ')' : '';
+                } catch (error) { /* sin historial: se muestra el catalogo normal */ }
+            }
+
+            async function mostrarProductos() {
+                if (!clienteActual) {
+                    const q = buscarCliente.value.trim();
+                    if (q.length >= 2) {
+                        try {
+                            const lista = await jsonFetch('/api/crm/clientes?q=' + encodeURIComponent(q));
+                            const exactos = lista.filter((c) => normalizar(c.nombre_completo) === normalizar(q));
+                            const unico = exactos.length === 1 ? exactos[0] : (lista.length === 1 ? lista[0] : null);
+                            if (unico) seleccionarCliente(unico);
+                        } catch (error) { /* se avisa abajo */ }
+                    }
+                    if (!clienteActual) {
+                        showToast('Elige un cliente de la lista o regístralo como cliente nuevo.');
+                        buscarCliente.focus();
+                        return;
+                    }
+                }
+                botonMostrar.disabled = true;
+                try {
+                    if (!(await cargarCatalogo())) return;
+                    await cargarHabituales();
+                } finally { botonMostrar.disabled = false; }
+                $('ventaQuien').textContent = clienteActual.nombre_completo;
+                categoriaActiva = ''; cajaBusqueda.value = '';
+                etapaProductos.hidden = false;
+                botonCarrito.hidden = false;
+                botonMostrar.hidden = true;
+                pintarCategorias(); pintarCatalogo(); pintarCarrito();
+                etapaProductos.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+            botonMostrar.addEventListener('click', mostrarProductos);
+            cajaBusqueda.addEventListener('input', pintarCatalogo);
+            cajaBusqueda.addEventListener('keydown', (event) => { if (event.key === 'Enter') event.preventDefault(); });
+
+            // ---- Elegir cantidades por presentacion ----
+            function abrirProducto(p) {
+                $('dlgProductoTitulo').textContent = p.nombre;
+                const foto = $('dlgProductoFoto');
+                foto.hidden = !p.imagen;
+                if (p.imagen) foto.src = p.imagen;
+                $('dlgProductoAviso').hidden = true;
+                const filas = p.presentaciones.length
+                    ? p.presentaciones.map((pres) => ({ pres, nombre: pres.nombre, precio: pres.precio }))
+                    : [{ pres: null, nombre: 'Unidad', precio: p.precio }];
+                const entradas = [];
+                const caja = $('dlgProductoFilas');
+                caja.replaceChildren();
+                filas.forEach((fila, i) => {
+                    const etiqueta = elemento('label', '');
+                    etiqueta.htmlFor = 'cantPres' + i;
+                    etiqueta.append(document.createTextNode(fila.nombre + ' (' + (fila.precio === null || fila.precio === undefined ? 'precio manual' : dinero(fila.precio)) + ')'));
+                    const anterior = habituales.get(p.id + '|' + (fila.pres ? fila.pres.nombre : ''));
+                    if (anterior) etiqueta.append(elemento('small', '', 'Última vez: ' + anterior.ultima_cantidad));
+                    const entrada = elemento('input', 'form-control');
+                    entrada.type = 'number'; entrada.id = 'cantPres' + i; entrada.min = '0'; entrada.step = 'any';
+                    entrada.placeholder = '0'; entrada.inputMode = 'decimal';
+                    if (filas.length === 1) entrada.value = '1'; // una sola presentación: ya viene 1, solo confirma
+                    entrada.addEventListener('keydown', (event) => { if (event.key === 'Enter') { event.preventDefault(); $('agregarProducto').click(); } });
+                    caja.append(etiqueta, entrada);
+                    entradas.push({ pres: fila.pres, entrada });
+                });
+                $('agregarProducto').onclick = () => {
+                    const elegidas = entradas.filter((e) => Number(e.entrada.value) > 0);
+                    if (!elegidas.length) {
+                        $('dlgProductoAviso').textContent = 'Escribe una cantidad en alguna presentación.';
+                        $('dlgProductoAviso').hidden = false;
+                        return;
+                    }
+                    elegidas.forEach((e) => agregarAlCarrito(p, e.pres, Number(e.entrada.value)));
+                    dlgProducto.close();
+                    showToast('Agregado al carrito.', 'success');
+                };
+                dlgProducto.showModal();
+                entradas[0].entrada.focus();
+                entradas[0].entrada.select();
+            }
+
+            // ---- Paso 3: carrito ----
+            function agregarAlCarrito(p, pres, cantidad = 1) {
+                const presId = pres ? pres.presentacion_id : null;
+                const existente = carrito.find((l) => l.producto_id === p.id && l.presentacion_id === presId && l.presentacion === (pres ? pres.nombre : ''));
+                if (existente) {
+                    existente.cantidad = Number(existente.cantidad) + cantidad;
+                } else {
+                    const precio = pres ? pres.precio : p.precio;
+                    carrito.push({
+                        producto_id: p.id, nombre: p.nombre, presentacion: pres ? pres.nombre : '', presentacion_id: presId,
+                        precio: precio === null || precio === undefined ? '' : precio, cantidad, manual: false,
+                    });
+                }
+                pintarCarrito();
+            }
+
+            function recalcular() {
+                const total = carrito.reduce((suma, l) => suma + Number(l.cantidad || 0) * Number(l.precio || 0), 0);
+                totalVenta.textContent = dinero(total);
+                badgeCarrito.textContent = carrito.length;
+                badgeCarrito.hidden = !carrito.length;
+                botonCarrito.setAttribute('aria-label', 'Ver carrito: ' + carrito.length + ' producto(s), ' + dinero(total));
+                const valido = carrito.length > 0 && carrito.every((l) => Number(l.precio) > 0 && Number(l.cantidad) > 0);
+                botonesCrear.forEach((b) => { b.disabled = !valido; });
+            }
+
+            function pintarCarrito() {
+                cajaCarrito.replaceChildren();
+                if (!carrito.length) {
+                    cajaCarrito.append(elemento('div', 'text-muted text-center py-4', 'Tu carrito está vacío. Elige un producto de la lista.'));
+                    recalcular();
+                    return;
+                }
+                const envoltura = elemento('div', 'table-responsive');
+                const tabla = elemento('table', 'table table-sm venta-tabla align-middle mb-0');
+                const cab = elemento('tr');
+                ['Producto', 'Cant.', 'Precio', 'Importe', ''].forEach((t) => cab.append(elemento('th', '', t)));
+                const encabezado = elemento('thead'); encabezado.append(cab); tabla.append(encabezado);
+                const cuerpo = elemento('tbody');
+                carrito.forEach((l, indice) => {
+                    const fila = elemento('tr');
+                    const celdaNombre = elemento('td');
+                    celdaNombre.append(elemento('div', 'fw-semibold', l.nombre));
+                    if (l.presentacion) celdaNombre.append(elemento('div', 'small text-muted', l.presentacion));
+                    const cantidad = elemento('input', 'form-control form-control-sm');
+                    cantidad.type = 'number'; cantidad.min = '0.000001'; cantidad.step = 'any'; cantidad.value = l.cantidad;
+                    cantidad.setAttribute('aria-label', 'Cantidad de ' + l.nombre + (l.presentacion ? ' ' + l.presentacion : ''));
+                    const precio = elemento('input', 'form-control form-control-sm');
+                    precio.type = 'number'; precio.min = '0'; precio.step = '0.01'; precio.value = l.precio; precio.placeholder = '0.00';
+                    precio.setAttribute('aria-label', 'Precio de ' + l.nombre + (l.presentacion ? ' ' + l.presentacion : ''));
+                    const importe = elemento('td', 'text-end fw-semibold');
+                    const quitar = elemento('button', 'quitar', '×');
+                    quitar.type = 'button';
+                    quitar.setAttribute('aria-label', 'Quitar ' + l.nombre);
+                    quitar.addEventListener('click', () => { carrito.splice(indice, 1); pintarCarrito(); });
+                    const importeLinea = () => {
+                        importe.textContent = dinero(Number(l.cantidad || 0) * Number(l.precio || 0));
+                        precio.classList.toggle('is-invalid', !(Number(l.precio) > 0));
+                        cantidad.classList.toggle('is-invalid', !(Number(l.cantidad) > 0));
+                        recalcular();
+                    };
+                    cantidad.addEventListener('input', () => { l.cantidad = cantidad.value; importeLinea(); });
+                    precio.addEventListener('input', () => { l.precio = precio.value; l.manual = true; importeLinea(); });
+                    const c1 = elemento('td'); c1.append(cantidad);
+                    const c2 = elemento('td'); c2.append(precio);
+                    const c3 = elemento('td'); c3.append(quitar);
+                    fila.append(celdaNombre, c1, c2, importe, c3);
+                    cuerpo.append(fila);
+                    importeLinea();
+                });
+                tabla.append(cuerpo);
+                envoltura.append(tabla);
+                cajaCarrito.append(envoltura);
+                recalcular();
+            }
+
+            botonCarrito.addEventListener('click', () => { pintarCarrito(); dlgCarrito.showModal(); });
+
+            function resolverHabitual(h) {
+                const p = catalogo.find((x) => x.id === h.producto_id);
+                if (!p) return null; // producto inactivo o ya no existe
+                const ultimoPrecio = h.ultimo_precio !== undefined ? h.ultimo_precio : h.precio;
+                if (h.presentacion) {
+                    const pres = p.presentaciones.find((x) => x.nombre === h.presentacion)
+                        || { presentacion_id: null, nombre: h.presentacion, precio: ultimoPrecio };
+                    return { p, pres: pres.precio === null || pres.precio === undefined ? { ...pres, precio: ultimoPrecio } : pres };
+                }
+                const sinPrecio = p.precio === null || p.precio === undefined;
+                return { p, pres: sinPrecio ? { presentacion_id: null, nombre: '', precio: ultimoPrecio } : null };
+            }
+
+            botonRepetir.addEventListener('click', () => {
+                if (!ultimoPedido) return;
+                let omitidos = 0;
+                ultimoPedido.lineas.forEach((l) => {
+                    const r = resolverHabitual({ producto_id: l.producto_id, presentacion: l.presentacion, precio: l.precio });
+                    if (r) agregarAlCarrito(r.p, r.pres, l.cantidad); else omitidos += 1;
+                });
+                if (omitidos) showToast(omitidos + ' producto(s) del último pedido ya no están activos.');
+                pintarCarrito();
+                dlgCarrito.showModal();
+            });
+
+            async function enviar(confirmar) {
+                botonesCrear.forEach((b) => { b.disabled = true; });
+                try {
+                    await crearPedido(confirmar);
                 } catch (error) {
                     showToast(error.message);
+                    recalcular();
                 }
-            });
-            document.getElementById('crearSinConfirmar').addEventListener('click', async () => {
-                try {
-                    await crearPedido(false);
-                } catch (error) {
-                    showToast(error.message);
-                }
-            });
+            }
+            $('crearYReservar').addEventListener('click', () => enviar(true));
+            $('crearSinConfirmar').addEventListener('click', () => enviar(false));
+            pintarCarrito();
         }
+
+        (function () {
+            const cuerpo = document.getElementById('listaPedidos');
+            const caja = document.getElementById('buscarPedido');
+            const chips = document.querySelectorAll('#chipsPedidos .venta-chip');
+            if (!cuerpo || !caja) return;
+            const filas = [...cuerpo.querySelectorAll('tr[data-grupos]')];
+            let grupo = '';
+            try { grupo = sessionStorage.getItem('pedidosFiltro') || ''; } catch (e) { /* sin almacenamiento */ }
+            const normalizar = (t) => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+            chips.forEach((chip) => {
+                const g = chip.dataset.grupo;
+                const n = g ? filas.filter((f) => f.dataset.grupos.split(' ').includes(g)).length : filas.length;
+                chip.querySelector('[data-cuenta]').textContent = '(' + n + ')';
+            });
+            function aplicar() {
+                const q = normalizar(caja.value.trim());
+                let visibles = 0;
+                filas.forEach((fila) => {
+                    const coincide = (!grupo || fila.dataset.grupos.split(' ').includes(grupo)) && (!q || normalizar(fila.dataset.buscar).includes(q));
+                    fila.hidden = !coincide;
+                    if (coincide) visibles += 1;
+                });
+                chips.forEach((c) => c.setAttribute('aria-pressed', String(c.dataset.grupo === grupo)));
+                document.getElementById('contadorPedidos').textContent = visibles + (visibles === 1 ? ' pedido' : ' pedidos');
+                document.getElementById('sinResultadosPedidos').hidden = visibles > 0;
+            }
+            chips.forEach((chip) => chip.addEventListener('click', () => {
+                grupo = chip.dataset.grupo;
+                try { sessionStorage.setItem('pedidosFiltro', grupo); } catch (e) { /* sin almacenamiento */ }
+                aplicar();
+            }));
+            caja.addEventListener('input', aplicar);
+            aplicar();
+        })();
 
         document.addEventListener('click', async (event) => {
             const button = event.target.closest('[data-action]');

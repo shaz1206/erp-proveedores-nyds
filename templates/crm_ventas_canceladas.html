@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <title>Ventas canceladas - NYDS</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20260914-crm') }}">
+</head>
+<body class="bg-light">
+    {% include 'crm_header.html' %}
+    <main class="container-fluid px-4 mb-5">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+            <div>
+                <h2>Ventas canceladas</h2>
+                <p class="text-muted mb-0">Pedidos cancelados, con quién los canceló y por qué. No cuentan como venta.</p>
+            </div>
+            <a class="btn btn-outline-secondary" href="{{ url_for('crm_confirmar_ventas') }}">Confirmar ventas</a>
+        </div>
+        <form method="get" class="row g-2 mb-3">
+            <div class="col-md-4">
+                <label class="form-label small fw-semibold" for="filtroDistribuidor">Filtrar por distribuidor</label>
+                <select id="filtroDistribuidor" name="distribuidor" class="form-select" onchange="this.form.submit()">
+                    <option value="">Todos</option>
+                    {% for d in distribuidores %}<option value="{{ d.id }}" {{ 'selected' if filtro == d.id|string else '' }}>{{ d.nombre }}</option>{% endfor %}
+                    <option value="sin" {{ 'selected' if filtro == 'sin' else '' }}>Sin distribuidor</option>
+                </select>
+            </div>
+        </form>
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Canceladas</h5>
+                <span class="badge bg-secondary">{{ pedidos|length }} pedido{{ '' if pedidos|length == 1 else 's' }} · ${{ '{:,.2f}'.format(total) }}</span>
+            </div>
+            <div class="table-responsive"><table class="table align-middle mb-0">
+                <thead><tr><th>Folio</th><th>Cliente</th><th>Distribuidor</th><th>Total</th><th>Cancelado</th><th>Por</th><th>Motivo</th></tr></thead>
+                <tbody>
+                {% for p in pedidos %}
+                {% set d = asignados.get(p.cliente_id) %}
+                <tr>
+                    <td class="fw-semibold">{{ p.folio }}</td>
+                    <td>{{ p.cliente.nombre_completo }}</td>
+                    <td>{% if d %}{{ d.nombre }}{% else %}<span class="text-muted">Sin distribuidor</span>{% endif %}</td>
+                    <td>${{ '{:,.2f}'.format(p.importe_total) }}</td>
+                    <td>{{ detalle[p.id].fecha.strftime('%d/%m/%Y %H:%M') }}</td>
+                    <td>{{ detalle[p.id].usuario or '—' }}</td>
+                    <td>{{ detalle[p.id].motivo or '—' }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="7" class="text-center text-muted py-5">No hay ventas canceladas{{ ' para este filtro' if filtro else '' }}.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table></div>
+        </div>
+    </main>
+</body>
+</html>

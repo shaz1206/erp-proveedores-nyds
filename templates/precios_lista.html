@@ -1,0 +1,67 @@
+{% extends 'precios_base.html' %}
+{% block titulo %}{{ lista.nombre }}{% endblock %}
+{% block contenido %}
+<form method="post" action="{{ url_for('precios_lista_guardar', id_lista=lista.id) }}">
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body p-4">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+            <div>
+                <h4 class="fw-bold mb-1">Lista: {{ lista.nombre }}</h4>
+                <p class="text-muted mb-0">Deja en blanco el precio de una presentación para que se cobre el precio base.</p>
+            </div>
+            <a class="btn btn-outline-secondary" href="{{ url_for('precios_lista_pdf', id_lista=lista.id) }}">Descargar PDF</a>
+        </div>
+        <div class="row g-2 mb-3">
+            <div class="col-md-4"><label class="form-label small fw-semibold" for="listaNombre">Nombre</label>
+                <input id="listaNombre" name="nombre" class="form-control" maxlength="100" value="{{ lista.nombre }}" required></div>
+            <div class="col-md-6"><label class="form-label small fw-semibold" for="listaDesc">Descripción</label>
+                <input id="listaDesc" name="descripcion" class="form-control" maxlength="300" value="{{ lista.descripcion or '' }}"></div>
+            <div class="col-md-2 d-flex align-items-end"><label class="form-check mb-2"><input class="form-check-input" type="checkbox" name="activa" value="1" {{ 'checked' if lista.activa else '' }}> <span class="form-check-label">Lista activa</span></label></div>
+        </div>
+        <div class="table-responsive"><table class="table align-middle mb-3">
+            <thead class="table-dark"><tr><th>Producto</th><th>Presentación</th><th>Precio base</th><th style="width:180px">Precio en esta lista</th></tr></thead>
+            <tbody>
+            {% for pres in presentaciones %}
+            <tr>
+                <td class="fw-semibold">{{ pres.producto.nombre }}</td>
+                <td>{{ pres.nombre }}</td>
+                <td class="text-muted">{{ '$%.2f'|format(pres.precio_base) if pres.precio_base is not none else '—' }}</td>
+                <td><div class="input-group input-group-sm"><span class="input-group-text">$</span>
+                    <input class="form-control" name="precio_{{ pres.id }}" inputmode="decimal" value="{{ '%.2f'|format(precios[pres.id]) if pres.id in precios else '' }}" placeholder="Usa base" aria-label="Precio de {{ pres.producto.nombre }} {{ pres.nombre }}"></div></td>
+            </tr>
+            {% else %}
+            <tr><td colspan="4" class="text-center text-muted py-4">No hay presentaciones activas. Agrégalas en <a href="{{ url_for('precios_presentaciones') }}">Presentaciones</a>.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table></div>
+        <button class="btn btn-primary" type="submit">Guardar lista</button>
+    </div>
+</div>
+</form>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body p-4">
+        <h5 class="fw-bold mb-3">Clientes con esta lista ({{ asignaciones|length }})</h5>
+        <form method="post" action="{{ url_for('precios_lista_asignar', id_lista=lista.id) }}" class="row g-2 align-items-end mb-3">
+            <div class="col-md-6">
+                <label class="form-label small fw-semibold" for="asignarCliente">Asignar cliente</label>
+                <select id="asignarCliente" name="cliente_id" class="form-select" required>
+                    <option value="">Selecciona un cliente</option>
+                    {% for c, actual in clientes %}<option value="{{ c.id }}">{{ c.nombre_completo }}{{ ' · ' ~ c.telefono if c.telefono else '' }}{{ ' (ahora: ' ~ actual ~ ')' if actual else '' }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2 d-grid"><button class="btn btn-outline-primary" type="submit">Asignar</button></div>
+        </form>
+        <div class="table-responsive"><table class="table align-middle mb-0">
+            <tbody>
+            {% for a in asignaciones %}
+            <tr><td class="fw-semibold">{{ a.cliente.nombre_completo }}</td><td class="text-muted">{{ a.cliente.telefono }}</td>
+                <td class="text-end"><form method="post" action="{{ url_for('precios_lista_quitar', id_lista=lista.id, id_cliente=a.cliente_id) }}"><button class="btn btn-sm btn-outline-danger" type="submit">Quitar</button></form></td></tr>
+            {% else %}
+            <tr><td class="text-muted py-3">Ningún cliente usa esta lista todavía.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table></div>
+    </div>
+</div>
+{% endblock %}

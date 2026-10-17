@@ -1,0 +1,75 @@
+{% extends 'produccion_base.html' %}
+{% block titulo %}Lista de compra{% endblock %}
+{% block contenido %}
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body p-4">
+        <h4 class="fw-bold mb-1">Lista de compra</h4>
+        <p class="text-muted mb-0">Esto es lo que falta comprar para las órdenes por producir. Ya viene agrupado por proveedor: ajusta las cantidades si quieres y crea la orden con un clic.</p>
+    </div>
+</div>
+
+{% if not hay_ordenes %}
+<div class="alert alert-info">No hay órdenes planeadas. <a href="{{ url_for('produccion_ordenes') }}">Planea una producción</a> y aquí verás qué hay que comprar.</div>
+{% elif not grupos and not sin_proveedor %}
+<div class="alert alert-success">Hay materia prima suficiente: todo lo que necesitas ya está en inventario y no hay nada que comprar.</div>
+{% endif %}
+
+{% for g in grupos %}
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-header bg-white fw-bold">{{ g.proveedor.razon_social }} <span class="badge bg-light text-dark border ms-1">{{ g.moneda }}</span></div>
+    <form method="post" action="/admin/compras/nueva">
+        <input type="hidden" name="csrf" value="{{ compras_csrf }}">
+        <input type="hidden" name="token" value="lc-{{ token }}-{{ g.proveedor.id_proveedor }}-{{ g.moneda }}">
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead class="table-light"><tr><th>Materia prima</th><th class="text-end">Requerido</th><th class="text-end">Disponible</th><th class="text-end">Faltante</th><th>Presentación</th><th class="text-end">Presentaciones a comprar</th></tr></thead>
+                <tbody>
+                {% for f in g.filas %}
+                <tr>
+                    <td>{{ f.mp.nombre_oficial }}<div class="small text-muted">{{ f.ordenes|join(', ') }}</div></td>
+                    <td class="text-end">{{ '%g'|format(f.requerido) }} {{ f.mp.unidad_base }}</td>
+                    <td class="text-end">{{ '%g'|format(f.disponible) }}</td>
+                    <td class="text-end text-danger fw-semibold">{{ '%g'|format(f.faltante) }}</td>
+                    <td>{{ f.condicion.presentacion_compra }}</td>
+                    <td class="text-end" style="width:170px">
+                        <input type="hidden" name="condicion" value="{{ f.condicion.id_relacion }}">
+                        <input name="cantidad" class="form-control form-control-sm text-end" value="{{ '%g'|format(f.presentaciones) }}" inputmode="decimal" aria-label="Presentaciones de {{ f.mp.nombre_oficial }}">
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="card-footer bg-white d-flex flex-wrap gap-2 align-items-center">
+            <label class="small fw-semibold" for="entrega-{{ loop.index }}">Lo necesito para el</label>
+            <input id="entrega-{{ loop.index }}" type="date" name="entrega" class="form-control form-control-sm w-auto" value="{{ g.entrega.isoformat() }}" min="{{ hoy.isoformat() }}">
+            <button class="btn btn-primary btn-sm ms-auto" type="submit">Crear orden de compra →</button>
+        </div>
+    </form>
+</div>
+{% endfor %}
+
+{% if sin_proveedor %}
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-header bg-white fw-bold text-danger">Sin proveedor vigente</div>
+    <div class="table-responsive"><table class="table align-middle mb-0">
+        <thead class="table-light"><tr><th>Materia prima</th><th class="text-end">Faltante</th><th></th></tr></thead>
+        <tbody>
+        {% for f in sin_proveedor %}
+        <tr><td>{{ f.mp.nombre_oficial }}<div class="small text-muted">{{ f.ordenes|join(', ') }}</div></td><td class="text-end text-danger fw-semibold">{{ '%g'|format(f.faltante) }} {{ f.mp.unidad_base }}</td>
+        <td class="text-end"><a class="btn btn-sm btn-outline-secondary" href="/admin/materias-primas">Asignar proveedor</a></td></tr>
+        {% endfor %}
+        </tbody>
+    </table></div>
+</div>
+{% endif %}
+
+{% if suficientes %}
+<div class="card shadow-sm border-0">
+    <div class="card-header bg-white fw-bold text-success">Ya cubiertas con inventario</div>
+    <ul class="list-group list-group-flush">
+        {% for f in suficientes %}<li class="list-group-item d-flex justify-content-between"><span>{{ f.mp.nombre_oficial }}</span><span class="text-muted">requerido {{ '%g'|format(f.requerido) }} · disponible {{ '%g'|format(f.disponible) }} {{ f.mp.unidad_base }}</span></li>{% endfor %}
+    </ul>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,4 +1,28 @@
 {% extends 'abastecimiento_base.html' %}{% block contenido %}
-<div class="mb-4"><h2>Órdenes de compra</h2><p class="text-muted">Compra materias primas, revisa las entregas y registra su entrada al almacén.</p></div>
-<div class="card"><div class="table-responsive"><table class="table align-middle mb-0"><thead><tr><th>Orden</th><th>Proveedor</th><th>Entrega prevista</th><th>Estado</th><th>Total con IVA</th><th>Evidencia</th><th></th></tr></thead><tbody>{% for o in ordenes %}<tr><td>OC-{{ '%05d'|format(o.id) }}</td><td>{{ o.proveedor_nombre }}</td><td>{{ o.entrega }}</td><td><span class="badge bg-{{ 'success' if o.estado=='Recibida' else 'secondary' if o.estado=='Cancelada' else 'primary' }}">{{ o.estado }}</span></td><td>{{ '%.2f'|format(o.total) }} {{ o.moneda }}</td><td>{% if o.documentos %}<span class="badge bg-success">{{ o.documentos | length }} archivo(s)</span>{% else %}<span class="text-muted small">Sin evidencia</span>{% endif %}</td><td><a class="btn btn-outline-primary btn-sm" href="{{ url_for('compra_detalle',id_orden=o.id) }}">Ver y recibir</a></td></tr>{% else %}<tr><td colspan="7" class="text-center py-5"><strong>Aún no hay órdenes de compra</strong><p class="text-muted mt-2">Empieza con un proveedor y las condiciones de compra de tus materias primas.</p><a class="btn btn-primary" href="{{ url_for('compra_nueva') }}">Crear primera orden</a></td></tr>{% endfor %}</tbody></table></div></div>
+<style>
+.oc-filtros{display:flex;gap:.4rem;flex-wrap:wrap;align-items:center}
+.oc-filtros .btn.activo{background:#0f1f3d;color:#fff;border-color:#0f1f3d}
+.oc-avance{height:6px;border-radius:3px;background:var(--bs-border-color,#dee2e6);overflow:hidden;min-width:90px}
+.oc-avance>span{display:block;height:100%;background:#198754}
+</style>
+{% set pendientes=ordenes|selectattr('estado','in',['Emitida','Parcial'])|list %}
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3"><div><h2 class="mb-1">Compras</h2><p class="text-muted mb-0">{% if pendientes %}Tienes <strong>{{ pendientes|length }}</strong> {{ 'orden' if pendientes|length==1 else 'órdenes' }} esperando entrega.{% else %}No tienes entregas pendientes.{% endif %}</p></div><a class="btn btn-primary" href="{{ url_for('compra_nueva') }}">+ Nueva orden de compra</a></div>
+{% if ordenes %}
+<div class="d-flex justify-content-between flex-wrap gap-2 mb-3"><div class="oc-filtros" id="ocFiltros" role="group" aria-label="Filtrar órdenes"><button type="button" class="btn btn-sm btn-outline-secondary activo" data-f="pendiente">Por recibir ({{ pendientes|length }})</button><button type="button" class="btn btn-sm btn-outline-secondary" data-f="cerrada">Recibidas</button><button type="button" class="btn btn-sm btn-outline-secondary" data-f="">Todas ({{ ordenes|length }})</button></div><input type="search" id="ocBuscar" class="form-control form-control-sm" style="max-width:260px" placeholder="Buscar proveedor o folio" aria-label="Buscar orden"></div>
+<div class="card"><div class="table-responsive"><table class="table align-middle mb-0" id="ocTabla"><thead><tr><th>Orden</th><th>Proveedor</th><th class="d-none d-lg-table-cell">Entrega prevista</th><th>Avance</th><th class="text-end d-none d-md-table-cell">Total con IVA</th><th></th></tr></thead><tbody>
+{% for o in ordenes %}{% set abierta=o.estado in ['Emitida','Parcial'] %}{% set pedido=o.lineas|sum(attribute='cantidad') %}{% set falta=o.lineas|sum(attribute='pendiente') %}{% set pct=((pedido-falta)/pedido*100)|round|int if pedido else 0 %}
+<tr data-grupo="{{ 'pendiente' if abierta else 'cerrada' }}" data-buscar="{{ ('OC-%05d '|format(o.id) ~ o.proveedor_nombre)|lower }}"><td class="fw-semibold">OC-{{ '%05d'|format(o.id) }}</td><td style="min-width:140px">{{ o.proveedor_nombre }}<div class="small text-muted d-lg-none">Entrega: {{ o.entrega }}</div></td><td class="d-none d-lg-table-cell">{{ o.entrega }}</td>
+<td><span class="badge bg-{{ 'primary' if o.estado=='Emitida' else 'warning text-dark' if o.estado=='Parcial' else 'success' if o.estado=='Recibida' else 'secondary' }}">{{ {'Emitida':'Por recibir','Parcial':'Recibida en parte','Recibida':'Recibida completa'}.get(o.estado,o.estado) }}</span>{% if o.estado in ['Parcial','Recibida','Cerrada con rechazo'] %}<div class="oc-avance mt-1" title="{{ pct }}% recibido"><span style="width:{{ pct }}%"></span></div>{% endif %}</td>
+<td class="text-end d-none d-md-table-cell">{{ '%.2f'|format(o.total) }} {{ o.moneda }}{% if o.documentos %}<div class="small text-success">&#128206; {{ o.documentos | length }} archivo(s)</div>{% endif %}</td>
+<td class="text-end"><a class="btn btn-sm {{ 'btn-primary' if abierta else 'btn-outline-secondary' }}" href="{{ url_for('compra_detalle',id_orden=o.id) }}">{{ 'Recibir' if abierta else 'Ver' }}</a></td></tr>{% endfor %}
+<tr id="ocVacio" hidden><td colspan="6" class="text-center text-muted py-4">No hay órdenes con ese filtro.</td></tr></tbody></table></div></div>
+<script>
+(function(){const filas=[...document.querySelectorAll('#ocTabla tbody tr[data-grupo]')],botones=[...document.querySelectorAll('#ocFiltros button')],q=document.getElementById('ocBuscar');let f='pendiente';
+function aplicar(){const t=q.value.trim().toLowerCase();let n=0;filas.forEach(r=>{const ok=(!f||r.dataset.grupo===f||t)&&(!t||r.dataset.buscar.includes(t));r.hidden=!ok;if(ok)n++});document.getElementById('ocVacio').hidden=n>0;botones.forEach(b=>b.classList.toggle('activo',b.dataset.f===f&&!t))}
+botones.forEach(b=>b.addEventListener('click',()=>{f=b.dataset.f;q.value='';aplicar()}));q.addEventListener('input',aplicar);
+if(!filas.some(r=>r.dataset.grupo==='pendiente')){f='';}aplicar();})();
+</script>
+{% else %}
+<div class="card card-body text-center py-5"><strong>Aún no hay órdenes de compra</strong><p class="text-muted mt-2">Elige un proveedor y las materias primas que necesitas. Cuando llegue el material lo recibes aquí mismo.</p><div><a class="btn btn-primary" href="{{ url_for('compra_nueva') }}">Crear primera orden</a></div></div>
+{% endif %}
 {% endblock %}

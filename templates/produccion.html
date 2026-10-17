@@ -1,0 +1,59 @@
+{% extends 'produccion_base.html' %}
+{% block titulo %}Órdenes de producción{% endblock %}
+{% block contenido %}
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body p-4">
+        <h4 class="fw-bold mb-1">Planear producción</h4>
+        <p class="text-muted mb-4">Elige qué quieres producir y cuánto. Al producir, la materia prima se descuenta sola según la receta y el producto entra al inventario PT.</p>
+        <form method="post" action="{{ url_for('produccion_crear') }}" class="row g-2 align-items-end">
+            <input type="hidden" name="csrf" value="{{ csrf }}">
+            <input type="hidden" name="token" value="{{ token }}">
+            <div class="col-md-4">
+                <label class="form-label small fw-semibold" for="prodProducto">Producto</label>
+                <select id="prodProducto" name="producto_id" class="form-select" required>
+                    <option value="">Selecciona un producto…</option>
+                    {% for p in productos %}
+                    <option value="{{ p.id }}" {{ 'disabled' if not con_receta[p.id] else '' }}>{{ p.nombre }}{{ ' (sin receta)' if not con_receta[p.id] else '' }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small fw-semibold" for="prodCantidad">Cantidad</label>
+                <input id="prodCantidad" name="cantidad" class="form-control" required inputmode="decimal" placeholder="Ej. 100">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label small fw-semibold" for="prodNotas">Nota <span class="text-muted fw-normal">(opcional)</span></label>
+                <input id="prodNotas" name="notas" class="form-control" maxlength="500" placeholder="Turno, lote, observaciones">
+            </div>
+            <div class="col-md-2 d-grid"><button class="btn btn-primary" type="submit">Planear</button></div>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-header bg-white d-flex gap-2 flex-wrap">
+        {% for e, t in [('Planeada', 'Por producir'), ('Producida', 'Producidas'), ('todas', 'Todas'), ('Cancelada', 'Canceladas')] %}
+        <a class="btn btn-sm {{ 'btn-dark' if estado == e else 'btn-outline-secondary' }}" href="{{ url_for('produccion_ordenes', estado=e) }}">{{ t }}</a>
+        {% endfor %}
+    </div>
+    <div class="card-body p-0"><div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-dark"><tr><th>Folio</th><th>Producto</th><th class="text-end">Cantidad</th><th>Estado</th><th>Creada</th><th class="text-end"></th></tr></thead>
+            <tbody>
+            {% for o in ordenes %}
+            <tr>
+                <td class="font-monospace fw-semibold">{{ o.folio }}</td>
+                <td>{{ o.producto.nombre }}</td>
+                <td class="text-end">{{ '%g'|format(o.cantidad) }} {{ o.unidad or '' }}</td>
+                <td><span class="badge {{ 'bg-warning text-dark' if o.estado == 'Planeada' else 'bg-success' if o.estado == 'Producida' else 'bg-secondary' }}">{{ 'Por producir' if o.estado == 'Planeada' else o.estado }}</span></td>
+                <td class="small text-muted">{{ o.creada_en.strftime('%d/%m/%Y') }} · {{ o.creada_por }}</td>
+                <td class="text-end"><a class="btn btn-sm {{ 'btn-primary' if o.estado == 'Planeada' else 'btn-outline-secondary' }}" href="{{ url_for('produccion_detalle', id_orden=o.id) }}">{{ 'Producir' if o.estado == 'Planeada' else 'Ver' }}</a></td>
+            </tr>
+            {% else %}
+            <tr><td colspan="6" class="text-center text-muted py-5">No hay órdenes en esta vista. Planea la primera arriba.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div></div>
+</div>
+{% endblock %}

@@ -1,12 +1,13 @@
 {% extends 'tienda_base.html' %}
 {% block titulo %}Mis pedidos - Tienda NYDS{% endblock %}
 {% block contenido %}
-<h2 class="fw-bold text-dark mb-4">Mis pedidos</h2>
+<h2 class="fw-bold text-dark mb-1">Mis pedidos</h2>
+<p class="text-muted mb-4">Aquí aparecen los pedidos que ventas ya capturó en el sistema después de confirmarlos contigo por WhatsApp.</p>
 {% if not pedidos %}
-<p class="text-muted">Aún no tienes pedidos. <a href="{{ url_for('tienda_catalogo') }}">Ver catálogo</a>.</p>
+<p class="text-muted">Aún no tienes pedidos capturados. Si acabas de mandar uno por WhatsApp, aparecerá aquí en cuanto ventas lo registre. <a href="{{ url_for('tienda_catalogo') }}">Ver catálogo</a>.</p>
 {% else %}
 <div class="card border-0 shadow-sm"><div class="table-responsive"><table class="table align-middle mb-0">
-<thead class="table-dark"><tr><th>Folio</th><th>Fecha</th><th>Estado</th><th>Total</th><th>Saldo</th></tr></thead>
+<thead class="table-dark"><tr><th>Folio</th><th>Fecha</th><th>Estado</th><th>Total</th><th>Saldo</th><th></th></tr></thead>
 <tbody>
 {% for p in pedidos %}
 <tr>
@@ -15,6 +16,7 @@
     <td><span class="badge bg-primary">{{ p.estado }}</span></td>
     <td>${{ '%.2f' | format(p.importe_total) }}</td>
     <td>${{ '%.2f' | format(p.saldo) }}</td>
+    <td><a class="btn btn-outline-primary btn-sm" href="{{ url_for('tienda_pedido_confirmado', folio=p.folio) }}">Ver</a></td>
 </tr>
 {% endfor %}
 </tbody>

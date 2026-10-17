@@ -1,0 +1,86 @@
+<style>
+    #nydsBugBtn{position:fixed;right:16px;bottom:16px;z-index:1090;width:40px;height:40px;border-radius:50%;border:1px solid #d9e3e8;background:#fff;color:#97334c;box-shadow:0 4px 14px rgba(19,36,65,.18);display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0}
+    #nydsBugBtn:hover{background:#97334c;color:#fff}
+    #nydsBugBtn svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+    #nydsBugPanel{position:fixed;right:16px;bottom:64px;z-index:1090;width:min(340px,calc(100vw - 32px));max-height:calc(100vh - 90px);overflow-y:auto;background:#fff;border:1px solid #d9e3e8;border-radius:14px;box-shadow:0 18px 50px rgba(19,36,65,.28);display:none;padding:16px;font-size:13px;color:#132441}
+    #nydsBugPanel[data-open="true"]{display:block}
+    #nydsBugPanel h6{margin:0 0 10px;font-size:14px;font-weight:800}
+    #nydsBugPanel textarea{width:100%;min-height:90px;border:1px solid #d9e3e8;border-radius:10px;padding:10px;font-size:13px;resize:vertical}
+    #nydsBugPanel img{width:100%;border:1px solid #d9e3e8;border-radius:8px;margin:8px 0}
+    #nydsBugPanel .bug-acciones{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
+    #nydsBugPanel button{border-radius:9px;border:1px solid #d9e3e8;background:#fff;padding:7px 12px;font-size:12.5px;font-weight:700;color:#132441}
+    #nydsBugPanel button.bug-enviar{background:#132441;color:#fff;border-color:#132441}
+    #nydsBugPanel button:disabled{opacity:.6}
+    #nydsBugEstado{margin-top:8px;font-size:12px}
+    @media print{ #nydsBugBtn,#nydsBugPanel{display:none!important}}
+</style>
+<button type="button" id="nydsBugBtn" title="Reportar un problema" aria-label="Reportar un problema">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 2l1.5 2M16 2l-1.5 2"/><path d="M9 7h6a3 3 0 0 1 3 3v4a6 6 0 0 1-12 0v-4a3 3 0 0 1 3-3z"/><path d="M12 11v9M3 12h3M18 12h3M4 6l3 2M20 6l-3 2M4 19l3-2M20 19l-3-2"/></svg>
+</button>
+<div id="nydsBugPanel" role="dialog" aria-label="Reportar un problema" data-html2canvas-ignore="true">
+    <h6>Reportar un problema</h6>
+    <textarea id="nydsBugTexto" maxlength="2000" placeholder="¿Qué falla? Describe qué hacías y qué esperabas que pasara."></textarea>
+    <img id="nydsBugImg" alt="Captura de pantalla" hidden>
+    <label style="display:flex;gap:6px;align-items:center;margin-top:6px"><input type="checkbox" id="nydsBugIncluir" checked> Incluir captura de esta pantalla</label>
+    <div id="nydsBugEstado"></div>
+    <div class="bug-acciones"><button type="button" id="nydsBugCancelar">Cancelar</button><button type="button" class="bug-enviar" id="nydsBugEnviar">Enviar</button></div>
+</div>
+<script>
+(function () {
+    var btn = document.getElementById('nydsBugBtn'), panel = document.getElementById('nydsBugPanel');
+    var texto = document.getElementById('nydsBugTexto'), img = document.getElementById('nydsBugImg');
+    var incluir = document.getElementById('nydsBugIncluir'), estado = document.getElementById('nydsBugEstado');
+    var enviar = document.getElementById('nydsBugEnviar');
+    var captura = '', capturando = null;
+    btn.setAttribute('data-html2canvas-ignore', 'true');
+
+    function cargarLib() {
+        if (window.html2canvas) return Promise.resolve();
+        return new Promise(function (ok, fallo) {
+            var s = document.createElement('script');
+            s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+            s.onload = ok; s.onerror = fallo;
+            document.head.appendChild(s);
+        });
+    }
+    function tomarCaptura() {
+        // La captura se toma antes de abrir el panel para que no aparezca en ella.
+        return cargarLib().then(function () {
+            return window.html2canvas(document.body, {
+                scale: Math.min(1, 1400 / Math.max(window.innerWidth, 1)), useCORS: true, logging: false,
+                x: window.scrollX, y: window.scrollY, width: window.innerWidth, height: window.innerHeight,
+                windowWidth: document.documentElement.clientWidth, windowHeight: window.innerHeight
+            });
+        }).then(function (canvas) { return canvas.toDataURL('image/jpeg', 0.7); });
+    }
+    function cerrar() { panel.dataset.open = 'false'; }
+
+    btn.addEventListener('click', function () {
+        if (panel.dataset.open === 'true') { cerrar(); return; }
+        btn.disabled = true; estado.textContent = '';
+        capturando = tomarCaptura().catch(function () { return ''; }).then(function (d) {
+            captura = d; btn.disabled = false;
+            img.hidden = !d; if (d) img.src = d;
+            incluir.parentNode.hidden = !d; incluir.checked = !!d;
+            texto.value = ''; estado.textContent = d ? '' : 'No se pudo tomar la captura; puedes enviar solo el comentario.';
+            panel.dataset.open = 'true'; texto.focus();
+        });
+    });
+    incluir.addEventListener('change', function () { img.hidden = !incluir.checked || !captura; });
+    document.getElementById('nydsBugCancelar').addEventListener('click', cerrar);
+    enviar.addEventListener('click', function () {
+        var comentario = texto.value.trim();
+        if (!comentario) { estado.style.color = '#97334c'; estado.textContent = 'Escribe qué falla.'; return; }
+        enviar.disabled = true; estado.style.color = ''; estado.textContent = 'Enviando…';
+        fetch('/api/reportes-bug', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ comentario: comentario, pagina: location.pathname + location.search, captura: incluir.checked ? captura : '' })
+        }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+        .then(function (res) {
+            enviar.disabled = false;
+            if (res.ok) { estado.style.color = '#286a4e'; estado.textContent = res.j.mensaje; setTimeout(cerrar, 1400); }
+            else { estado.style.color = '#97334c'; estado.textContent = res.j.error || 'No se pudo enviar.'; }
+        }).catch(function () { enviar.disabled = false; estado.style.color = '#97334c'; estado.textContent = 'Error de conexión.'; });
+    });
+})();
+</script>

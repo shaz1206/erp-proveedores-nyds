@@ -1,15 +1,58 @@
 {% extends 'abastecimiento_base.html' %}{% block contenido %}
-<h2>Registrar movimiento de inventario</h2><p class="text-muted">Captura una cantidad en la unidad base del material. Cada movimiento conserva su motivo e historial.</p>
-{% if not materias %}<div class="alert alert-info">Activa una materia prima antes de registrar movimientos.</div>{% else %}
+<style>
+.mov-tipos{display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem}
+.mov-tipos input{position:absolute;opacity:0;pointer-events:none}
+.mov-tipos label{display:flex;flex-direction:column;gap:.15rem;padding:.8rem 1rem;border:2px solid var(--bs-border-color,#dee2e6);border-radius:.7rem;cursor:pointer;background:#fff}
+.mov-tipos label strong{font-size:1.02rem}
+.mov-tipos label small{color:var(--bs-secondary-color,#6c757d)}
+.mov-tipos input:checked+label{border-color:#3652a3;background:#eef1fb}
+.mov-tipos input:focus-visible+label{outline:3px solid #9db0e6}
+.mov-resumen{background:var(--bs-tertiary-bg,#f8f9fa);border-radius:.6rem;padding:.7rem 1rem}
+@media(max-width:600px){.mov-tipos{grid-template-columns:1fr}}
+</style>
 {% set vals=request.form if request.method=='POST' else request.args %}
-<form method="post" class="card card-body"><input name="csrf" type="hidden" value="{{ session.inventario_csrf }}"><input type="hidden" name="token" value="{{ token }}"><div class="row g-3">
-<div class="col-md-6"><label for="ambiente" class="form-label">Ambiente</label><select class="form-select" name="ambiente" id="ambiente"><option value="real">Real — conteo físico confirmado</option><option value="demo" {% if vals.get('ambiente')=='demo' %}selected{% endif %}>DEMO — cantidades ficticias de prueba</option></select></div>
-<div class="col-md-6"><label for="tipo" class="form-label">Tipo de movimiento</label><select class="form-select" name="tipo" id="tipo">{% for t in ['Saldo inicial','Ajuste de entrada','Ajuste de salida'] %}<option {% if vals.get('tipo')==t %}selected{% endif %}>{{ t }}</option>{% endfor %}</select></div>
-<div class="col-md-6"><label for="mp_id" class="form-label">Materia prima</label><select class="form-select" name="mp_id" id="mp_id" required><option value="">Selecciona un material</option>{% for m in materias %}<option value="{{ m.id_mp }}" data-unidad="{{ m.unidad_base }}" {% if vals.get('mp_id')==m.id_mp|string %}selected{% endif %}>{{ m.nombre_oficial }}</option>{% endfor %}</select></div>
-<div class="col-md-3"><label for="cantidad" class="form-label">Cantidad a agregar o retirar</label><input class="form-control" name="cantidad" id="cantidad" type="number" min="0.000001" max="999999999" step="0.000001" required value="{{ vals.get('cantidad','') }}"></div><div class="col-md-3"><label for="unidad" class="form-label">Unidad base</label><input readonly class="form-control" name="unidad" id="unidad" value="{{ vals.get('unidad','') }}"></div>
-{% for campo,titulo,lim in [('ubicacion','Almacén / ubicación exacta',220),('lote','Lote (si corresponde)',100),('referencia','Referencia de conteo o documento',160)] %}<div class="col-md-6"><label class="form-label" for="{{ campo }}">{{ titulo }}</label><input class="form-control" name="{{ campo }}" id="{{ campo }}" maxlength="{{ lim }}" {% if campo!='lote' %}required{% endif %} value="{{ vals.get(campo,'') }}"></div>{% endfor %}
-<div class="col-md-6"><label class="form-label" for="caducidad">Caducidad (si corresponde)</label><input class="form-control" type="date" id="caducidad" name="caducidad" value="{{ vals.get('caducidad','') }}"></div>
-<div class="col-12"><label class="form-label" for="motivo">Motivo del movimiento</label><textarea class="form-control" name="motivo" id="motivo" maxlength="2000" rows="3" required>{{ vals.get('motivo','') }}</textarea></div></div>
-<div class="alert alert-info mt-4">Saldo inicial se usa una sola vez por material, unidad, ubicación, lote, caducidad y ambiente, antes de otros movimientos. Los ajustes suman o restan la cantidad indicada; no reemplazan el saldo. Para corregir una ubicación con historial, usa el botón Ajustar del inventario.</div>
-<label class="d-flex gap-2 mb-3"><input type="checkbox" class="form-check-input" name="confirmado" value="si" required> Revisé el ambiente, la cantidad y la unidad. El motivo corresponde al movimiento que voy a registrar.</label><div class="d-flex gap-2"><button class="btn btn-primary">Guardar movimiento</button><a class="btn btn-outline-secondary" href="/admin/inventario-mp">Volver</a></div></form>
-<script>const mp=document.getElementById('mp_id'),unidad=document.getElementById('unidad');function actualizarUnidad(){unidad.value=mp.selectedOptions[0]?.dataset.unidad||''}mp.addEventListener('change',actualizarUnidad);actualizarUnidad();</script>{% endif %}{% endblock %}
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3"><div><h2 class="mb-1">Registrar movimiento</h2><p class="text-muted mb-0">Elige qué pasó, el material y la cantidad. Lo demás ya viene llenado.</p></div>
+<div class="btn-group" role="group" aria-label="Ambiente"><input type="radio" class="btn-check" name="ambiente" id="amb_real" value="real" form="formMov" {% if vals.get('ambiente')!='demo' %}checked{% endif %}><label class="btn btn-outline-secondary btn-sm" for="amb_real">Inventario real</label><input type="radio" class="btn-check" name="ambiente" id="amb_demo" value="demo" form="formMov" {% if vals.get('ambiente')=='demo' %}checked{% endif %}><label class="btn btn-outline-warning btn-sm" for="amb_demo">Pruebas DEMO</label></div></div>
+{% if not materias %}<div class="alert alert-info">Activa una materia prima antes de registrar movimientos.</div>{% else %}
+<form method="post" id="formMov" class="card card-body"><input name="csrf" type="hidden" value="{{ session.inventario_csrf }}"><input type="hidden" name="token" value="{{ token }}"><input type="hidden" name="confirmado" value="si"><input type="hidden" name="unidad" id="unidad" value="{{ vals.get('unidad','') }}">
+<div class="mov-tipos mb-4" role="radiogroup" aria-label="Tipo de movimiento">
+{% set tipo_sel=vals.get('tipo') or 'Ajuste de entrada' %}
+{% for t,titulo,ayuda in [('Ajuste de entrada','Entró material','Sumar a lo que ya hay'),('Ajuste de salida','Salió material','Restar: merma, consumo, corrección'),('Saldo inicial','Conteo inicial','Primer saldo de este material y lugar')] %}<input type="radio" name="tipo" id="tipo_{{ loop.index }}" value="{{ t }}" {% if tipo_sel==t %}checked{% endif %}><label for="tipo_{{ loop.index }}"><strong>{{ titulo }}</strong><small>{{ ayuda }}</small></label>{% endfor %}</div>
+<div class="row g-3">
+<div class="col-md-7"><label for="mp_id" class="form-label">Material</label><select class="form-select form-select-lg" name="mp_id" id="mp_id" required><option value="">Selecciona un material</option>{% for m in materias %}{% set ubis=m.ubicaciones|selectattr('activo')|list %}{% set prin=(ubis|selectattr('principal')|list|first) or (ubis|first) %}<option value="{{ m.id_mp }}" data-unidad="{{ m.unidad_base }}" data-ubi="{% if prin %}{{ prin.almacen }} · {{ prin.ubicacion }}{% endif %}" data-lote="{{ 1 if (m.inventario_config and m.inventario_config.control_lote) else 0 }}" data-cad="{{ 1 if (m.inventario_config and m.inventario_config.control_caducidad) else 0 }}" {% if vals.get('mp_id')==m.id_mp|string %}selected{% endif %}>{{ m.nombre_oficial }}</option>{% endfor %}</select></div>
+<div class="col-md-5"><label for="cantidad" class="form-label">Cantidad</label><div class="input-group input-group-lg"><input class="form-control" name="cantidad" id="cantidad" type="number" min="0.000001" max="999999999" step="0.000001" required value="{{ vals.get('cantidad','') }}" inputmode="decimal"><span class="input-group-text" id="unidadVista" style="min-width:4.5rem;justify-content:center">—</span></div></div>
+<div class="col-md-6"><label class="form-label" for="ubicacion">¿En qué lugar?</label><input class="form-control" name="ubicacion" id="ubicacion" maxlength="220" required value="{{ vals.get('ubicacion','') }}" placeholder="Almacén · rack"></div>
+<div class="col-md-3" id="gLote" {% if not vals.get('lote') %}hidden{% endif %}><label class="form-label" for="lote">Lote</label><input class="form-control" name="lote" id="lote" maxlength="100" value="{{ vals.get('lote','') }}"></div>
+<div class="col-md-3" id="gCad" {% if not vals.get('caducidad') %}hidden{% endif %}><label class="form-label" for="caducidad">Caducidad</label><input class="form-control" type="date" id="caducidad" name="caducidad" value="{{ vals.get('caducidad','') }}"></div>
+<div class="col-md-6"><label class="form-label" for="motivo">Motivo</label><input class="form-control" name="motivo" id="motivo" maxlength="2000" required list="motivosLista" value="{{ vals.get('motivo','') }}"><datalist id="motivosLista"></datalist></div>
+<div class="col-md-6"><label class="form-label" for="referencia">Documento o referencia</label><input class="form-control" name="referencia" id="referencia" maxlength="160" required value="{{ vals.get('referencia','') }}"></div>
+</div>
+<div class="mov-resumen mt-4" id="resumen" aria-live="polite"></div>
+<div class="d-flex gap-2 mt-3 flex-wrap"><button class="btn btn-primary btn-lg" id="btnGuardar">Guardar movimiento</button><a class="btn btn-outline-secondary btn-lg" href="/admin/inventario-mp">Volver</a></div></form>
+<script>
+(function(){
+const $=id=>document.getElementById(id), mp=$('mp_id'), ub=$('ubicacion'), mo=$('motivo'), rf=$('referencia'), cant=$('cantidad');
+const MOT={'Ajuste de entrada':['Entrada de material','Devolución a almacén','Corrección de conteo'],'Ajuste de salida':['Merma','Consumo en producción','Muestra o prueba','Corrección de conteo'],'Saldo inicial':['Conteo físico inicial']};
+const REF={'Ajuste de entrada':'Entrada manual','Ajuste de salida':'Salida manual','Saldo inicial':'Conteo físico'};
+const tocado={ub:!!ub.value,mo:!!mo.value,rf:!!rf.value}; ub.addEventListener('input',()=>tocado.ub=true); mo.addEventListener('input',()=>tocado.mo=true); rf.addEventListener('input',()=>tocado.rf=true);
+const tipo=()=>document.querySelector('input[name=tipo]:checked').value;
+function opt(){return mp.selectedOptions[0]}
+function pintar(){
+  const t=tipo(), o=opt(), u=o&&o.dataset.unidad||'', n=parseFloat(cant.value);
+  $('unidad').value=u; $('unidadVista').textContent=u||'—';
+  $('motivosLista').innerHTML=MOT[t].map(x=>'<option value="'+x+'">').join('');
+  if(!tocado.mo) mo.value=MOT[t][0]; if(!tocado.rf) rf.value=REF[t];
+  if(o&&o.value&&!tocado.ub) ub.value=o.dataset.ubi||'';
+  const lote=o&&o.dataset.lote==='1', cad=o&&o.dataset.cad==='1';
+  if(lote) $('gLote').hidden=false; if(cad) $('gCad').hidden=false;
+  $('lote').required=!!lote; $('caducidad').required=!!cad;
+  const fmt=x=>x.toLocaleString('es-MX',{maximumFractionDigits:6});
+  const verbo={'Ajuste de entrada':'Se sumarán','Ajuste de salida':'Se restarán','Saldo inicial':'Quedará como saldo inicial'}[t];
+  $('resumen').innerHTML=(o&&o.value&&n>0)?verbo+' <strong>'+fmt(n)+' '+u+'</strong> de <strong>'+o.textContent+'</strong>'+(ub.value?' en '+ub.value:'')+'.':'Elige el material y escribe la cantidad.';
+  $('btnGuardar').textContent=t==='Ajuste de entrada'?'Guardar entrada':t==='Ajuste de salida'?'Guardar salida':'Guardar conteo inicial';
+}
+document.querySelectorAll('input[name=tipo]').forEach(r=>r.addEventListener('change',pintar));
+mp.addEventListener('change',()=>{tocado.ub=false;pintar()}); cant.addEventListener('input',pintar); ub.addEventListener('input',pintar);
+pintar(); if(!mp.value) mp.focus(); else cant.focus();
+})();
+</script>{% endif %}{% endblock %}

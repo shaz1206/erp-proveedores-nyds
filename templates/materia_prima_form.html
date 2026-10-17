@@ -6,6 +6,19 @@
     <title>{{ 'Nueva materia prima' if not id_mp else 'Expediente de materia prima' }} - ERP NYDS</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20260911-nyds-white-logo') }}">
+<style>
+.mp-seccion{border:0}
+.mp-seccion h5{display:flex;align-items:center;gap:.6rem}
+.mp-seccion h5 .num{display:inline-flex;align-items:center;justify-content:center;width:1.7rem;height:1.7rem;border-radius:50%;background:#0f1f3d;color:#fff;font-size:.85rem;font-weight:700}
+details.mp-mas{margin-top:1rem;border:1px dashed var(--bs-border-color,#dee2e6);border-radius:.6rem;padding:.65rem .9rem;background:var(--bs-body-bg,#fff)}
+details.mp-mas>summary{cursor:pointer;font-weight:600;color:var(--bs-secondary-color,#6c757d)}
+details.mp-mas[open]>summary{margin-bottom:.9rem}
+details.mp-exp{background:#fff;border-radius:.6rem;margin-bottom:.75rem;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+details.mp-exp>summary{cursor:pointer;font-weight:700;padding:1rem 1.25rem}
+details.mp-exp>.mp-exp-cuerpo{padding:0 1.25rem 1.25rem}
+#tablaProveedoresMP td:last-child{white-space:nowrap}
+.sticky-actions{position:sticky;bottom:0;background:linear-gradient(transparent,var(--bs-body-bg,#f8f9fa) 30%);padding:1rem 0 .5rem;z-index:5}
+</style>
 </head>
 <body class="bg-light">
 {% include 'erp_header.html' %}
@@ -14,7 +27,7 @@
     <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
         <div>
             <h3 class="fw-bold mb-1" id="tituloFicha">{{ 'Nueva materia prima' if not id_mp else 'Expediente de materia prima' }}</h3>
-            <div class="text-muted" id="subtituloFicha">Capture la identidad del insumo. El SKU se genera automáticamente.</div>
+            <div class="text-muted" id="subtituloFicha">Llena lo básico y guarda. El SKU se genera solo; lo demás lo puedes completar después.</div>
         </div>
         <div class="d-flex gap-2 align-items-center">
             <span id="badgeEstatus" class="badge bg-warning text-dark px-3 py-2">Borrador</span>
@@ -24,161 +37,98 @@
 
     <div id="alertaGeneral"></div>
 
-    <ul class="nav nav-tabs mb-3" id="tabsMP" role="tablist">
-        <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-general">General</button></li>
-        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-inventario">Inventario y almacén</button></li>
-        <li class="nav-item"><button class="nav-link expediente-only" data-bs-toggle="tab" data-bs-target="#tab-alias">Alias</button></li>
-        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-proveedores">Proveedores y precios</button></li>
-        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-tecnico">Técnico / calidad</button></li>
-        <li class="nav-item"><button class="nav-link expediente-only" data-bs-toggle="tab" data-bs-target="#tab-documentos">Documentos</button></li>
-        <li class="nav-item"><button class="nav-link expediente-only" data-bs-toggle="tab" data-bs-target="#tab-historial">Historial</button></li>
-    </ul>
-
     <form id="formMP">
-        <div class="tab-content">
-            <div class="tab-pane fade show active" id="tab-general">
-                <div class="card shadow-sm border-0"><div class="card-body p-4">
-                    <h5 class="fw-bold mb-3">Identificación y clasificación</h5>
-                    <div class="row g-3">
-                        <div class="col-md-2"><label class="form-label">SKU interno</label><input id="sku_mp" class="form-control" value="Automático" disabled></div>
-                        <div class="col-md-6"><label class="form-label">Nombre oficial *</label><input id="nombre_oficial" class="form-control" maxlength="150" required><div id="duplicadoNombre" class="form-text text-danger d-none"></div></div>
-                        <div class="col-md-4"><label class="form-label">Nombre corto</label><input id="nombre_corto" class="form-control" maxlength="60"></div>
-                        <div class="col-12"><label class="form-label">Descripción</label><textarea id="descripcion" class="form-control" rows="2" maxlength="500"></textarea></div>
-                        <div class="col-md-3"><label class="form-label">Familia *</label><input id="familia" class="form-control" list="familiasLista" required><datalist id="familiasLista"><option value="Tensoactivos"><option value="Bases/Alcalinos"><option value="Oxidantes/Clorados"><option value="Polvos"><option value="Colores"><option value="Esencias"><option value="Ácidos"><option value="Solventes"><option value="Aditivos"></datalist></div>
-                        <div class="col-md-3"><label class="form-label">Subfamilia</label><input id="subfamilia" class="form-control"></div>
-                        <div class="col-md-2"><label class="form-label">Estado físico *</label><select id="estado_fisico" class="form-select" required><option value="">Seleccione...</option><option>Líquido</option><option>Polvo</option><option>Sólido</option><option>Gel</option><option>Otro</option></select></div>
-                        <div class="col-md-2"><label class="form-label">Concentración / grado</label><input id="grado_concentracion" class="form-control" placeholder="Ej. 70 %"></div>
-                        <div class="col-md-2"><label class="form-label">CAS</label><input id="cas" class="form-control"></div>
-                    </div>
-                    <hr class="my-4">
-                    <h5 class="fw-bold mb-3">Unidades y conversiones</h5>
-                    <div class="row g-3">
-                        <div class="col-md-3"><label class="form-label">Unidad base *</label><select id="unidad_base" class="form-select" required><option value="">Seleccione...</option><option>kg</option><option>pieza</option></select></div>
-                        <div class="col-md-3"><label class="form-label">Unidad preferida en receta</label><select id="unidad_preferida_receta" class="form-select"><option value="">Igual a unidad base</option><option>kg</option><option>pieza</option></select></div>
-                        <div class="col-md-2"><label class="form-label">Decimales *</label><input id="decimales_inventario" type="number" min="0" max="6" class="form-control" value="3" required></div>
-                        <div class="col-md-2"><label class="form-label">Densidad kg/L</label><input id="densidad_kg_l" type="number" min="0" step="0.000001" class="form-control"></div>
-                        <div class="col-md-2"><label class="form-label">Factor manual</label><input id="factor_conversion_manual" type="number" min="0" step="0.000001" class="form-control"></div>
-                        <div class="col-md-4"><label class="form-label">Fuente de densidad</label><input id="fuente_densidad" class="form-control" placeholder="Ficha técnica, COA, medición..."></div>
-                        <div class="col-md-3"><label class="form-label">Fecha de densidad</label><input id="fecha_densidad" type="date" class="form-control"></div>
-                        <div class="col-md-3 d-flex align-items-end"><div class="form-check mb-2"><input id="permite_fraccion" type="checkbox" class="form-check-input" checked><label class="form-check-label" for="permite_fraccion">Permite fracciones</label></div></div>
-                        <div class="col-md-2 d-flex align-items-end"><div class="form-check mb-2"><input id="se_compra_externamente" type="checkbox" class="form-check-input" checked><label class="form-check-label" for="se_compra_externamente">Se compra externamente</label></div></div>
-                    </div>
-                    <div class="alert alert-warning mt-3 mb-0 small"><strong>Regla:</strong> el sistema no debe asumir que 1 L = 1 kg. Para conversiones masa ↔ volumen se requiere densidad válida o una regla explícita.</div>
-                </div></div>
-            </div>
-
-            <div class="tab-pane fade" id="tab-inventario">
-                <div class="card shadow-sm border-0"><div class="card-body p-4">
-                    <h5 class="fw-bold mb-3">Configuración de reabastecimiento</h5>
-                    <div class="row g-3">
-                        <div class="col-md-3"><label class="form-label">Stock mínimo *</label><input id="stock_minimo" type="number" min="0" step="0.000001" class="form-control" value="0" required></div>
-                        <div class="col-md-3"><label class="form-label">Stock de seguridad</label><input id="stock_seguridad" type="number" min="0" step="0.000001" class="form-control"></div>
-                        <div class="col-md-3"><label class="form-label">Punto de reorden *</label><input id="punto_reorden" type="number" min="0" step="0.000001" class="form-control" value="0" required></div>
-                        <div class="col-md-3"><label class="form-label">Stock objetivo / máximo *</label><input id="stock_objetivo_maximo" type="number" min="0" step="0.000001" class="form-control" value="0" required></div>
-                        <div class="col-md-3"><label class="form-label">Lead time de reabasto (días) *</label><input id="lead_time_reabasto_dias" type="number" min="0" class="form-control" value="0" required></div>
-                        <div class="col-md-3"><label class="form-label">Método de salida *</label><select id="metodo_salida" class="form-select"><option>FIFO</option><option>FEFO</option></select></div>
-                        <div class="col-md-2 d-flex align-items-end"><div class="form-check mb-2"><input id="control_lote" type="checkbox" class="form-check-input"><label class="form-check-label">Control por lote</label></div></div>
-                        <div class="col-md-2 d-flex align-items-end"><div class="form-check mb-2"><input id="control_caducidad" type="checkbox" class="form-check-input"><label class="form-check-label">Control de caducidad</label></div></div>
-                        <div class="col-md-2 d-flex align-items-end"><div class="form-check mb-2"><input id="permite_stock_negativo" type="checkbox" class="form-check-input"><label class="form-check-label">Permitir stock negativo</label></div></div>
-                    </div>
-                    <div class="alert alert-light border mt-3 small">Consistencia recomendada y validada: <strong>stock objetivo ≥ punto de reorden ≥ stock mínimo ≥ 0</strong>. Si se activa caducidad, se utilizará FEFO.</div>
-                    <hr class="my-4">
-                    <h5 class="fw-bold mb-3">Ubicación principal</h5>
-                    <div class="row g-3">
-                        <div class="col-md-4"><label class="form-label">Almacén *</label><input id="almacen" class="form-control" placeholder="Ej. Almacén de químicos"></div>
-                        <div class="col-md-4"><label class="form-label">Rack / zona / posición *</label><input id="ubicacion" class="form-control" placeholder="Ej. Rack A / Nivel 2"></div>
-                        <div class="col-md-4"><label class="form-label">Condición de almacenamiento</label><input id="condicion_almacenamiento" class="form-control" placeholder="Ej. mantener cerrado y protegido de calor"></div>
-                        <div class="col-md-3"><label class="form-label">Temperatura mín. °C</label><input id="temperatura_min_c" type="number" step="0.1" class="form-control"></div>
-                        <div class="col-md-3"><label class="form-label">Temperatura máx. °C</label><input id="temperatura_max_c" type="number" step="0.1" class="form-control"></div>
-                        <div class="col-md-4"><label class="form-label">Incompatibilidades</label><input id="incompatibilidades" class="form-control" placeholder="Familias o sustancias incompatibles"></div>
-                        <div class="col-md-2 d-flex align-items-end"><div class="form-check mb-2"><input id="requiere_area_especial" type="checkbox" class="form-check-input"><label class="form-check-label">Área especial</label></div></div>
-                    </div>
-                </div></div>
-            </div>
-
-            <div class="tab-pane fade" id="tab-alias">
-                <div class="card shadow-sm border-0"><div class="card-body p-4">
-                    <h5 class="fw-bold">Alias y nombres equivalentes</h5><p class="text-muted small">Sirven para búsqueda y conciliación. No crean otro inventario.</p>
-                    <div class="row g-2 align-items-end mb-4">
-                        <div class="col-md-4"><label class="form-label">Alias *</label><input id="alias_texto" class="form-control"></div>
-                        <div class="col-md-3"><label class="form-label">Tipo</label><select id="tipo_alias" class="form-select"><option>Sinónimo</option><option>Nombre anterior</option><option>Nombre de operador</option><option>Marca</option><option>Otro</option></select></div>
-                        <div class="col-md-3"><label class="form-label">Observación</label><input id="alias_observacion" class="form-control"></div>
-                        <div class="col-md-2 d-grid"><button type="button" class="btn btn-primary" onclick="agregarAlias()">Agregar alias</button></div>
-                    </div>
-                    <div class="table-responsive"><table class="table align-middle"><thead><tr><th>Alias</th><th>Tipo</th><th>Observación</th><th></th></tr></thead><tbody id="tablaAlias"></tbody></table></div>
-                </div></div>
-            </div>
-
-            <div class="tab-pane fade" id="tab-proveedores">
-                <div class="card shadow-sm border-0 mb-3"><div class="card-body p-4">
-                    <div class="d-flex justify-content-between gap-3"><div><h5 class="fw-bold mb-1">Proveedores y condiciones de compra</h5><p class="text-muted small mb-0">Agrega todos los proveedores de esta materia prima con sus propios precios. Cada cambio de precio/condición genera una nueva vigencia; el registro anterior no se sobrescribe.</p></div><a href="/admin/catalogo" class="btn btn-outline-secondary btn-sm h-100">Administrar proveedores</a></div>
-                    <hr>
-                    <div class="row g-3">
-                        <div class="col-md-4"><label class="form-label">Proveedor activo *</label><select id="prov_id" class="form-select"></select></div>
-                        <div class="col-md-2"><label class="form-label">SKU proveedor</label><input id="sku_proveedor" class="form-control"></div>
-                        <div class="col-md-2"><label class="form-label">Marca / fabricante</label><input id="marca_fabricante" class="form-control"></div>
-                        <div class="col-md-2"><label class="form-label">Presentación *</label><input id="presentacion_compra" class="form-control" placeholder="Tambo, saco..."></div>
-                        <div class="col-md-2 d-flex align-items-end"><div class="form-check mb-2"><input id="prov_principal" type="checkbox" class="form-check-input"><label class="form-check-label">Principal</label></div></div>
-                        <div class="col-md-2"><label class="form-label">Contenido *</label><input id="contenido_presentacion" type="number" min="0" step="0.000001" class="form-control"></div>
-                        <div class="col-md-2"><label class="form-label">Unidad contenido *</label><select id="unidad_contenido" class="form-select"><option>kg</option><option>pieza</option></select></div>
-                        <div class="col-md-2"><label class="form-label">Factor a unidad base *</label><input id="factor_a_unidad_base" type="number" min="0" step="0.000001" class="form-control"><div class="form-text"><button class="btn btn-link btn-sm p-0" type="button" onclick="calcularFactor()">Calcular</button></div></div>
-                        <div class="col-12"><h6 class="border-top pt-3">Precio y condiciones del proveedor seleccionado</h6></div><div class="col-md-2"><label class="form-label">Precio vigente *</label><input id="precio_vigente" type="number" min="0" step="0.0001" class="form-control"></div>
-                        <div class="col-md-2"><label class="form-label">Tipo de precio *</label><select id="tipo_precio" class="form-select"><option>Por presentación</option><option>Por kg</option><option>Por L</option><option>Por pieza</option></select></div>
-                        <div class="col-md-2"><label class="form-label">Moneda *</label><select id="moneda" class="form-select"><option>MXN</option><option>USD</option></select></div>
-                        <div class="col-md-2"><label class="form-label">IVA % *</label><input id="iva_tasa" type="number" min="0" step="0.01" class="form-control" value="16"></div>
-                        <div class="col-md-2"><label class="form-label">Flete estimado</label><input id="flete_estimado" type="number" min="0" step="0.01" class="form-control"></div>
-                        <div class="col-md-2"><label class="form-label">Compra mínima *</label><input id="compra_minima" type="number" min="0" step="0.0001" class="form-control" value="1"></div>
-                        <div class="col-md-2"><label class="form-label">Unidad MOQ *</label><select id="unidad_compra_minima" class="form-select"><option>Presentación</option><option>kg</option><option>L</option><option>pieza</option></select></div>
-                        <div class="col-md-2"><label class="form-label">Lead time días *</label><input id="lead_time_dias" type="number" min="0" class="form-control" value="0"></div>
-                        <div class="col-md-2 d-flex align-items-end"><button type="button" class="btn btn-primary w-100" id="btnCondicion" onclick="agregarProveedor()">Agregar proveedor</button></div>
-                        <div class="col-12"><button type="button" class="btn btn-link p-0" onclick="limpiarCondicion()">Cancelar captura de proveedor</button></div>
-                    </div>
-                </div></div>
-                <div class="card shadow-sm border-0"><div class="card-body p-0"><div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead><tr><th>Proveedor</th><th>Presentación</th><th>Factor</th><th>Precio</th><th>MOQ</th><th>Lead time</th><th>Vigencia</th><th>Estatus</th><th></th></tr></thead><tbody id="tablaProveedoresMP"></tbody></table></div></div></div>
-            </div>
-
-            <div class="tab-pane fade" id="tab-tecnico">
-                <div class="card shadow-sm border-0"><div class="card-body p-4">
-                    <h5 class="fw-bold mb-3">Datos técnicos, seguridad y calidad</h5>
-                    <div class="row g-3">
-                        <div class="col-md-4"><label class="form-label">Fabricante / marca de referencia</label><input id="fabricante_marca_referencia" class="form-control"></div>
-                        <div class="col-md-3"><label class="form-label">Pureza / especificación</label><input id="pureza_especificacion" class="form-control"></div>
-                        <div class="col-md-2"><label class="form-label">pH de referencia</label><input id="ph_referencia" class="form-control"></div>
-                        <div class="col-md-3"><label class="form-label">Clasificación de riesgo</label><input id="clasificacion_riesgo" class="form-control"></div>
-                        <div class="col-md-3 d-flex align-items-end"><div class="form-check mb-2"><input id="peligroso" type="checkbox" class="form-check-input"><label class="form-check-label">Material peligroso</label></div></div>
-                        <div class="col-md-3 d-flex align-items-end"><div class="form-check mb-2"><input id="requiere_coa" type="checkbox" class="form-check-input"><label class="form-check-label">Requiere COA por lote</label></div></div>
-                        <div class="col-12"><label class="form-label">Criterio de recepción</label><textarea id="criterio_recepcion" class="form-control" rows="2"></textarea></div>
-                        <div class="col-12"><label class="form-label">Observaciones técnicas</label><textarea id="observaciones_tecnicas" class="form-control" rows="3"></textarea></div>
-                    </div>
-                </div></div>
-            </div>
-
-            <div class="tab-pane fade" id="tab-documentos">
-                <div class="card shadow-sm border-0"><div class="card-body p-4">
-                    <h5 class="fw-bold">Expediente digital</h5>
-                    <div class="row g-2 align-items-end mb-4">
-                        <div class="col-md-3"><label class="form-label">Tipo</label><select id="doc_tipo" class="form-select"><option>Ficha técnica</option><option>SDS / Hoja de seguridad</option><option>COA / Certificado de análisis</option><option>Especificación interna</option><option>Fotografía / etiqueta</option><option>Otro</option></select></div>
-                        <div class="col-md-5"><label class="form-label">Archivo</label><input id="doc_archivo" type="file" class="form-control" accept=".pdf,.jpg,.jpeg,.png,.xlsx,.docx"></div>
-                        <div class="col-md-2"><label class="form-label">Vigencia desde</label><input id="doc_desde" type="date" class="form-control"></div>
-                        <div class="col-md-2 d-grid"><button type="button" class="btn btn-primary" onclick="subirDocumento()">Subir documento</button></div>
-                    </div>
-                    <div class="table-responsive"><table class="table align-middle"><thead><tr><th>Tipo</th><th>Archivo</th><th>Versión</th><th>Fecha</th><th></th></tr></thead><tbody id="tablaDocumentosMP"></tbody></table></div>
-                </div></div>
-            </div>
-
-            <div class="tab-pane fade" id="tab-historial">
-                <div class="card shadow-sm border-0"><div class="card-body p-4">
-                    <h5 class="fw-bold">Bitácora de cambios</h5>
-                    <div class="table-responsive"><table class="table table-sm align-middle"><thead><tr><th>Fecha</th><th>Evento</th><th>Anterior</th><th>Nuevo</th><th>Usuario</th><th>Motivo</th></tr></thead><tbody id="tablaBitacora"></tbody></table></div>
-                </div></div>
-            </div>
-        </div>
-
-        <div class="sticky-actions mt-3 d-flex justify-content-end gap-2">
-            <a href="/admin/materias-primas" class="btn btn-outline-secondary">Cancelar / volver</a>
-            <button type="submit" class="btn btn-primary px-4">{{ 'Guardar borrador' if not id_mp else 'Guardar cambios' }}</button>
-        </div>
-    </form>
+<div class="card shadow-sm mp-seccion mb-3"><div class="card-body p-4"><h5 class="fw-bold mb-3"><span class="num">1</span>¿Qué material es?</h5>
+<div class="row g-3">
+<div class="col-md-5"><label class="form-label" for="nombre_oficial">Nombre *</label><input id="nombre_oficial" class="form-control" maxlength="150" required><div id="duplicadoNombre" class="form-text text-danger d-none"></div></div>
+<div class="col-md-3"><label class="form-label" for="familia">Familia *</label><input id="familia" class="form-control" list="familiasLista" required><datalist id="familiasLista"><option value="Tensoactivos"><option value="Bases/Alcalinos"><option value="Oxidantes/Clorados"><option value="Polvos"><option value="Colores"><option value="Esencias"><option value="Ácidos"><option value="Solventes"><option value="Aditivos"></datalist></div>
+<div class="col-md-2"><label class="form-label" for="estado_fisico">Estado físico *</label><select id="estado_fisico" class="form-select" required><option value="">Seleccione...</option><option>Líquido</option><option>Polvo</option><option>Sólido</option><option>Gel</option><option>Otro</option></select></div>
+<div class="col-md-2"><label class="form-label" for="unidad_base">Se mide en *</label><select id="unidad_base" class="form-select" required><option value="">Seleccione...</option><option>kg</option><option>pieza</option></select></div>
+</div>
+<details class="mp-mas"><summary>Más datos del material (SKU, nombre corto, descripción, CAS…)</summary><div class="row g-3">
+<div class="col-md-3"><label class="form-label" for="sku_mp">SKU interno</label><input id="sku_mp" class="form-control" value="Automático" disabled></div>
+<div class="col-md-3"><label class="form-label" for="nombre_corto">Nombre corto</label><input id="nombre_corto" class="form-control" maxlength="60"></div>
+<div class="col-md-3"><label class="form-label" for="subfamilia">Subfamilia</label><input id="subfamilia" class="form-control"></div>
+<div class="col-md-3"><label class="form-label" for="grado_concentracion">Concentración / grado</label><input id="grado_concentracion" class="form-control" placeholder="Ej. 70 %"></div>
+<div class="col-md-3"><label class="form-label" for="cas">CAS</label><input id="cas" class="form-control"></div>
+<div class="col-12"><label class="form-label" for="descripcion">Descripción</label><textarea id="descripcion" class="form-control" rows="2" maxlength="500"></textarea></div>
+</div></details>
+<details class="mp-mas"><summary>Unidades, decimales y conversión (densidad)</summary><div class="row g-3">
+<div class="col-md-3"><label class="form-label" for="unidad_preferida_receta">Unidad preferida en receta</label><select id="unidad_preferida_receta" class="form-select"><option value="">Igual a unidad base</option><option>kg</option><option>pieza</option></select></div>
+<div class="col-md-2"><label class="form-label" for="decimales_inventario">Decimales *</label><input id="decimales_inventario" type="number" min="0" max="6" class="form-control" value="3" required></div>
+<div class="col-md-2"><label class="form-label" for="densidad_kg_l">Densidad kg/L</label><input id="densidad_kg_l" type="number" min="0" step="0.000001" class="form-control"></div>
+<div class="col-md-2"><label class="form-label" for="factor_conversion_manual">Factor manual</label><input id="factor_conversion_manual" type="number" min="0" step="0.000001" class="form-control"></div>
+<div class="col-md-3"><label class="form-label" for="fuente_densidad">Fuente de densidad</label><input id="fuente_densidad" class="form-control" placeholder="Ficha técnica, COA, medición..."></div>
+<div class="col-md-3"><label class="form-label" for="fecha_densidad">Fecha de densidad</label><input id="fecha_densidad" type="date" class="form-control"></div>
+<div class="col-md-3 d-flex align-items-end"><div class="form-check mb-2"><input id="permite_fraccion" type="checkbox" class="form-check-input" checked><label class="form-check-label" for="permite_fraccion">Permite fracciones</label></div></div>
+</div><div class="alert alert-warning mt-3 mb-0 small"><strong>Regla:</strong> el sistema no asume que 1 L = 1 kg. Para convertir entre masa y volumen se necesita una densidad válida o una regla explícita.</div></details>
+</div></div>
+<div class="card shadow-sm mp-seccion mb-3" id="seccionProveedor"><div class="card-body p-4"><div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-3"><h5 class="fw-bold mb-0"><span class="num">2</span>¿A quién se lo compras?</h5><div class="form-check"><input id="se_compra_externamente" type="checkbox" class="form-check-input" checked><label class="form-check-label" for="se_compra_externamente">Se compra a un proveedor</label></div></div>
+<div id="bloqueProveedor"><p class="text-muted small mb-3">Elige el proveedor y cómo lo vende. Si cambia el precio, se guarda como una nueva vigencia y el anterior queda en el historial. <a href="/admin/catalogo">Administrar proveedores</a></p>
+<div class="row g-3">
+<div class="col-md-4"><label class="form-label" for="prov_id">Proveedor</label><select id="prov_id" class="form-select"></select></div>
+<div class="col-md-3"><label class="form-label" for="presentacion_compra">Cómo lo vende *</label><input id="presentacion_compra" class="form-control" placeholder="Tambo, saco..."></div>
+<div class="col-md-2"><label class="form-label" for="contenido_presentacion">Trae *</label><input id="contenido_presentacion" type="number" min="0" step="0.000001" class="form-control"></div>
+<div class="col-md-3"><label class="form-label" for="unidad_contenido">Unidad de lo que trae *</label><select id="unidad_contenido" class="form-select"><option>kg</option><option>pieza</option></select></div>
+<div class="col-md-3"><label class="form-label" for="precio_vigente">Precio por presentación *</label><input id="precio_vigente" type="number" min="0" step="0.0001" class="form-control"></div>
+<div class="col-md-2"><label class="form-label" for="moneda">Moneda *</label><select id="moneda" class="form-select"><option>MXN</option><option>USD</option></select></div>
+<div class="col-md-4"><label class="form-label" for="factor_a_unidad_base">Equivale a (en la unidad de arriba) *</label><input id="factor_a_unidad_base" type="number" min="0" step="0.000001" class="form-control"><div class="form-text"><button class="btn btn-link btn-sm p-0" type="button" onclick="calcularFactor()">Calcular</button></div></div>
+</div>
+<details class="mp-mas"><summary>Más condiciones de compra (SKU del proveedor, IVA, flete, mínimo, tiempo de entrega…)</summary><div class="row g-3">
+<div class="col-md-3"><label class="form-label" for="sku_proveedor">SKU proveedor</label><input id="sku_proveedor" class="form-control"></div>
+<div class="col-md-3"><label class="form-label" for="marca_fabricante">Marca / fabricante</label><input id="marca_fabricante" class="form-control"></div>
+<div class="col-md-3"><label class="form-label" for="tipo_precio">Tipo de precio *</label><select id="tipo_precio" class="form-select"><option>Por presentación</option><option>Por kg</option><option>Por L</option><option>Por pieza</option></select></div>
+<div class="col-md-2"><label class="form-label" for="iva_tasa">IVA % *</label><input id="iva_tasa" type="number" min="0" step="0.01" class="form-control" value="16"></div>
+<div class="col-md-2"><label class="form-label" for="flete_estimado">Flete estimado</label><input id="flete_estimado" type="number" min="0" step="0.01" class="form-control"></div>
+<div class="col-md-2"><label class="form-label" for="compra_minima">Compra mínima *</label><input id="compra_minima" type="number" min="0" step="0.0001" class="form-control" value="1"></div>
+<div class="col-md-2"><label class="form-label" for="unidad_compra_minima">Unidad MOQ *</label><select id="unidad_compra_minima" class="form-select"><option>Presentación</option><option>kg</option><option>L</option><option>pieza</option></select></div>
+<div class="col-md-3"><label class="form-label" for="lead_time_dias">Lead time días *</label><input id="lead_time_dias" type="number" min="0" class="form-control" value="0"></div>
+<div class="col-md-3 d-flex align-items-end"><div class="form-check mb-2"><input id="prov_principal" type="checkbox" class="form-check-input"><label class="form-check-label" for="prov_principal">Principal</label></div></div>
+</div></details>
+<div class="d-flex gap-2 align-items-center mt-3 flex-wrap"><button type="button" class="btn btn-primary" id="btnCondicion" onclick="agregarProveedor()">Agregar proveedor</button><button type="button" class="btn btn-link" onclick="limpiarCondicion()">Limpiar</button><span class="text-muted small" id="avisoProveedor">Al guardar la ficha, el proveedor que dejaste capturado se agrega solo.</span></div>
+<div class="table-responsive mt-3"><table class="table table-hover align-middle mb-0"><thead><tr><th>Proveedor</th><th>Presentación</th><th>Factor</th><th>Precio</th><th>MOQ</th><th>Lead time</th><th>Vigencia</th><th>Estatus</th><th></th></tr></thead><tbody id="tablaProveedoresMP"></tbody></table></div></div></div></div>
+<div class="card shadow-sm mp-seccion mb-3"><div class="card-body p-4"><h5 class="fw-bold mb-3"><span class="num">3</span>¿Dónde lo guardas y cuándo avisar?</h5>
+<div class="row g-3">
+<div class="col-md-4"><label class="form-label" for="almacen">Almacén *</label><input id="almacen" class="form-control" placeholder="Ej. Almacén de químicos"></div>
+<div class="col-md-4"><label class="form-label" for="ubicacion">Rack / zona *</label><input id="ubicacion" class="form-control" placeholder="Ej. Rack A / Nivel 2"></div>
+<div class="col-md-4"><label class="form-label" for="stock_minimo">Avisarme cuando quede menos de *</label><input id="stock_minimo" type="number" min="0" step="0.000001" class="form-control" value="0" required></div>
+<div class="col-md-4 d-flex align-items-end"><div class="form-check mb-2"><input id="control_lote" type="checkbox" class="form-check-input"><label class="form-check-label" for="control_lote">Control por lote</label></div></div>
+<div class="col-md-4 d-flex align-items-end"><div class="form-check mb-2"><input id="control_caducidad" type="checkbox" class="form-check-input"><label class="form-check-label" for="control_caducidad">Control de caducidad</label></div></div>
+</div>
+<details class="mp-mas"><summary>Reabastecimiento y almacenamiento avanzado (reorden, objetivo, temperatura, incompatibilidades…)</summary><div class="row g-3">
+<div class="col-md-3"><label class="form-label" for="punto_reorden">Punto de reorden *</label><input id="punto_reorden" type="number" min="0" step="0.000001" class="form-control" value="0" required></div>
+<div class="col-md-3"><label class="form-label" for="stock_objetivo_maximo">Stock objetivo / máximo *</label><input id="stock_objetivo_maximo" type="number" min="0" step="0.000001" class="form-control" value="0" required></div>
+<div class="col-md-3"><label class="form-label" for="stock_seguridad">Stock de seguridad</label><input id="stock_seguridad" type="number" min="0" step="0.000001" class="form-control"></div>
+<div class="col-md-3"><label class="form-label" for="lead_time_reabasto_dias">Lead time de reabasto (días) *</label><input id="lead_time_reabasto_dias" type="number" min="0" class="form-control" value="0" required></div>
+<div class="col-md-3"><label class="form-label" for="metodo_salida">Método de salida *</label><select id="metodo_salida" class="form-select"><option>FIFO</option><option>FEFO</option></select></div>
+<div class="col-md-3 d-flex align-items-end"><div class="form-check mb-2"><input id="permite_stock_negativo" type="checkbox" class="form-check-input"><label class="form-check-label" for="permite_stock_negativo">Permitir stock negativo</label></div></div>
+<div class="col-md-4"><label class="form-label" for="condicion_almacenamiento">Condición de almacenamiento</label><input id="condicion_almacenamiento" class="form-control" placeholder="Ej. mantener cerrado y protegido de calor"></div>
+<div class="col-md-2"><label class="form-label" for="temperatura_min_c">Temperatura mín. °C</label><input id="temperatura_min_c" type="number" step="0.1" class="form-control"></div>
+<div class="col-md-2"><label class="form-label" for="temperatura_max_c">Temperatura máx. °C</label><input id="temperatura_max_c" type="number" step="0.1" class="form-control"></div>
+<div class="col-md-4"><label class="form-label" for="incompatibilidades">Incompatibilidades</label><input id="incompatibilidades" class="form-control" placeholder="Familias o sustancias incompatibles"></div>
+<div class="col-md-3 d-flex align-items-end"><div class="form-check mb-2"><input id="requiere_area_especial" type="checkbox" class="form-check-input"><label class="form-check-label" for="requiere_area_especial">Área especial</label></div></div>
+</div><div class="alert alert-light border mt-3 mb-0 small">Se mantiene la regla <strong>objetivo ≥ punto de reorden ≥ mínimo ≥ 0</strong>; si subes el mínimo, los otros dos se ajustan solos. Con caducidad se usa FEFO.</div></details>
+</div></div>
+<details class="mp-exp" id="detCalidad"><summary>Calidad y seguridad <span class="text-muted fw-normal small">(opcional: pureza, pH, riesgo, COA, criterio de recepción)</span></summary><div class="mp-exp-cuerpo"><div class="row g-3">
+<div class="col-md-4"><label class="form-label" for="fabricante_marca_referencia">Fabricante / marca de referencia</label><input id="fabricante_marca_referencia" class="form-control"></div>
+<div class="col-md-3"><label class="form-label" for="pureza_especificacion">Pureza / especificación</label><input id="pureza_especificacion" class="form-control"></div>
+<div class="col-md-2"><label class="form-label" for="ph_referencia">pH de referencia</label><input id="ph_referencia" class="form-control"></div>
+<div class="col-md-3"><label class="form-label" for="clasificacion_riesgo">Clasificación de riesgo</label><input id="clasificacion_riesgo" class="form-control"></div>
+<div class="col-md-3 d-flex align-items-end"><div class="form-check mb-2"><input id="peligroso" type="checkbox" class="form-check-input"><label class="form-check-label" for="peligroso">Material peligroso</label></div></div>
+<div class="col-md-3 d-flex align-items-end"><div class="form-check mb-2"><input id="requiere_coa" type="checkbox" class="form-check-input"><label class="form-check-label" for="requiere_coa">Requiere COA por lote</label></div></div>
+<div class="col-12"><label class="form-label" for="criterio_recepcion">Criterio de recepción</label><textarea id="criterio_recepcion" class="form-control" rows="2"></textarea></div>
+<div class="col-12"><label class="form-label" for="observaciones_tecnicas">Observaciones técnicas</label><textarea id="observaciones_tecnicas" class="form-control" rows="3"></textarea></div>
+</div></div></details>
+<div class="text-muted small mb-3" id="avisoExpediente" hidden>Después de guardar podrás agregar alias, subir documentos y ver el historial de cambios.</div>
+<details class="mp-exp expediente-only" id="detAlias"><summary>Alias y nombres equivalentes <span class="text-muted fw-normal small">(sirven para buscar; no crean otro inventario)</span></summary><div class="mp-exp-cuerpo"><div class="row g-2 align-items-end mb-3"><div class="col-md-4"><label class="form-label" for="alias_texto">Alias *</label><input id="alias_texto" class="form-control"></div><div class="col-md-3"><label class="form-label" for="tipo_alias">Tipo</label><select id="tipo_alias" class="form-select"><option>Sinónimo</option><option>Nombre anterior</option><option>Nombre de operador</option><option>Marca</option><option>Otro</option></select></div><div class="col-md-3"><label class="form-label" for="alias_observacion">Observación</label><input id="alias_observacion" class="form-control"></div><div class="col-md-2 d-grid"><button type="button" class="btn btn-primary" onclick="agregarAlias()">Agregar</button></div></div><div class="table-responsive"><table class="table align-middle mb-0"><thead><tr><th>Alias</th><th>Tipo</th><th>Observación</th><th></th></tr></thead><tbody id="tablaAlias"></tbody></table></div></div></details>
+<details class="mp-exp expediente-only" id="detDocs"><summary>Documentos <span class="text-muted fw-normal small">(ficha técnica, SDS, COA…)</span></summary><div class="mp-exp-cuerpo"><div class="row g-2 align-items-end mb-3"><div class="col-md-3"><label class="form-label" for="doc_tipo">Tipo</label><select id="doc_tipo" class="form-select"><option>Ficha técnica</option><option>SDS / Hoja de seguridad</option><option>COA / Certificado de análisis</option><option>Especificación interna</option><option>Fotografía / etiqueta</option><option>Otro</option></select></div><div class="col-md-5"><label class="form-label" for="doc_archivo">Archivo</label><input id="doc_archivo" type="file" class="form-control" accept=".pdf,.jpg,.jpeg,.png,.xlsx,.docx"></div><div class="col-md-2"><label class="form-label" for="doc_desde">Vigencia desde</label><input id="doc_desde" type="date" class="form-control"></div><div class="col-md-2 d-grid"><button type="button" class="btn btn-primary" onclick="subirDocumento()">Subir</button></div></div><div class="table-responsive"><table class="table align-middle mb-0"><thead><tr><th>Tipo</th><th>Archivo</th><th>Versión</th><th>Fecha</th><th></th></tr></thead><tbody id="tablaDocumentosMP"></tbody></table></div></div></details>
+<details class="mp-exp expediente-only" id="detHistorial"><summary>Historial de cambios</summary><div class="mp-exp-cuerpo"><div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Fecha</th><th>Evento</th><th>Anterior</th><th>Nuevo</th><th>Usuario</th><th>Motivo</th></tr></thead><tbody id="tablaBitacora"></tbody></table></div></div></details>
+<div class="sticky-actions d-flex justify-content-end gap-2 flex-wrap">
+    <a href="/admin/materias-primas" class="btn btn-outline-secondary">Volver</a>
+    <button type="submit" class="btn btn-outline-primary px-4" id="btnGuardar">{{ 'Guardar borrador' if not id_mp else 'Guardar cambios' }}</button>
+    {% if not id_mp %}<button type="button" class="btn btn-primary px-4" id="btnGuardarActivar">Guardar y activar</button>{% endif %}
+</div>
+</form>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -187,6 +137,7 @@
     let MP_ID = MP_ID_INICIAL;
     let DATOS_MP = null;
     let condiciones = [];
+    let ACTIVAR_AL_GUARDAR = false;
 
     const val = id => document.getElementById(id).value;
     const checked = id => document.getElementById(id).checked;
@@ -235,7 +186,8 @@
     document.getElementById('formMP').addEventListener('submit', async e => {
         e.preventDefault();
         if (await verificarDuplicadoNombre()) { mostrarAlerta('danger', 'Corrige el posible duplicado antes de guardar.'); return; }
-        if (val('prov_id')) { mostrarAlerta('warning', 'Agrega o guarda la condición del proveedor antes de guardar la ficha.'); return; }
+        if (val('prov_id') && !(await agregarProveedor())) { return; }
+        if (!MP_ID && checked('se_compra_externamente') && !condiciones.some(c => c.activo !== false) && ACTIVAR_AL_GUARDAR) { mostrarAlerta('warning', 'Para activar la materia prima elige su proveedor y precio (sección 2), o desmarca «Se compra a un proveedor».'); ACTIVAR_AL_GUARDAR = false; return; }
         const payload = payloadFormulario();
         if (!MP_ID) payload.proveedores = condiciones;
         const url = MP_ID ? `/api/materias-primas/${MP_ID}` : '/api/materias-primas';
@@ -243,7 +195,16 @@
         const res = await fetch(url, {method, headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
         const data = await res.json();
         if (!res.ok) { mostrarAlerta('danger', `<strong>${escapeHtml(data.error || 'Error')}</strong>${data.detalles ? '<ul class="mb-0 mt-2"><li>'+data.detalles.map(escapeHtml).join('</li><li>')+'</li></ul>' : ''}`); return; }
-        if (!MP_ID) { window.location.href = `/admin/materias-primas/${data.id_mp}`; return; }
+        if (!MP_ID) {
+            let aviso = {tipo: 'success', texto: 'Materia prima guardada como borrador. Actívala cuando esté lista.'};
+            if (ACTIVAR_AL_GUARDAR) {
+                const act = await fetch(`/api/materias-primas/${data.id_mp}/estatus`, {method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({estatus:'Activo', motivo:null})});
+                const ad = await act.json();
+                aviso = act.ok ? {tipo: 'success', texto: 'Materia prima guardada y activa. Ya puedes usarla en compras y recetas.'} : {tipo: 'warning', texto: `<strong>Se guardó como borrador.</strong> Para activarla falta:<ul class="mb-0 mt-2"><li>${(ad.detalles || [ad.error || 'Revisar datos']).map(escapeHtml).join('</li><li>')}</li></ul>`};
+            }
+            try { sessionStorage.setItem('mp_aviso', JSON.stringify(aviso)); } catch (e) {}
+            window.location.href = `/admin/materias-primas/${data.id_mp}`; return;
+        }
         mostrarAlerta('success', 'Cambios guardados correctamente.');
         await cargarMateriaPrima(); await cargarBitacora();
     });
@@ -275,35 +236,55 @@
     async function eliminarAlias(id){if(!confirm('¿Desactivar este alias?'))return;await fetch(`/api/materias-primas/${MP_ID}/aliases/${id}`,{method:'DELETE'});cargarAliases();cargarBitacora();}
 
     async function cargarProveedoresActivos(){const r=await fetch('/api/proveedores/activos');const d=await r.json();const s=document.getElementById('prov_id');s.innerHTML='<option value="">Seleccione...</option>'+d.map(p=>`<option value="${p.id_proveedor}" data-lead="${p.tiempo_entrega_normal}">${escapeHtml(p.codigo_proveedor)} · ${escapeHtml(p.razon_social)}</option>`).join('');s.addEventListener('change',()=>{const o=s.options[s.selectedIndex];if(o?.dataset?.lead)setInput('lead_time_dias',Math.round(Number(o.dataset.lead)));});}
-    async function cargarProveedoresMP(){if(MP_ID){const r=await fetch(`/api/materias-primas/${MP_ID}/proveedores`);condiciones=await r.json();}const d=condiciones;document.getElementById('tablaProveedoresMP').innerHTML=d.length?d.map(x=>`<tr class="${x.activo?'':'table-light text-muted'}"><td>${x.principal&&x.activo?'★ ':''}<strong>${escapeHtml(x.proveedor)}</strong><br><small>${escapeHtml(x.sku_proveedor||'')}</small></td><td>${escapeHtml(x.presentacion_compra)} · ${x.contenido_presentacion} ${escapeHtml(x.unidad_contenido)}</td><td>${x.factor_a_unidad_base} ${escapeHtml(DATOS_MP?.unidad_base||'')}</td><td>${Number(x.precio_vigente).toLocaleString('es-MX',{style:'currency',currency:x.moneda==='USD'?'USD':'MXN'})} ${escapeHtml(x.moneda)}<br><small>${escapeHtml(x.tipo_precio)} · IVA ${x.iva_tasa}%<br>Flete: ${x.flete_estimado ?? 0} ${escapeHtml(x.moneda)}</small></td><td>${x.compra_minima} ${escapeHtml(x.unidad_compra_minima)}</td><td>${x.lead_time_dias} días</td><td>${escapeHtml(x.vigencia_desde||'')} ${x.vigencia_hasta?'→ '+escapeHtml(x.vigencia_hasta):''}</td><td><span class="badge ${x.activo?'bg-success':'bg-secondary'}">${x.activo?'Vigente':'Histórico'}</span></td><td>${x.activo?`<button type="button" class="btn btn-sm btn-outline-primary" onclick="editarCondicion(${x.id_relacion})">Editar precio y condiciones</button> <button type="button" class="btn btn-sm btn-outline-danger" onclick="desactivarProveedor(${x.id_relacion})">Quitar</button>`:''}</td></tr>`).join(''):'<tr><td colspan="9" class="text-center text-muted">Sin proveedores asociados.</td></tr>';}
+    async function cargarProveedoresMP(){if(MP_ID){const r=await fetch(`/api/materias-primas/${MP_ID}/proveedores`);condiciones=await r.json();}const d=condiciones;marcarPrincipalSiHaceFalta();document.getElementById('tablaProveedoresMP').innerHTML=d.length?d.map(x=>`<tr class="${x.activo?'':'table-light text-muted'}"><td>${x.principal&&x.activo?'★ ':''}<strong>${escapeHtml(x.proveedor)}</strong><br><small>${escapeHtml(x.sku_proveedor||'')}</small></td><td>${escapeHtml(x.presentacion_compra)} · ${x.contenido_presentacion} ${escapeHtml(x.unidad_contenido)}</td><td>${x.factor_a_unidad_base} ${escapeHtml(DATOS_MP?.unidad_base||'')}</td><td>${Number(x.precio_vigente).toLocaleString('es-MX',{style:'currency',currency:x.moneda==='USD'?'USD':'MXN'})} ${escapeHtml(x.moneda)}<br><small>${escapeHtml(x.tipo_precio)} · IVA ${x.iva_tasa}%<br>Flete: ${x.flete_estimado ?? 0} ${escapeHtml(x.moneda)}</small></td><td>${x.compra_minima} ${escapeHtml(x.unidad_compra_minima)}</td><td>${x.lead_time_dias} días</td><td>${escapeHtml(x.vigencia_desde||'')} ${x.vigencia_hasta?'→ '+escapeHtml(x.vigencia_hasta):''}</td><td><span class="badge ${x.activo?'bg-success':'bg-secondary'}">${x.activo?'Vigente':'Histórico'}</span></td><td>${x.activo?`<button type="button" class="btn btn-sm btn-outline-primary" onclick="editarCondicion(${x.id_relacion})">Editar precio y condiciones</button> <button type="button" class="btn btn-sm btn-outline-danger" onclick="desactivarProveedor(${x.id_relacion})">Quitar</button>`:''}</td></tr>`).join(''):'<tr><td colspan="9" class="text-center text-muted">Sin proveedores asociados.</td></tr>';}
     function limpiarCondicion() {
         ['prov_id','sku_proveedor','marca_fabricante','presentacion_compra','contenido_presentacion','factor_a_unidad_base','precio_vigente','flete_estimado'].forEach(k=>setInput(k,''));
-        setInput('prov_principal',false);
+        setInput('prov_principal',false); delete document.getElementById('factor_a_unidad_base').dataset.manual;
         document.getElementById('btnCondicion').textContent='Agregar proveedor';
+        marcarPrincipalSiHaceFalta();
     }
     function editarCondicion(id) {
         const x = condiciones.find(c => c.id_relacion === id);
         setInput('prov_id', x.id_proveedor); setInput('prov_principal', x.principal);
         ['sku_proveedor','marca_fabricante','presentacion_compra','contenido_presentacion','unidad_contenido','factor_a_unidad_base','precio_vigente','tipo_precio','moneda','iva_tasa','flete_estimado','compra_minima','unidad_compra_minima','lead_time_dias'].forEach(k=>setInput(k,x[k]));
         document.getElementById('btnCondicion').textContent='Guardar condición';
-        document.getElementById('precio_vigente').focus();
+        document.getElementById('factor_a_unidad_base').dataset.manual='1';
+        abrirSeccionProveedor(); document.getElementById('precio_vigente').focus();
     }
-    function calcularFactor(){const contenido=numOrNull('contenido_presentacion'),unidad=val('unidad_contenido'),base=val('unidad_base'),densidad=numOrNull('densidad_kg_l');if(!contenido){alert('Captura primero el contenido de la presentación.');return;}let f=null;if(unidad===base)f=contenido;else if(unidad==='L'&&base==='kg'&&densidad)f=contenido*densidad;else if(unidad==='kg'&&base==='L'&&densidad)f=contenido/densidad;if(f==null){alert('No puedo calcular esa conversión automáticamente. Captura un factor válido y trazable. Para kg ↔ L se requiere densidad.');return;}setInput('factor_a_unidad_base',f.toFixed(6));}
+    function factorCalculado(){const contenido=numOrNull('contenido_presentacion'),unidad=val('unidad_contenido'),base=val('unidad_base'),densidad=numOrNull('densidad_kg_l');if(!contenido)return null;if(unidad===base)return contenido;if(unidad==='L'&&base==='kg'&&densidad)return contenido*densidad;if(unidad==='kg'&&base==='L'&&densidad)return contenido/densidad;return null;}
+    function calcularFactor(){if(!numOrNull('contenido_presentacion')){alert('Captura primero cuánto trae la presentación.');return;}const f=factorCalculado();if(f==null){alert('No puedo calcular esa conversión automáticamente. Captura un factor válido y trazable. Para kg ↔ L se requiere densidad.');return;}setInput('factor_a_unidad_base',f.toFixed(6));delete document.getElementById('factor_a_unidad_base').dataset.manual;}
+    function autoFactor(){const el=document.getElementById('factor_a_unidad_base');if(el.dataset.manual==='1')return;const f=factorCalculado();if(f!=null)el.value=Number(f.toFixed(6));}
+    function marcarPrincipalSiHaceFalta(){if(!condiciones.some(c=>c.activo!==false&&c.principal)&&!val('prov_id'))setInput('prov_principal',true);}
+    function abrirSeccionProveedor(){document.getElementById('seccionProveedor').scrollIntoView({behavior:'smooth',block:'center'});}
     async function agregarProveedor(){const body={id_proveedor:Number(val('prov_id')),principal:checked('prov_principal'),sku_proveedor:val('sku_proveedor'),marca_fabricante:val('marca_fabricante'),presentacion_compra:val('presentacion_compra'),contenido_presentacion:numOrNull('contenido_presentacion'),unidad_contenido:val('unidad_contenido'),factor_a_unidad_base:numOrNull('factor_a_unidad_base'),precio_vigente:numOrNull('precio_vigente'),tipo_precio:val('tipo_precio'),moneda:val('moneda'),iva_tasa:numOrNull('iva_tasa'),flete_estimado:numOrNull('flete_estimado'),compra_minima:numOrNull('compra_minima'),unidad_compra_minima:val('unidad_compra_minima'),lead_time_dias:Number(val('lead_time_dias'))};
-        if (!body.id_proveedor || !body.presentacion_compra.trim() || !(body.contenido_presentacion>0) || !(body.factor_a_unidad_base>0) || body.precio_vigente===null || body.precio_vigente<0 || !(body.compra_minima>0) || body.iva_tasa===null || body.iva_tasa<0 || body.iva_tasa>100 || body.flete_estimado<0 || !Number.isInteger(body.lead_time_dias) || body.lead_time_dias<0) { alert('Completa el proveedor, presentación y precios con valores válidos.'); return; }
+        if (!body.id_proveedor || !body.presentacion_compra.trim() || !(body.contenido_presentacion>0) || !(body.factor_a_unidad_base>0) || body.precio_vigente===null || body.precio_vigente<0 || !(body.compra_minima>0) || body.iva_tasa===null || body.iva_tasa<0 || body.iva_tasa>100 || body.flete_estimado<0 || !Number.isInteger(body.lead_time_dias) || body.lead_time_dias<0) { mostrarAlerta('warning', 'Completa el proveedor, cómo lo vende, cuánto trae, su precio y a cuánto equivale (sección 2).'); abrirSeccionProveedor(); return false; }
         if (!MP_ID) {
             if (body.principal) condiciones.forEach(c=>c.principal=false);
             condiciones=condiciones.filter(c=>c.id_proveedor!==body.id_proveedor);
             condiciones.push({...body,id_relacion:body.id_proveedor,proveedor:document.getElementById('prov_id').selectedOptions[0].textContent,activo:true});
         } else {
-        const r=await fetch(`/api/materias-primas/${MP_ID}/proveedores`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const d=await r.json();if(!r.ok){alert(d.error);return;}}setInput('prov_id','');document.getElementById('btnCondicion').textContent='Agregar proveedor';['sku_proveedor','marca_fabricante','presentacion_compra','contenido_presentacion','factor_a_unidad_base','precio_vigente','flete_estimado'].forEach(x=>setInput(x,''));document.getElementById('prov_principal').checked=false;await cargarProveedoresMP();await cargarBitacora();}
+        const r=await fetch(`/api/materias-primas/${MP_ID}/proveedores`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const d=await r.json();if(!r.ok){mostrarAlerta('danger',escapeHtml(d.error||'No se pudo guardar el proveedor'));return false;}}setInput('prov_id','');document.getElementById('btnCondicion').textContent='Agregar proveedor';['sku_proveedor','marca_fabricante','presentacion_compra','contenido_presentacion','factor_a_unidad_base','precio_vigente','flete_estimado'].forEach(x=>setInput(x,''));document.getElementById('prov_principal').checked=false;delete document.getElementById('factor_a_unidad_base').dataset.manual;await cargarProveedoresMP();await cargarBitacora();return true;}
     async function desactivarProveedor(id){if(!MP_ID){condiciones=condiciones.filter(c=>c.id_relacion!==id);await cargarProveedoresMP();return;}if(!confirm('¿Desactivar esta condición? El histórico se conservará.'))return;const r=await fetch(`/api/materias-primas/${MP_ID}/proveedores/${id}/desactivar`,{method:'PATCH'});if(!r.ok){const d=await r.json();alert(d.error);return;}cargarProveedoresMP();cargarBitacora();}
 
     async function cargarDocumentos(){if(!MP_ID)return;const r=await fetch(`/api/materias-primas/${MP_ID}/documentos`);const d=await r.json();document.getElementById('tablaDocumentosMP').innerHTML=d.length?d.map(x=>`<tr><td>${escapeHtml(x.tipo_documento)}</td><td>${escapeHtml(x.nombre_original)}</td><td>v${x.version}</td><td>${escapeHtml(x.fecha_carga)}</td><td class="text-end"><a class="btn btn-sm btn-outline-primary" href="${x.url_descarga}">Descargar</a></td></tr>`).join(''):'<tr><td colspan="5" class="text-center text-muted">Sin documentos.</td></tr>';}
     async function subirDocumento(){const a=document.getElementById('doc_archivo').files[0];if(!a){alert('Selecciona un archivo.');return;}const fd=new FormData();fd.append('tipo_documento',val('doc_tipo'));fd.append('archivo',a);fd.append('vigencia_desde',val('doc_desde'));const r=await fetch(`/api/materias-primas/${MP_ID}/documentos`,{method:'POST',body:fd});const d=await r.json();if(!r.ok){alert(d.error);return;}document.getElementById('doc_archivo').value='';cargarDocumentos();cargarBitacora();}
     async function cargarBitacora(){if(!MP_ID)return;const r=await fetch(`/api/materias-primas/${MP_ID}/bitacora`);const d=await r.json();document.getElementById('tablaBitacora').innerHTML=d.length?d.map(x=>`<tr><td class="text-nowrap">${escapeHtml(x.fecha_hora)}</td><td><strong>${escapeHtml(x.evento)}</strong></td><td>${escapeHtml(x.valor_anterior||'')}</td><td>${escapeHtml(x.valor_nuevo||'')}</td><td>${escapeHtml(x.usuario)}</td><td>${escapeHtml(x.motivo||'')}</td></tr>`).join(''):'<tr><td colspan="6" class="text-center text-muted">Sin movimientos.</td></tr>';}
 
-    async function iniciar(){if(!MP_ID){await cargarProveedoresActivos();await cargarProveedoresMP();document.querySelectorAll('.expediente-only').forEach(x=>{x.disabled=true;x.title='Guarda primero el borrador';});return;}await cargarMateriaPrima();await Promise.all([cargarAliases(),cargarProveedoresActivos(),cargarProveedoresMP(),cargarDocumentos(),cargarBitacora()]);}
+    async function iniciar(){if(!MP_ID){await cargarProveedoresActivos();await cargarProveedoresMP();document.querySelectorAll('.expediente-only').forEach(x=>{x.hidden=true;});document.getElementById('avisoExpediente').hidden=false;return;}await cargarMateriaPrima();await Promise.all([cargarAliases(),cargarProveedoresActivos(),cargarProveedoresMP(),cargarDocumentos(),cargarBitacora()]);}
+    // --- comportamiento simplificado ---
+    ['contenido_presentacion','unidad_contenido','densidad_kg_l'].forEach(id=>document.getElementById(id).addEventListener('input',autoFactor));
+    document.getElementById('unidad_contenido').addEventListener('change',autoFactor);
+    document.getElementById('unidad_base').addEventListener('change',()=>{const u=document.getElementById('unidad_contenido'),b=val('unidad_base');if(!u.dataset.tocada&&[...u.options].some(o=>o.value===b||o.text===b))u.value=b;autoFactor();});
+    document.getElementById('unidad_contenido').addEventListener('change',e=>{e.target.dataset.tocada='1'});
+    document.getElementById('factor_a_unidad_base').addEventListener('input',e=>{e.target.dataset.manual='1'});
+    function ajustarStocks(){const min=numOrNull('stock_minimo')||0;let ro=numOrNull('punto_reorden')||0,ob=numOrNull('stock_objetivo_maximo')||0;if(ro<min){ro=min;setInput('punto_reorden',ro);}if(ob<ro){ob=ro;setInput('stock_objetivo_maximo',ob);}}
+    ['stock_minimo','punto_reorden'].forEach(id=>document.getElementById(id).addEventListener('change',ajustarStocks));
+    document.getElementById('se_compra_externamente').addEventListener('change',e=>{document.getElementById('bloqueProveedor').hidden=!e.target.checked;});
+    document.getElementById('btnGuardarActivar')?.addEventListener('click',()=>{ACTIVAR_AL_GUARDAR=true;document.getElementById('formMP').requestSubmit();setTimeout(()=>{ACTIVAR_AL_GUARDAR=false},4000);});
+    document.addEventListener('invalid',e=>{const d=e.target.closest('details');if(d)d.open=true;},true);
+    const _cargarOriginal=cargarMateriaPrima;
+    cargarMateriaPrima=async function(){await _cargarOriginal();if(DATOS_MP){document.getElementById('bloqueProveedor').hidden=!checked('se_compra_externamente');document.getElementById('subtituloFicha').textContent=`Unidad base: ${DATOS_MP.unidad_base} · Familia: ${DATOS_MP.familia}`;}};
+    try{const av=JSON.parse(sessionStorage.getItem('mp_aviso')||'null');if(av){sessionStorage.removeItem('mp_aviso');setTimeout(()=>mostrarAlerta(av.tipo,av.texto),300);}}catch(e){}
     iniciar();
 </script>
 </body>

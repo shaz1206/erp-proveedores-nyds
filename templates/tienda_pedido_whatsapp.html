@@ -1,0 +1,24 @@
+{% extends 'tienda_base.html' %}
+{% block titulo %}Enviar por WhatsApp - Tienda NYDS{% endblock %}
+{% block contenido %}
+<div class="card border-0 shadow-sm p-4 p-md-5">
+    {% if fuera_de_cobertura %}
+    <div class="alert alert-warning">Tu dirección está marcada fuera de nuestra zona de cobertura habitual. Ventas te confirmará por WhatsApp si es posible la entrega.</div>
+    {% endif %}
+    {% if wa_link %}
+    <h2 class="fw-bold text-dark mb-2">Tu pedido está listo para enviarse</h2>
+    <p class="text-muted mb-4">Dale clic al botón para abrir WhatsApp con tu pedido ya escrito. Nuestro equipo de ventas lo recibe ahí mismo, confirma contigo y cierra el pedido por ese medio.</p>
+    <a class="btn btn-primary btn-lg mb-4" href="{{ wa_link }}" target="_blank" rel="noopener">Enviar pedido por WhatsApp</a>
+    {% else %}
+    <h2 class="fw-bold text-dark mb-2">Tu pedido está listo</h2>
+    <p class="text-muted mb-4">Por ahora no tenemos configurado un número de WhatsApp de ventas en la tienda. Copia este resumen y compártelo con el equipo de NYDS por el medio que uses normalmente.</p>
+    {% endif %}
+    <label class="form-label fw-semibold">Resumen del pedido</label>
+    <textarea class="form-control mb-3" rows="10" readonly onclick="this.select()">{{ mensaje }}</textarea>
+    <button type="button" class="btn btn-outline-secondary mb-4" onclick="navigator.clipboard.writeText(document.querySelector('textarea').value)">Copiar mensaje</button>
+    <div class="d-flex gap-3 flex-wrap">
+        <a class="btn btn-outline-primary" href="{{ url_for('tienda_mis_pedidos') }}">Ver mis pedidos</a>
+        <a class="btn btn-outline-primary" href="{{ url_for('tienda_catalogo') }}">Seguir comprando</a>
+    </div>
+</div>
+{% endblock %}

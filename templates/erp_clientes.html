@@ -2,7 +2,7 @@
 <div class="d-flex justify-content-between flex-wrap gap-3 mb-3">
     <div>
         <h2>Clientes</h2>
-        <p class="text-muted mb-0">Balance por cliente: lo que ha pedido, lo que ha pagado, lo que debe y lo que se le ha entregado. Entra a un cliente para ver todo su detalle.</p>
+        <p class="text-muted mb-0">Cuánto ha comprado, pagado y debe cada cliente. Abre uno para ver su detalle.</p>
     </div>
     <a href="{{ url_for('clientes_erp_pdf', q=q) }}" target="_blank" class="btn btn-outline-secondary align-self-start">&#8681; Descargar PDF</a>
 </div>
@@ -14,23 +14,28 @@
     </div></div></div>
     {% endfor %}
 </div>
-<form class="d-flex gap-2 mb-3" method="get"><input name="q" class="form-control" aria-label="Buscar cliente" placeholder="Buscar por nombre, teléfono, RFC o correo" value="{{ q }}"><button class="btn btn-primary">Buscar</button>{% if q %}<a href="{{ url_for('clientes_erp') }}" class="btn btn-outline-secondary">Todos</a>{% endif %}</form>
+<div class="d-flex flex-wrap gap-2 mb-3 align-items-center"><input id="clBuscar" class="form-control" style="max-width:420px" aria-label="Buscar cliente" placeholder="Buscar por nombre, teléfono, RFC o correo" value="{{ q }}" autofocus><div class="btn-group btn-group-sm" role="group" aria-label="Filtrar" id="clFiltros"><button type="button" class="btn btn-secondary" data-f="">Todos</button><button type="button" class="btn btn-outline-secondary" data-f="debe">Con adeudo</button></div></div>
 <div class="card"><div class="table-responsive"><table class="table align-middle mb-0">
-    <thead><tr><th>Cliente</th><th>Pedidos</th><th>Comprado</th><th>Pagado</th><th>Debe</th><th>Última entrega</th><th></th></tr></thead>
+    <thead><tr><th>Cliente</th><th class="d-none d-md-table-cell">Pedidos</th><th class="d-none d-lg-table-cell">Comprado</th><th class="d-none d-lg-table-cell">Pagado</th><th>Debe</th><th class="d-none d-md-table-cell">Última entrega</th><th></th></tr></thead>
     <tbody>
     {% for f in filas %}
-    <tr>
+    <tr data-buscar="{{ (f.cliente.nombre_completo ~ ' ' ~ (f.cliente.telefono or ''))|lower }}" data-debe="{{ '1' if f.debe > 0 else '' }}">
         <td><a href="{{ url_for('cliente_erp', id_cliente=f.cliente.id) }}" class="fw-bold text-decoration-none">{{ f.cliente.nombre_completo }}</a><div class="text-muted small">{{ f.cliente.telefono or 'Sin teléfono' }}</div></td>
-        <td>{{ f.pedidos }}<div class="text-muted small">{{ f.entregados }} entregado(s)</div></td>
-        <td>${{ '{:,.2f}'.format(f.comprado | float) }}</td>
-        <td>${{ '{:,.2f}'.format(f.pagado | float) }}</td>
+        <td class="d-none d-md-table-cell">{{ f.pedidos }}<div class="text-muted small">{{ f.entregados }} entregado(s)</div></td>
+        <td class="d-none d-lg-table-cell">${{ '{:,.2f}'.format(f.comprado | float) }}</td>
+        <td class="d-none d-lg-table-cell">${{ '{:,.2f}'.format(f.pagado | float) }}</td>
         <td>{% if f.debe > 0 %}<span class="text-danger fw-semibold">${{ '{:,.2f}'.format(f.debe | float) }}</span>{% elif f.debe < 0 %}<span class="text-success">A favor ${{ '{:,.2f}'.format(-f.debe | float) }}</span>{% else %}Al corriente{% endif %}{% if f.trueque > 0 %}<div class="text-success small">Trueque ${{ '{:,.2f}'.format(f.trueque | float) }}</div>{% endif %}</td>
-        <td>{% if f.ultima %}<div class="small">{{ f.ultima.fecha.strftime('%d/%m/%Y') }} · {{ f.ultima.productos }}</div><div class="text-muted small">{{ f.ultima.pedido.folio }}{% if f.ultima.receptor %} · recibió {{ f.ultima.receptor }}{% endif %}</div>{% else %}<span class="text-muted small">Sin entregas</span>{% endif %}</td>
-        <td><a href="{{ url_for('cliente_erp', id_cliente=f.cliente.id) }}" class="btn btn-outline-primary btn-sm">Ver balance</a></td>
+        <td class="d-none d-md-table-cell">{% if f.ultima %}<div class="small">{{ f.ultima.fecha.strftime('%d/%m/%Y') }} · {{ f.ultima.productos }}</div><div class="text-muted small">{{ f.ultima.pedido.folio }}{% if f.ultima.receptor %} · recibió {{ f.ultima.receptor }}{% endif %}</div>{% else %}<span class="text-muted small">Sin entregas</span>{% endif %}</td>
+        <td><a href="{{ url_for('cliente_erp', id_cliente=f.cliente.id) }}" class="btn btn-outline-primary btn-sm">Abrir</a></td>
     </tr>
     {% else %}
     <tr><td colspan="7" class="text-center py-5 text-muted">{% if q %}Ningún cliente coincide con “{{ q }}”.{% else %}Aún no hay clientes. Se dan de alta desde el CRM.{% endif %}</td></tr>
     {% endfor %}
     </tbody>
 </table></div></div>
+<script>
+(function(){const q=document.getElementById('clBuscar'),bs=[...document.querySelectorAll('#clFiltros button')],filas=[...document.querySelectorAll('tbody tr[data-buscar]')];let f='';
+function aplicar(){const t=q.value.trim().toLowerCase();filas.forEach(r=>{r.hidden=!((!t||r.dataset.buscar.includes(t))&&(!f||r.dataset.debe==='1'))});bs.forEach(b=>{const on=b.dataset.f===f;b.classList.toggle('btn-secondary',on);b.classList.toggle('btn-outline-secondary',!on)})}
+bs.forEach(b=>b.addEventListener('click',()=>{f=b.dataset.f;aplicar()}));q.addEventListener('input',aplicar);aplicar();q.setSelectionRange(q.value.length,q.value.length);})();
+</script>
 {% endblock %}

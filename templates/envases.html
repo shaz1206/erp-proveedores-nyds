@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Envases - ERP NYDS</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20260911-nyds-white-logo') }}">
+</head>
+<body class="bg-light">
+{% include 'erp_header.html' %}
+<div class="container-fluid px-4 mb-5">
+    {% with mensajes = get_flashed_messages(with_categories=true) %}
+    {% for categoria, mensaje in mensajes %}<div class="alert alert-{{ categoria }} py-2">{{ mensaje }}</div>{% endfor %}
+    {% endwith %}
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body p-4">
+            <div class="d-flex justify-content-between flex-wrap gap-2 mb-3">
+                <div>
+                    <h4 class="fw-bold mb-1">Catálogo de envases</h4>
+                    <p class="text-muted mb-0">Botes, garrafas y botellas con su material, capacidad, proveedor y precio. Cada envase se liga a las presentaciones de la misma capacidad.</p>
+                </div>
+                <div><a href="{{ url_for('envase_formulario') }}" class="btn btn-primary">+ Envase</a></div>
+            </div>
+            <form method="get" class="row g-2 align-items-end">
+                <div class="col-md-5">
+                    <label class="form-label small fw-semibold" for="filtroQ">Buscar</label>
+                    <input id="filtroQ" name="q" value="{{ q }}" class="form-control" placeholder="SKU, nombre o color">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small fw-semibold" for="filtroMaterial">Material</label>
+                    <select id="filtroMaterial" name="material" class="form-select">
+                        <option value="">Todos</option>
+                        {% for m in materiales %}<option value="{{ m }}" {{ 'selected' if m == material else '' }}>{{ m }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small fw-semibold" for="filtroEstado">Estado</label>
+                    <select id="filtroEstado" name="estado" class="form-select">
+                        <option value="">Todos</option>
+                        <option value="activos" {{ 'selected' if estado == 'activos' else '' }}>Activos</option>
+                        <option value="inactivos" {{ 'selected' if estado == 'inactivos' else '' }}>Inactivos</option>
+                    </select>
+                </div>
+                <div class="col-md-2 d-grid"><button class="btn btn-outline-secondary" type="submit">Filtrar</button></div>
+            </form>
+        </div>
+    </div>
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-0"><div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-dark"><tr><th>SKU</th><th>Envase</th><th>Material</th><th class="text-end">Capacidad</th><th>Color</th><th>Proveedor</th><th class="text-end">Precio</th><th>Presentaciones</th><th>Estado</th><th></th></tr></thead>
+                <tbody>
+                {% for e in envases %}
+                <tr>
+                    <td class="font-monospace">{{ e.sku }}</td>
+                    <td class="fw-semibold">{{ e.nombre }}{% if e.mp %}<div class="small text-muted fw-normal">Inventario: {{ e.mp.nombre_oficial }}</div>{% endif %}</td>
+                    <td>{{ e.material }}</td>
+                    <td class="text-end">{{ '%g'|format(e.capacidad) }} L</td>
+                    <td>{{ e.color or '—' }}</td>
+                    <td>{{ e.proveedor.razon_social if e.proveedor else '—' }}</td>
+                    <td class="text-end">{{ ('$' ~ '%.2f'|format(e.precio)) if e.precio is not none else '—' }}</td>
+                    <td class="small">{% for p in e.presentaciones %}<span class="badge bg-light text-dark border">{{ p.producto.nombre }} · {{ p.nombre }}</span> {% else %}<span class="text-muted">Sin ligar</span>{% endfor %}</td>
+                    <td><span class="badge {{ 'bg-success' if e.activo else 'bg-secondary' }}">{{ 'Activo' if e.activo else 'Inactivo' }}</span></td>
+                    <td class="text-end text-nowrap">
+                        <a class="btn btn-sm btn-primary" href="{{ url_for('envase_formulario', id_envase=e.id) }}">Editar</a>
+                        <form method="post" action="{{ url_for('envase_estado', id_envase=e.id) }}" class="d-inline">
+                            <input type="hidden" name="csrf" value="{{ csrf }}">
+                            <button class="btn btn-sm btn-outline-secondary" type="submit">{{ 'Desactivar' if e.activo else 'Activar' }}</button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="10" class="text-center text-muted py-5">No hay envases con estos filtros.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div></div>
+    </div>
+</div>
+</body>
+</html>

@@ -41,6 +41,9 @@
     <div class="container mb-5" style="max-width:1100px">
         {% block contenido %}{% endblock %}
     </div>
+    <footer class="text-center text-muted small pb-4">
+        <a href="{{ url_for('crm_login') }}" class="text-muted text-decoration-none">¿Eres del equipo NYDS? Entra al CRM</a>
+    </footer>
     {% block scripts %}{% endblock %}
 </body>
 </html>

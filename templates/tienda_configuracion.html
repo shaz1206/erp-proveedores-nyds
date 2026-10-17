@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Configuración de la tienda - ERP NYDS</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20261014-tienda-config') }}">
+</head>
+<body class="bg-light">
+{% include 'erp_header.html' %}
+
+<div class="container-fluid px-4 mb-5">
+    <div class="card shadow-sm border-0 mb-4" style="max-width:640px">
+        <div class="card-body p-4">
+            <h4 class="fw-bold mb-1">Configuración de la tienda en línea</h4>
+            <p class="text-muted mb-4">Cuando un cliente arma su carrito en <code>/tienda</code> y da clic en "Continuar a WhatsApp", se le abre un enlace a este número con su pedido ya escrito.</p>
+
+            {% if request.args.get('guardado') %}<div class="alert alert-success">Número guardado correctamente.</div>{% endif %}
+            {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+
+            <form method="post">
+                <label class="form-label fw-semibold">Número de WhatsApp de ventas</label>
+                <input type="text" name="whatsapp_ventas" class="form-control mb-2" value="{{ config.whatsapp_ventas or '' }}" placeholder="Ej. 529981234567">
+                <p class="form-text mb-4">Lada de país + número, solo dígitos, sin espacios ni signos (México: 52 + 10 dígitos).</p>
+                <button type="submit" class="btn btn-primary">Guardar</button>
+            </form>
+
+            {% if not config.whatsapp_ventas %}
+            <div class="alert alert-warning mt-4 mb-0">Todavía no hay número configurado: a los clientes que terminen su carrito se les muestra el resumen del pedido para copiar, pero no se les abre WhatsApp automáticamente.</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+</body>
+</html>

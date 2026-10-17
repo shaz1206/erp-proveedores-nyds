@@ -1,54 +1,81 @@
 {% extends 'abastecimiento_base.html' %}{% block contenido %}
+<style>
+.pt-tipos{display:flex;gap:.5rem;flex-wrap:wrap}
+.pt-tipos input{position:absolute;opacity:0;pointer-events:none}
+.pt-tipos label{padding:.55rem 1rem;border:2px solid var(--bs-border-color,#dee2e6);border-radius:2rem;cursor:pointer;background:#fff;font-weight:600}
+.pt-tipos input:checked+label{border-color:#3652a3;background:#eef1fb;color:#24357a}
+.pt-tipos input:focus-visible+label{outline:3px solid #9db0e6}
+.inv-filtros{display:flex;gap:.4rem;flex-wrap:wrap}.inv-filtros .btn.activo{background:#0f1f3d;color:#fff;border-color:#0f1f3d}
+details.inv-sec{background:#fff;border-radius:.7rem;margin-bottom:1rem;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+details.inv-sec>summary{cursor:pointer;font-weight:700;padding:1rem 1.25rem;font-size:1.1rem}
+details.inv-sec>.table-responsive{border-top:1px solid var(--bs-border-color,#dee2e6)}
+</style>
+{% set vals=request.form if request.method=='POST' else request.args %}
 <div class="d-flex justify-content-between flex-wrap gap-3 mb-3">
-    <div>
-        <h2>Inventario de producto terminado</h2>
-        <p class="text-muted mb-0">Existencias en almacén y en ruta, lo reservado para pedidos del CRM y lo disponible para vender.</p>
-    </div>
-    <div class="d-flex gap-2 align-self-start">
-        <a href="{{ url_for('inventario_pt_pdf') }}" target="_blank" class="btn btn-outline-secondary">&#8681; Descargar PDF</a>
-        <a href="#registrar" class="btn btn-primary">+ Registrar movimiento</a>
-    </div>
+    <div><h2 class="mb-1">Inventario de producto terminado</h2><p class="text-muted mb-0">Lo que hay en almacén y en ruta, lo reservado para pedidos y lo disponible para vender.</p></div>
+    <div class="d-flex gap-2 align-self-start"><a href="#registrar" class="btn btn-primary">+ Registrar movimiento</a><a href="{{ url_for('inventario_pt_pdf') }}" target="_blank" class="btn btn-outline-secondary" title="Descargar PDF">&#8681; PDF</a></div>
 </div>
 {% if request.args.get('guardado') %}<div class="alert alert-success" role="status">Movimiento guardado.</div>{% endif %}
-{% if alertas %}<div class="alert alert-warning">{{ alertas }} producto(s) sin existencia, con todo reservado o por debajo del mínimo.</div>{% endif %}
-
-<div class="card mb-4"><div class="table-responsive"><table class="table align-middle mb-0">
-    <thead><tr><th>Producto</th><th>En almacén</th><th>En tránsito</th><th>Reservado pedidos</th><th>Disponible</th><th>Mínimo</th><th>Estado</th></tr></thead>
+<div class="d-flex justify-content-between flex-wrap gap-2 mb-2"><div class="inv-filtros" id="ptFiltros" role="group" aria-label="Filtrar"><button type="button" class="btn btn-sm btn-outline-secondary activo" data-f="">Todos ({{ filas|length }})</button><button type="button" class="btn btn-sm btn-outline-secondary" data-f="atencion">Por atender ({{ alertas }})</button></div><input type="search" id="ptBuscar" class="form-control form-control-sm" style="max-width:240px" placeholder="Buscar producto" aria-label="Buscar producto"></div>
+<div class="card mb-4"><div class="table-responsive"><table class="table align-middle mb-0" id="ptInv">
+    <thead><tr><th>Producto</th><th class="text-end">En almacén</th><th class="text-end d-none d-lg-table-cell">En tránsito</th><th class="text-end d-none d-md-table-cell">Reservado</th><th class="text-end">Disponible</th><th class="d-none d-lg-table-cell text-end">Mínimo</th><th>Estado</th><th></th></tr></thead>
     <tbody>
     {% for f in filas %}
-    <tr>
-        <td><small class="text-muted">{{ f.producto.sku }}</small><div class="fw-bold"><a href="{{ url_for('ver_producto_terminado', id_producto=f.producto.id) }}" class="text-decoration-none">{{ f.producto.nombre }}</a></div></td>
-        <td>{{ '%g'|format(f.almacen) }}</td>
-        <td class="text-muted">{{ '%g'|format(f.transito) }}</td>
-        <td class="text-muted">{{ '%g'|format(f.reservado) }}</td>
-        <td><strong>{{ '%g'|format(f.disponible) }}</strong></td>
-        <td class="text-muted">{{ '%g'|format(f.minimo) }}</td>
+    <tr data-grupo="{{ '' if f.estado == 'OK' else 'atencion' }}" data-buscar="{{ (f.producto.nombre ~ ' ' ~ f.producto.sku)|lower }}">
+        <td><div class="fw-bold"><a href="{{ url_for('ver_producto_terminado', id_producto=f.producto.id) }}" class="text-decoration-none">{{ f.producto.nombre }}</a></div><small class="text-muted">{{ f.producto.sku }}</small></td>
+        <td class="text-end">{{ '%g'|format(f.almacen) }}</td>
+        <td class="text-end text-muted d-none d-lg-table-cell">{{ '%g'|format(f.transito) }}</td>
+        <td class="text-end text-muted d-none d-md-table-cell">{{ '%g'|format(f.reservado) }}</td>
+        <td class="text-end"><strong>{{ '%g'|format(f.disponible) }}</strong></td>
+        <td class="text-end text-muted d-none d-lg-table-cell">{{ '%g'|format(f.minimo) }}</td>
         <td><span class="badge {{ 'bg-success' if f.estado == 'OK' else 'bg-danger' if f.estado == 'Sin existencia' else 'bg-warning text-dark' }}">{{ f.estado }}</span></td>
+        <td class="text-end text-nowrap"><a class="btn btn-outline-primary btn-sm" href="{{ url_for('inventario_pt', producto_id=f.producto.id, tipo='Ajuste de entrada') }}#registrar">+ Entrada</a> <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('inventario_pt', producto_id=f.producto.id, tipo='Ajuste de salida') }}#registrar">− Salida</a></td>
     </tr>
     {% else %}
-    <tr><td colspan="7" class="text-center py-5 text-muted">No hay productos terminados activos. Actívalos en el catálogo de producto terminado.</td></tr>
+    <tr><td colspan="8" class="text-center py-5 text-muted">No hay productos terminados activos. Actívalos en el catálogo de producto terminado.</td></tr>
     {% endfor %}
+    <tr id="ptVacio" hidden><td colspan="8" class="text-center text-muted py-4">No hay productos con ese filtro.</td></tr>
     </tbody>
 </table></div></div>
 
 <form method="post" class="card card-body mb-4" id="registrar">
     <input type="hidden" name="csrf" value="{{ session.inventario_pt_csrf }}"><input type="hidden" name="token" value="{{ token }}">
-    <h4>Registrar movimiento</h4>
-    <p class="text-muted">Las cantidades son piezas en el almacén de producto terminado. Las salidas por entrega y las altas por llenado las registra el CRM automáticamente.</p>
+    <h4 class="mb-3">Registrar movimiento</h4>
+    {% set tipo_sel=vals.get('tipo') or 'Produccion' %}
+    <div class="pt-tipos mb-3" role="radiogroup" aria-label="Tipo de movimiento">{% for t in tipos %}<input type="radio" name="tipo" id="pt_tipo_{{ loop.index }}" value="{{ t }}" {% if tipo_sel == t %}checked{% endif %}><label for="pt_tipo_{{ loop.index }}">{{ {'Produccion':'Entró de producción','Ajuste de entrada':'Entró (ajuste)','Ajuste de salida':'Salió','Saldo inicial':'Conteo inicial'}.get(t,t) }}</label>{% endfor %}</div>
     <div class="row g-3">
-        <div class="col-md-5"><label class="form-label" for="producto_id">Producto</label><select class="form-select" name="producto_id" id="producto_id" required><option value="">Selecciona un producto</option>{% for p in productos %}<option value="{{ p.id }}" {% if request.form.get('producto_id') == p.id|string %}selected{% endif %}>{{ p.sku }} · {{ p.nombre }}</option>{% endfor %}</select></div>
-        <div class="col-md-4"><label class="form-label" for="tipo">Tipo de movimiento</label><select class="form-select" name="tipo" id="tipo">{% for t in tipos %}<option value="{{ t }}" {% if request.form.get('tipo') == t %}selected{% endif %}>{{ 'Producción (entrada)' if t == 'Produccion' else t }}</option>{% endfor %}</select></div>
-        <div class="col-md-3"><label class="form-label" for="cantidad">Cantidad (piezas)</label><input class="form-control" type="number" name="cantidad" id="cantidad" min="0.000001" step="0.000001" required value="{{ request.form.get('cantidad', '') }}"></div>
-        <div class="col-md-5"><label class="form-label" for="referencia">Referencia</label><input class="form-control" name="referencia" id="referencia" maxlength="160" required placeholder="Conteo físico, lote de producción, documento" value="{{ request.form.get('referencia', '') }}"></div>
-        <div class="col-md-7"><label class="form-label" for="motivo">Motivo</label><input class="form-control" name="motivo" id="motivo" maxlength="500" required value="{{ request.form.get('motivo', '') }}"></div>
+        <div class="col-md-7"><label class="form-label" for="producto_id">Producto</label><select class="form-select form-select-lg" name="producto_id" id="producto_id" required><option value="">Selecciona un producto</option>{% for p in productos %}<option value="{{ p.id }}" {% if vals.get('producto_id') == p.id|string %}selected{% endif %}>{{ p.nombre }} · {{ p.sku }}</option>{% endfor %}</select></div>
+        <div class="col-md-5"><label class="form-label" for="cantidad">Cantidad</label><div class="input-group input-group-lg"><input class="form-control" type="number" name="cantidad" id="cantidad" min="0.000001" step="0.000001" required inputmode="decimal" value="{{ vals.get('cantidad', '') }}"><span class="input-group-text">piezas</span></div></div>
+        <div class="col-md-6"><label class="form-label" for="motivo">Motivo</label><input class="form-control" name="motivo" id="motivo" maxlength="500" required list="ptMotivos" value="{{ vals.get('motivo', '') }}"><datalist id="ptMotivos"></datalist></div>
+        <div class="col-md-6"><label class="form-label" for="referencia">Documento o referencia</label><input class="form-control" name="referencia" id="referencia" maxlength="160" required value="{{ vals.get('referencia', '') }}"></div>
     </div>
-    <p class="form-text mt-3 mb-3">El saldo inicial se usa una sola vez por producto. Una salida no puede tomar lo que ya está reservado para pedidos.</p>
-    <button class="btn btn-primary align-self-start">Guardar movimiento</button>
+    <div class="alert alert-light border mt-3 mb-0 py-2" id="ptResumen" aria-live="polite"></div>
+    <button class="btn btn-primary btn-lg align-self-start mt-3" id="ptGuardar">Guardar movimiento</button>
+    <p class="form-text mt-2 mb-0">Las entregas y el llenado de pedidos los registra el CRM solo. Una salida no puede tomar lo que ya está reservado.</p>
 </form>
+<script>
+(function(){
+const $=id=>document.getElementById(id),pr=$('producto_id'),mo=$('motivo'),rf=$('referencia'),ca=$('cantidad');
+const MOT={'Produccion':['Producción terminada','Lote de producción'],'Ajuste de entrada':['Devolución de cliente','Corrección de conteo'],'Ajuste de salida':['Merma o daño','Muestra','Corrección de conteo'],'Saldo inicial':['Conteo físico inicial']};
+const REF={'Produccion':'Lote de producción','Ajuste de entrada':'Entrada manual','Ajuste de salida':'Salida manual','Saldo inicial':'Conteo físico'};
+const VERBO={'Produccion':'Entrarán','Ajuste de entrada':'Entrarán','Ajuste de salida':'Saldrán','Saldo inicial':'Quedarán como saldo inicial'};
+const tocado={mo:!!mo.value,rf:!!rf.value};mo.addEventListener('input',()=>tocado.mo=true);rf.addEventListener('input',()=>tocado.rf=true);
+const tipo=()=>document.querySelector('input[name=tipo]:checked').value;
+function pintar(){const t=tipo(),n=parseFloat(ca.value),o=pr.selectedOptions[0];
+ $('ptMotivos').innerHTML=MOT[t].map(x=>'<option value="'+x+'">').join('');
+ if(!tocado.mo)mo.value=MOT[t][0];if(!tocado.rf)rf.value=REF[t];
+ $('ptResumen').innerHTML=(o&&o.value&&n>0)?VERBO[t]+' <strong>'+n.toLocaleString('es-MX',{maximumFractionDigits:6})+' piezas</strong> de <strong>'+o.textContent.split(' · ')[0]+'</strong>.':'Elige el producto y escribe la cantidad.';
+ $('ptGuardar').textContent=t==='Ajuste de salida'?'Guardar salida':t==='Saldo inicial'?'Guardar conteo inicial':'Guardar entrada';}
+document.querySelectorAll('input[name=tipo]').forEach(r=>r.addEventListener('change',pintar));pr.addEventListener('change',pintar);ca.addEventListener('input',pintar);pintar();
+if(location.hash==='#registrar'){(pr.value?ca:pr).focus();}
+const filas=[...document.querySelectorAll('#ptInv tbody tr[data-grupo]')],bs=[...document.querySelectorAll('#ptFiltros button')],q=$('ptBuscar');let f='';
+function aplicar(){const t=q.value.trim().toLowerCase();let n=0;filas.forEach(r=>{const ok=(!f||r.dataset.grupo===f)&&(!t||r.dataset.buscar.includes(t));r.hidden=!ok;if(ok)n++});$('ptVacio').hidden=n>0||!filas.length;bs.forEach(b=>b.classList.toggle('activo',b.dataset.f===f))}
+bs.forEach(b=>b.addEventListener('click',()=>{f=b.dataset.f;aplicar()}));q.addEventListener('input',aplicar);aplicar();
+})();
+</script>
 
-<h4>Historial de movimientos</h4>
-<div class="card"><div class="table-responsive"><table class="table mb-0">
-    <thead><tr><th>Fecha / responsable</th><th>Producto</th><th>Tipo / referencia</th><th>Ubicación</th><th>Cantidad</th><th>Motivo</th></tr></thead>
+<details class="inv-sec"><summary>Historial de movimientos ({{ movimientos|length }})</summary><div class="table-responsive"><table class="table mb-0">
+    <thead><tr><th>Fecha / responsable</th><th>Producto</th><th>Tipo / referencia</th><th>Ubicación</th><th class="text-end">Cantidad</th><th>Motivo</th></tr></thead>
     <tbody>
     {% for m in movimientos %}
     <tr>
@@ -56,12 +83,12 @@
         <td>{{ m.producto.nombre if m.producto else '—' }}</td>
         <td>{{ 'Producción' if m.tipo == 'Produccion' else m.tipo }}<br><small class="text-muted">{{ m.referencia }}</small></td>
         <td>{{ m.ubicacion }}</td>
-        <td class="{{ 'text-success' if m.cantidad > 0 else 'text-danger' }}">{{ '+' if m.cantidad > 0 else '' }}{{ '%g'|format(m.cantidad) }}</td>
+        <td class="text-end {{ 'text-success' if m.cantidad > 0 else 'text-danger' }}">{{ '+' if m.cantidad > 0 else '' }}{{ '%g'|format(m.cantidad) }}</td>
         <td class="text-muted">{{ m.motivo or '' }}</td>
     </tr>
     {% else %}
     <tr><td colspan="6" class="text-center py-4 text-muted">Sin movimientos.</td></tr>
     {% endfor %}
     </tbody>
-</table></div></div>
+</table></div></details>
 {% endblock %}

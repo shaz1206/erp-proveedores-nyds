@@ -1,11 +1,31 @@
 {% extends 'tienda_base.html' %}
-{% block titulo %}Pedido confirmado - Tienda NYDS{% endblock %}
+{% block titulo %}Pedido {{ pedido.folio }} - Tienda NYDS{% endblock %}
 {% block contenido %}
-<div class="card border-0 shadow-sm p-5 text-center">
-    <h2 class="fw-bold text-dark mb-2">¡Gracias por tu pedido!</h2>
-    <p class="text-muted mb-1">Tu folio es <strong>{{ pedido.folio }}</strong>.</p>
-    <p class="text-muted">Nuestro equipo de ventas lo va a confirmar en breve y te avisaremos cuando esté en camino.</p>
-    <div class="d-flex justify-content-center gap-3 mt-3 flex-wrap">
+<div class="card border-0 shadow-sm p-4 p-md-5">
+    <h2 class="fw-bold text-dark mb-2">Pedido {{ pedido.folio }}</h2>
+    <p class="text-muted mb-1">Estado: <span class="badge bg-primary">{{ pedido.estado }}</span></p>
+    <p class="text-muted mb-1">Fecha: {{ pedido.fecha.strftime('%d/%m/%Y %H:%M') }}</p>
+    <p class="text-muted mb-1">Forma de pago: {{ pedido.forma_pago }}</p>
+    <p class="text-muted mb-4">Dirección: {{ pedido.domicilio.direccion if pedido.domicilio else '—' }}</p>
+
+    <div class="table-responsive mb-3"><table class="table align-middle mb-0">
+    <thead class="table-dark"><tr><th>Producto</th><th>Cantidad</th><th>Precio</th><th>Subtotal</th></tr></thead>
+    <tbody>
+    {% for l in pedido.lineas %}
+    <tr>
+        <td>{{ l.producto.nombre if l.producto else 'Producto' }}</td>
+        <td>{{ l.cantidad | float }}</td>
+        <td>${{ '%.2f' | format(l.precio_unitario) }}</td>
+        <td>${{ '%.2f' | format(l.subtotal) }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+    </table></div>
+    <div class="d-flex justify-content-between fw-bold fs-5 mb-4">
+        <span>Total</span><span>${{ '%.2f' | format(pedido.importe_total) }}</span>
+    </div>
+
+    <div class="d-flex gap-3 flex-wrap">
         <a class="btn btn-primary" href="{{ url_for('tienda_mis_pedidos') }}">Ver mis pedidos</a>
         <a class="btn btn-outline-primary" href="{{ url_for('tienda_catalogo') }}">Seguir comprando</a>
     </div>
