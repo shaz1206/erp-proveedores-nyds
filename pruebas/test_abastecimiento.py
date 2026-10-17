@@ -93,6 +93,39 @@ class ComprasTest(unittest.TestCase):
         self.assertEqual(OrdenCompra.query.one().estado,'Recibida')
         self.assertEqual(sum(m.cantidad for m in MovimientoMP.query.all()),252)
 
+    def _orden_de_dos_partidas(self):
+        original=db.session.get(MateriaPrimaProveedor,self.cid)
+        c=MateriaPrimaProveedor(id_mp=self.mid,id_proveedor=original.id_proveedor,presentacion_compra='Bolsa',contenido_presentacion=1,unidad_contenido='kg',factor_a_unidad_base=1,precio_vigente=5,tipo_precio='Por presentación',moneda='MXN',iva_tasa=16,compra_minima=1,unidad_compra_minima='Presentación')
+        db.session.add(c);db.session.commit()
+        self.assertEqual(self.emitir(condicion=[str(self.cid),str(c.id_relacion)],cantidad=['10','2']).status_code,302)
+    def recibir_todo(self,**kw):
+        data=dict(csrf=self.csrf,token='todo1',accion='recibir_todo',ubicacion='Central / A1',referencia='Remisión 77',conforme='si')
+        data.update(kw);return self.c.post('/admin/compras/1',data=data)
+    def test_recibir_todo_completo_de_una_vez(self):
+        self._orden_de_dos_partidas()
+        self.assertIn('Recibir todo completo',self.c.get('/admin/compras/1').get_data(as_text=True))
+        self.recibir_todo(conforme='');self.assertEqual(RecepcionMP.query.count(),0)
+        self.recibir_todo(referencia='');self.assertEqual(RecepcionMP.query.count(),0)
+        self.assertEqual(self.recibir_todo().status_code,302)
+        self.assertEqual(RecepcionMP.query.count(),2)
+        self.assertEqual(OrdenCompra.query.one().estado,'Recibida')
+        self.assertEqual(sum(m.cantidad for m in MovimientoMP.query.all()),252)
+        self.assertEqual(self.recibir_todo(token='todo2').status_code,400)
+        self.assertEqual(RecepcionMP.query.count(),2)
+    def test_recibir_todo_respeta_lote_y_resto_pendiente(self):
+        self._orden_de_dos_partidas()
+        self.recibir(aceptada='4',rechazada='0')
+        self.assertEqual(self.recibir_todo().status_code,302)
+        self.assertEqual(RecepcionMP.query.count(),3)
+        self.assertEqual(sum(m.cantidad for m in MovimientoMP.query.all()),252)
+    def test_recibir_todo_no_aplica_con_lote(self):
+        db.session.add(MateriaPrimaInventarioConfig(id_mp=self.mid,control_lote=True));db.session.commit()
+        self._orden_de_dos_partidas()
+        self.assertNotIn('Recibir todo completo',self.c.get('/admin/compras/1').get_data(as_text=True))
+        self.assertEqual(self.recibir_todo().status_code,400)
+        self.assertEqual(RecepcionMP.query.count(),0)
+        self.assertEqual(OrdenCompra.query.one().estado,'Emitida')
+
     def test_seguridad(self):
         anon=app.test_client()
         self.assertEqual(anon.get('/admin/inventario-mp').status_code,302)

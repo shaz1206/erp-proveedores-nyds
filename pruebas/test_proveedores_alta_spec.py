@@ -95,6 +95,32 @@ class ProveedoresAltaSpecTest(unittest.TestCase):
         malo = self.client.post("/api/proveedores", json={"razon_social": "Mal RFC", "rfc": "123"})
         self.assertEqual(malo.status_code, 400)
 
+    def test_completar_datos_despues_del_alta(self):
+        a = self.client.post("/api/proveedores", json={"razon_social": "Solo Nombre", "estatus_inicial": "Activo"}).json
+        b = self.client.post("/api/proveedores", json={"razon_social": "Otro", "rfc": "BBB010101BBB"}).json
+        url = f"/api/proveedores/{a['id_proveedor']}/datos"
+        vacio = self.client.get(url).json
+        self.assertEqual((vacio["rfc"], vacio["telefono"], vacio["razon_social"]), ("", "", "Solo Nombre"))
+        # Completar telefono, RFC, domicilio y condiciones en un solo guardado.
+        ok = self.client.patch(url, json={"telefono": "9981112233", "correo": "a@b.com", "contacto_nombre": "Luis", "rfc": "aaa010101aaa",
+                                          "calle_numero": "Av. 1", "colonia": "Centro", "codigo_postal": "77500",
+                                          "condicion_pago": "Contado", "tiempo_entrega_normal": "2.5"})
+        self.assertEqual(ok.status_code, 200, ok.json)
+        datos = self.client.get(url).json
+        self.assertEqual((datos["rfc"], datos["telefono"], datos["contacto_nombre"], datos["codigo_postal"], datos["tiempo_entrega_normal"]),
+                         ("AAA010101AAA", "9981112233", "Luis", "77500", 2.5))
+        fila = next(p for p in self.client.get("/api/proveedores").json if p["id_proveedor"] == a["id_proveedor"])
+        self.assertEqual((fila["telefono"], fila["contacto"]), ("9981112233", "Luis"))
+        # Validaciones: nombre vacio, RFC malo o repetido, CP, correo, dias.
+        for cuerpo in ({"razon_social": "  "}, {"rfc": "123"}, {"rfc": "BBB010101BBB"}, {"codigo_postal": "12"},
+                       {"correo": "no-es-correo"}, {"tiempo_entrega_normal": "abc"}, {"tiempo_entrega_normal": "-1"}):
+            self.assertEqual(self.client.patch(url, json=cuerpo).status_code, 400, cuerpo)
+        # Borrar el RFC lo deja sin RFC otra vez, sin chocar con otros proveedores sin RFC.
+        self.assertEqual(self.client.patch(url, json={"rfc": ""}).status_code, 200)
+        self.assertEqual(self.client.get(url).json["rfc"], "")
+        self.assertEqual(self.client.patch("/api/proveedores/99999/datos", json={}).status_code, 404)
+        self.assertEqual(self.client.patch(url, data="no json", content_type="text/plain").status_code, 200)
+
     # CA-02 ----------------------------------------------------------------
     def test_ca02_rfc_duplicado_bloquea_y_muestra_registro_existente(self):
         primero = self.client.post("/api/proveedores", json=proveedor_base())

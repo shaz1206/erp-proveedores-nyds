@@ -54,6 +54,19 @@ class CRMMensualTest(unittest.TestCase):
         self.assertEqual(self.client.post("/api/crm/clientes", json={"nombre": "Dup", "telefono": "9982223333"}).status_code, 400)
         self.assertEqual(ClienteCRM.query.filter_by(nombre="Con tel").one().domicilios[0].direccion, "Calle 5")
 
+    def test_atajos_vender_y_cobrar(self):
+        alta = self.client.post("/api/crm/clientes", json={"nombre": "Taller Atajo"})
+        cliente = ClienteCRM.query.filter_by(nombre="Taller Atajo").one()
+        uno = self.client.get(f"/api/crm/clientes/{cliente.id}")
+        self.assertEqual((uno.status_code, uno.get_json()["nombre_completo"]), (200, "Taller Atajo"))
+        self.assertEqual(self.client.get("/api/crm/clientes/99999").status_code, 404)
+        self.assertEqual(test_crm.app.test_client().get(f"/api/crm/clientes/{cliente.id}").status_code, 403)
+        # Clientes ofrece Vender; Pagos ofrece Cobrar pendientes y enlaza cada folio con su pedido.
+        self.assertIn(f"/crm/pedidos?cliente={cliente.id}", self.client.get("/crm/clientes").get_data(as_text=True))
+        self.assertIn("/crm/pedidos?filtro=cobrar", self.client.get("/crm/pagos").get_data(as_text=True))
+        pedidos = self.client.get("/crm/pedidos?filtro=cobrar&cliente=" + str(cliente.id))
+        self.assertEqual(pedidos.status_code, 200)
+
     def test_pedido_sin_telefono_no_se_mezcla_con_otro_cliente_sin_telefono(self):
         self.client.post("/api/crm/clientes", json={"nombre": "Existente sin tel"})
         respuesta = self.client.post(
