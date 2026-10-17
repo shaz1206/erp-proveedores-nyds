@@ -39,11 +39,13 @@ class CRMMensualTest(unittest.TestCase):
     # --- Clientes ---
 
     def test_alta_manual_solo_exige_nombre(self):
+        # Regla vigente: solo el nombre es obligatorio; telefono, RFC, correo y direccion son opcionales.
         respuesta = self.client.post("/api/crm/clientes", json={"nombre": "Taller Gómez"})
         self.assertEqual(respuesta.status_code, 201, respuesta.get_json())
         self.assertEqual(self.client.post("/api/crm/clientes", json={"nombre": "Otro sin teléfono"}).status_code, 201)
         cliente = ClienteCRM.query.filter_by(nombre="Taller Gómez").one()
         self.assertEqual(cliente.telefono, "")
+        self.assertIsNone(cliente.rfc)
         self.assertEqual(cliente.domicilios, [])
         self.assertIn("Taller Gómez", self.client.get("/crm/clientes").get_data(as_text=True))
 

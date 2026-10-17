@@ -34,27 +34,16 @@ class OperacionesTest(unittest.TestCase):
         self.assertIn("Reserva activa en pedido cerrado", titulos)
         self.assertEqual(ReservaERP.query.filter_by(estado="Activa").count(), 2)
 
-    def test_ciclo_pedido_documenta_los_pasos_y_exige_login(self):
-        with self.client.session_transaction() as sesion:
-            sesion.clear()
-        self.assertEqual(self.client.get("/admin/operaciones/ciclo-pedido").status_code, 302)
-
-        with self.client.session_transaction() as sesion:
-            sesion["admin_logueado"] = True
-        respuesta = self.client.get("/admin/operaciones/ciclo-pedido")
-        self.assertEqual(respuesta.status_code, 200)
-        cuerpo = respuesta.get_data(as_text=True)
-        for texto in [
-            "Ciclo de un pedido",
-            "Ventas crea el pedido",
-            "api_crm_confirmar_pedido",
-            "crm_pedido_pagos",
-            "Intento fallido",
-            "Ciclo de vida del pedido",
-        ]:
-            self.assertIn(texto, cuerpo)
-
-        self.assertIn("Ciclo del pedido", self.client.get("/admin/operaciones").get_data(as_text=True))
+    def test_ciclo_del_pedido_ya_no_existe_y_hay_acciones_directas(self):
+        # La documentacion tecnica del ciclo del pedido no pertenece al ERP.
+        self.assertEqual(self.client.get("/admin/operaciones/ciclo-pedido").status_code, 404)
+        cuerpo = self.client.get("/admin/operaciones").get_data(as_text=True)
+        self.assertNotIn("Ciclo del pedido", cuerpo)
+        self.assertNotIn("Continuar flujo", cuerpo)
+        for enlace in ["/crm/pedidos", "/admin/compras/nueva", "/admin/produccion", "/admin/inventario-mp/registrar"]:
+            self.assertIn(f'href="{enlace}"', cuerpo)
+        for enlace in ["/admin/produccion/lista-compra", "/admin/envases", "/admin/productos-terminados/nuevo", "/admin/materias-primas/nueva", "/admin/alta", "/admin/precios"]:
+            self.assertEqual(self.client.get(enlace).status_code, 200, enlace)
 
 
 if __name__ == "__main__":

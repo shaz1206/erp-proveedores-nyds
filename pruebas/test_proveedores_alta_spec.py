@@ -57,15 +57,13 @@ class ProveedoresAltaSpecTest(unittest.TestCase):
 
     # CA-01 --------------------------------------------------------------
     def test_ca01_alta_valida_queda_activo_y_en_catalogo(self):
+        # Regla vigente: lo unico obligatorio es el nombre y un telefono; con eso queda Activo.
         payload = proveedor_base(estatus_inicial="Activo")
-        # Sin materia prima relacionada todavía: como es 'Materia prima', debe quedar
-        # en Borrador aunque se pida Activo (regla 12), pero sí debe crearse.
         resp = self.client.post("/api/proveedores", json=payload)
         self.assertEqual(resp.status_code, 201, resp.json)
         self.assertTrue(resp.json["codigo"].startswith("PROV-"))
-        self.assertEqual(resp.json["estatus"], "Borrador")
+        self.assertEqual(resp.json["estatus"], "Activo")
 
-        # Ahora sin exigir tipo materia prima (servicio) sí debe activarse de inmediato.
         payload2 = proveedor_base(rfc="BBB010101BBB", razon_social="Proveedor Servicio",
                                    tipo_proveedor="Servicio", estatus_inicial="Activo")
         resp2 = self.client.post("/api/proveedores", json=payload2)
@@ -74,6 +72,28 @@ class ProveedoresAltaSpecTest(unittest.TestCase):
 
         catalogo = self.client.get("/api/proveedores").json
         self.assertEqual({p["rfc"] for p in catalogo}, {"AAA010101AAA", "BBB010101BBB"})
+
+    def test_solo_el_nombre_es_obligatorio(self):
+        # Sin nombre: no se crea.
+        sin_nombre = self.client.post("/api/proveedores", json={"telefono": "9981112233"})
+        self.assertEqual(sin_nombre.status_code, 400)
+        self.assertIn("nombre", sin_nombre.json["error"])
+        # Solo el nombre: se crea y puede quedar Activo; nada se inventa.
+        ok = self.client.post("/api/proveedores", json={"razon_social": "Quimicos Locales", "estatus_inicial": "Activo"})
+        self.assertEqual(ok.status_code, 201, ok.json)
+        self.assertEqual(ok.json["estatus"], "Activo")
+        fila = self.client.get("/api/proveedores").json[0]
+        self.assertEqual(fila["rfc"], "")
+        self.assertEqual(fila["domicilio"], "")
+        self.assertEqual(fila["contacto"], "Sin contacto")
+        # Dos proveedores sin RFC conviven; el telefono, si se da, queda como contacto.
+        otro = self.client.post("/api/proveedores", json={"razon_social": "Otro Local", "telefono": "9984445566"})
+        self.assertEqual(otro.status_code, 201, otro.json)
+        fila = next(p for p in self.client.get("/api/proveedores").json if p["razon_social"] == "Otro Local")
+        self.assertEqual(fila["telefono"], "9984445566")
+        # Un RFC escrito mal si se rechaza; vacio no.
+        malo = self.client.post("/api/proveedores", json={"razon_social": "Mal RFC", "rfc": "123"})
+        self.assertEqual(malo.status_code, 400)
 
     # CA-02 ----------------------------------------------------------------
     def test_ca02_rfc_duplicado_bloquea_y_muestra_registro_existente(self):

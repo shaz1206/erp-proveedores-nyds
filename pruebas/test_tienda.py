@@ -1,12 +1,17 @@
 """Tienda en linea: cuenta de cliente (no hay compra como invitado), catalogo
-publico, carrito en sesion y checkout. Reglas de negocio reforzadas:
-- El precio SIEMPRE se cobra desde el catalogo (ProductoTerminado.precio) al
-  momento de pagar, nunca el que pudiera quedar cacheado en el carrito.
+publico y carrito en sesion. El flujo real de negocio es: el carrito se
+arma aqui pero quien recibe, atiende, confirma y cierra el pedido es ventas
+por WhatsApp -- "Enviar pedido" NO crea un PedidoCRM solo, arma un resumen
+y un enlace wa.me; ventas lo captura despues a mano en el CRM (como ya
+probaba test_crm.py), y ahi es donde aparece en "Mis pedidos" del cliente.
+
+Reglas de negocio reforzadas que siguen vigentes:
+- El precio del resumen SIEMPRE sale del catalogo (ProductoTerminado.precio)
+  al momento de armar el mensaje, nunca de algo cacheado en el carrito.
 - No se deja pedir mas de lo que hay fisicamente disponible en almacen (el
-  carrito se ajusta solo, y el checkout vuelve a revisar justo antes de
-  crear el pedido por si el stock cambio mientras el cliente armaba su
-  carrito).
-- Un domicilio marcado fuera de cobertura no puede usarse para pagar."""
+  carrito se ajusta solo).
+- Un domicilio fuera de cobertura ya no bloquea el envio (eso lo decide
+  ventas en la conversacion), pero se avisa con una nota en el mensaje."""
 import secrets
 import unittest
 from decimal import Decimal
@@ -19,6 +24,7 @@ from proveedores.vendssback import ClienteCRM, ClienteDomicilio, MovimientoPT, P
 class TiendaTest(unittest.TestCase):
     setUp = CRMTest.setUp
     tearDown = CRMTest.tearDown
+    crear_pedido = CRMTest.crear_pedido
 
     def fijar_precio(self, valor="120.00"):
         self.pt.precio = Decimal(valor)
@@ -39,24 +45,15 @@ class TiendaTest(unittest.TestCase):
         ))
         db.session.commit()
 
-    def consumir_stock(self, cantidad="1"):
-        """Simula que el stock fisico bajo por otra via (venta de mostrador,
-        ajuste, etc.) despues de que el cliente ya armo su carrito."""
-        db.session.add(MovimientoPT(
-            producto_id=self.pt.id,
-            tipo="Ajuste manual",
-            cantidad=Decimal(cantidad) * -1,
-            unidad="pieza",
-            ubicacion=UBICACION_PT,
-            referencia="TEST-CONSUMO",
-            usuario="test",
-            token=secrets.token_hex(8),
-        ))
-        db.session.commit()
-
     def salir_sesion_staff(self):
         with self.client.session_transaction() as sesion:
             sesion.clear()
+
+    def configurar_whatsapp(self, numero="529981112233"):
+        """Debe llamarse mientras la sesion de staff (admin_logueado) sigue
+        activa, tal como la deja CRMTest.setUp por defecto."""
+        respuesta = self.client.post("/admin/tienda/configuracion", data={"whatsapp_ventas": numero})
+        self.assertEqual(respuesta.status_code, 302)
 
     def registrar_cliente(self, telefono="9981112222", password="secreto1", nombre="Cliente Tienda", correo=""):
         return self.client.post(
@@ -150,7 +147,7 @@ class TiendaTest(unittest.TestCase):
         respuesta = self.client.post("/tienda/login", data={"telefono": "9989999999", "password": "lo-que-sea"})
         self.assertEqual(respuesta.status_code, 401)
 
-    # ---- Carrito y checkout ----
+    # ---- Carrito ----
 
     def test_agregar_al_carrito_sin_cuenta_y_ver_total(self):
         self.salir_sesion_staff()
@@ -188,6 +185,8 @@ class TiendaTest(unittest.TestCase):
         carrito = self.client.get("/tienda/carrito").data
         self.assertIn(b"30.00", carrito)  # se limito a las 3 piezas disponibles
 
+    # ---- Enviar pedido por WhatsApp ----
+
     def test_checkout_exige_cuenta_de_cliente(self):
         self.salir_sesion_staff()
         self.fijar_precio("120.00")
@@ -197,7 +196,16 @@ class TiendaTest(unittest.TestCase):
         self.assertEqual(respuesta.status_code, 302)
         self.assertIn("/tienda/login", respuesta.headers["Location"])
 
-    def test_checkout_completo_crea_pedido_y_vacia_carrito(self):
+    def test_checkout_sin_direccion_da_error(self):
+        self.salir_sesion_staff()
+        self.fijar_precio("80.00")
+        self.agregar_stock("10")
+        self.registrar_cliente(telefono="9983334444")
+        self.client.post(f"/tienda/catalogo/agregar/{self.pt.id}", data={"cantidad": "1"})
+        respuesta = self.client.post("/tienda/checkout", data={"domicilio_id": "", "forma_pago": "Efectivo"})
+        self.assertEqual(respuesta.status_code, 400)
+
+    def test_checkout_sin_numero_configurado_muestra_mensaje_para_copiar(self):
         self.salir_sesion_staff()
         self.fijar_precio("120.00")
         self.agregar_stock("10")
@@ -207,50 +215,60 @@ class TiendaTest(unittest.TestCase):
             "/tienda/checkout",
             data={"domicilio_id": "", "direccion": "Calle Falsa 123", "referencias": "Casa azul", "zona": "Cancun", "forma_pago": "Transferencia"},
         )
-        self.assertEqual(respuesta.status_code, 302)
-        self.assertIn("/tienda/pedido/", respuesta.headers["Location"])
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertNotIn(b"wa.me", respuesta.data)
+        self.assertIn(b"240.00", respuesta.data)
+        self.assertIn(b"Calle Falsa 123", respuesta.data)
+        # No se crea ningun pedido solo: eso lo hace ventas despues en el CRM.
+        self.assertEqual(PedidoCRM.query.count(), 0)
+        # El carrito ya se vacio porque el pedido "se mando".
+        self.assertIn(b"carrito est\xc3\xa1 vac\xc3\xado", self.client.get("/tienda/carrito").data)
 
-        pedido = PedidoCRM.query.one()
-        self.assertEqual(pedido.canal, "Tienda en línea")
-        self.assertEqual(pedido.forma_pago, "Transferencia")
-        self.assertEqual(pedido.estado, "Recibido")
-        self.assertEqual(float(pedido.importe_total), 240.00)
-        self.assertEqual(pedido.domicilio.direccion, "Calle Falsa 123")
-
-        carrito_vacio = self.client.get("/tienda/carrito").data
-        self.assertIn(b"carrito est\xc3\xa1 vac\xc3\xado", carrito_vacio)
-
-    def test_checkout_cobra_el_precio_vigente_del_catalogo_no_uno_viejo(self):
+    def test_checkout_con_numero_configurado_genera_enlace_wa_me(self):
+        self.configurar_whatsapp("529981112233")
         self.salir_sesion_staff()
-        self.fijar_precio("100.00")
+        self.fijar_precio("120.00")
         self.agregar_stock("10")
         self.registrar_cliente(telefono="9981112233")
         self.client.post(f"/tienda/catalogo/agregar/{self.pt.id}", data={"cantidad": "1"})
-        # Ventas cambia el precio de lista despues de que el cliente agrego al carrito.
-        self.fijar_precio("250.00")
-        self.client.post(
+        respuesta = self.client.post(
             "/tienda/checkout",
             data={"domicilio_id": "", "direccion": "Otra calle 55", "zona": "Cancun", "forma_pago": "Efectivo"},
         )
-        pedido = PedidoCRM.query.one()
-        self.assertEqual(float(pedido.importe_total), 250.00)
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertIn(b"https://wa.me/529981112233?text=", respuesta.data)
 
-    def test_checkout_usa_domicilio_guardado_del_cliente(self):
+    def test_checkout_usa_precio_vigente_en_el_mensaje(self):
+        self.salir_sesion_staff()
+        self.fijar_precio("100.00")
+        self.agregar_stock("10")
+        self.registrar_cliente(telefono="9981112299")
+        self.client.post(f"/tienda/catalogo/agregar/{self.pt.id}", data={"cantidad": "1"})
+        # Ventas cambia el precio de lista despues de que el cliente agrego al carrito.
+        self.fijar_precio("250.00")
+        respuesta = self.client.post(
+            "/tienda/checkout",
+            data={"domicilio_id": "", "direccion": "Otra calle 77", "zona": "Cancun", "forma_pago": "Efectivo"},
+        )
+        self.assertIn(b"250.00", respuesta.data)
+
+    def test_checkout_guarda_direccion_nueva_y_la_reutiliza_despues(self):
         self.salir_sesion_staff()
         self.fijar_precio("50.00")
         self.agregar_stock("10")
         self.registrar_cliente(telefono="9980002222")
         cliente = ClienteCRM.query.filter_by(telefono="9980002222").one()
-        domicilio = ClienteDomicilio(cliente_id=cliente.id, alias="Casa", direccion="Av. Siempre Viva 742", zona="Cancun")
-        db.session.add(domicilio)
-        db.session.commit()
         self.client.post(f"/tienda/catalogo/agregar/{self.pt.id}", data={"cantidad": "1"})
-        respuesta = self.client.post("/tienda/checkout", data={"domicilio_id": str(domicilio.id), "forma_pago": "Efectivo"})
-        self.assertEqual(respuesta.status_code, 302)
-        pedido = PedidoCRM.query.one()
-        self.assertEqual(pedido.domicilio_id, domicilio.id)
+        self.client.post("/tienda/checkout", data={"domicilio_id": "", "direccion": "Av. Siempre Viva 742", "zona": "Cancun", "forma_pago": "Efectivo"})
+        self.assertEqual(ClienteDomicilio.query.filter_by(cliente_id=cliente.id).count(), 1)
 
-    def test_checkout_bloquea_domicilio_fuera_de_cobertura(self):
+        domicilio = ClienteDomicilio.query.filter_by(cliente_id=cliente.id).one()
+        self.client.post(f"/tienda/catalogo/agregar/{self.pt.id}", data={"cantidad": "1"})
+        self.client.post("/tienda/checkout", data={"domicilio_id": str(domicilio.id), "forma_pago": "Efectivo"})
+        # Reusar la misma direccion no crea una segunda fila.
+        self.assertEqual(ClienteDomicilio.query.filter_by(cliente_id=cliente.id).count(), 1)
+
+    def test_checkout_domicilio_fuera_de_cobertura_no_bloquea_pero_avisa(self):
         self.salir_sesion_staff()
         self.fijar_precio("70.00")
         self.agregar_stock("5")
@@ -261,53 +279,48 @@ class TiendaTest(unittest.TestCase):
         db.session.commit()
         self.client.post(f"/tienda/catalogo/agregar/{self.pt.id}", data={"cantidad": "1"})
         respuesta = self.client.post("/tienda/checkout", data={"domicilio_id": str(domicilio.id), "forma_pago": "Efectivo"})
-        self.assertEqual(respuesta.status_code, 400)
-        self.assertIn(b"fuera de nuestra zona de cobertura", respuesta.data)
-        self.assertEqual(PedidoCRM.query.count(), 0)
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertIn("fuera de nuestra zona de cobertura".encode("utf-8"), respuesta.data)
 
-    def test_checkout_revalida_stock_si_bajo_entre_carrito_y_pago(self):
-        self.salir_sesion_staff()
-        self.fijar_precio("60.00")
-        self.agregar_stock("2")
-        self.registrar_cliente(telefono="9980003333")
-        self.client.post(f"/tienda/catalogo/agregar/{self.pt.id}", data={"cantidad": "2"})
-        # El stock fisico baja (otra venta, ajuste, etc.) despues de armado el carrito.
-        self.consumir_stock("1")
-        respuesta = self.client.post(
-            "/tienda/checkout",
-            data={"domicilio_id": "", "direccion": "Calle X 1", "zona": "Cancun", "forma_pago": "Efectivo"},
-        )
-        self.assertEqual(respuesta.status_code, 400)
-        self.assertIn(b"Ya no hay suficiente", respuesta.data)
-        self.assertEqual(PedidoCRM.query.count(), 0)
-
-    def test_checkout_sin_direccion_da_error_y_no_crea_pedido(self):
-        self.salir_sesion_staff()
-        self.fijar_precio("80.00")
-        self.agregar_stock("10")
-        self.registrar_cliente(telefono="9983334444")
-        self.client.post(f"/tienda/catalogo/agregar/{self.pt.id}", data={"cantidad": "1"})
-        respuesta = self.client.post("/tienda/checkout", data={"domicilio_id": "", "forma_pago": "Efectivo"})
-        self.assertEqual(respuesta.status_code, 400)
-        self.assertEqual(PedidoCRM.query.count(), 0)
+    # ---- Seguimiento: lo que ventas captura despues en el CRM ----
 
     def test_mis_pedidos_solo_lista_pedidos_del_cliente_logueado(self):
+        # Ventas captura el pedido en el CRM (como en test_crm.py) despues de
+        # cerrarlo por WhatsApp; self.crear_pedido usa el telefono 9981000000.
+        self.crear_pedido()
+
         self.salir_sesion_staff()
-        self.fijar_precio("90.00")
-        self.agregar_stock("10")
-        self.registrar_cliente(telefono="9985556666")
-        self.client.post(f"/tienda/catalogo/agregar/{self.pt.id}", data={"cantidad": "1"})
-        self.client.post("/tienda/checkout", data={"domicilio_id": "", "direccion": "Mi calle 1", "zona": "Cancun", "forma_pago": "Efectivo"})
+        self.registrar_cliente(telefono="9981000000", nombre="Cliente del pedido")
+        propios = self.client.get("/tienda/mis-pedidos").data
+        self.assertIn(b"PED-", propios)
 
         self.salir_sesion_staff()
         self.registrar_cliente(telefono="9987778888", nombre="Otro cliente")
-        propios = self.client.get("/tienda/mis-pedidos").data
-        self.assertNotIn(b"PED-", propios)
+        ajenos = self.client.get("/tienda/mis-pedidos").data
+        self.assertNotIn(b"PED-", ajenos)
 
     def test_mis_pedidos_y_pedido_confirmado_requieren_cuenta(self):
         self.salir_sesion_staff()
         self.assertEqual(self.client.get("/tienda/mis-pedidos").status_code, 302)
         self.assertEqual(self.client.get("/tienda/pedido/PED-000001").status_code, 302)
+
+    # ---- Configuracion del numero de WhatsApp (solo staff) ----
+
+    def test_configuracion_requiere_sesion_de_staff(self):
+        self.salir_sesion_staff()
+        self.assertEqual(self.client.get("/admin/tienda/configuracion").status_code, 302)
+        self.assertEqual(self.client.post("/admin/tienda/configuracion", data={"whatsapp_ventas": "529981112233"}).status_code, 302)
+
+    def test_configuracion_guarda_numero_valido(self):
+        respuesta = self.client.post("/admin/tienda/configuracion", data={"whatsapp_ventas": "52 998 111 2233"})
+        self.assertEqual(respuesta.status_code, 302)
+        self.assertIn("guardado=1", respuesta.headers["Location"])
+        pagina = self.client.get("/admin/tienda/configuracion").data
+        self.assertIn(b"529981112233", pagina)
+
+    def test_configuracion_rechaza_numero_demasiado_corto(self):
+        respuesta = self.client.post("/admin/tienda/configuracion", data={"whatsapp_ventas": "123"})
+        self.assertEqual(respuesta.status_code, 400)
 
 
 if __name__ == "__main__":
