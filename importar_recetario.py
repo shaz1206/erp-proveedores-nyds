@@ -96,7 +96,7 @@ def main():
     with sqlite3.connect(target.resolve().as_uri()+'?mode=ro',uri=True) as src:
         with sqlite3.connect(backup) as dest:src.backup(dest)
     os.environ['DATABASE_URL']='sqlite:///'+target.as_posix()
-    from .vendssback import app, db
+    from .vendssback import app
     with app.app_context():
         result=cargar(datos);result.update(database=str(target),backup=str(backup))
         (data_path.parent/'resultado_carga.json').write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8')

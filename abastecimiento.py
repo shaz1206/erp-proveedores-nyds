@@ -231,6 +231,39 @@ def registrar_abastecimiento(app, db, MP, Proveedor, Condicion, usuario_actual):
                 evidencias=leer_evidencias('evidencia') if request.form.get('accion')!='cancelar' else []
                 tipo_evidencia=request.form.get('evidencia_tipo') or 'Foto de recepción'
                 if tipo_evidencia not in TIPOS_EVIDENCIA: raise ValueError('Tipo de evidencia inválido.')
+                if request.form.get('accion')=='recibir_todo':
+                    # Recibe completas, de una vez, todas las partidas pendientes (sin rechazos).
+                    pend=[x for x in o.lineas if x.pendiente>0]
+                    if not pend: raise ValueError('No hay partidas pendientes por recibir.')
+                    if request.form.get('conforme')!='si': raise ValueError('Confirma la revisión de calidad del material aceptado.')
+                    referencia=texto('referencia',160,True)
+                    exigen=[x.nombre for x in pend if x.control_lote or x.control_caducidad or x.requiere_coa or x.mp.requiere_coa or (x.mp.inventario_config and (x.mp.inventario_config.control_lote or x.mp.inventario_config.control_caducidad))]
+                    if exigen: raise ValueError('Estas partidas piden lote, caducidad o COA; recíbelas una por una: '+', '.join(exigen)+'.')
+                    destino=request.form.get('ubicacion','').strip()
+                    nuevas=[]
+                    for x in pend:
+                        ubis=[u for u in x.mp.ubicaciones if u.activo]
+                        prin=next((u for u in ubis if u.principal),None) or (ubis[0] if ubis else None)
+                        lugar=(f'{prin.almacen} · {prin.ubicacion}' if prin else destino)
+                        if not lugar: raise ValueError(f'Indica la ubicación de destino para {x.nombre}.')
+                        base=(x.pendiente*x.factor).quantize(Decimal('.000001'))
+                        if base<=0: raise ValueError(f'La entrada de {x.nombre} es menor a la precisión permitida.')
+                        if not x.mp.permite_fraccion and base%1: raise ValueError(f'{x.nombre} no permite fracciones: recíbela individualmente.')
+                        nuevas.append((x,base,lugar))
+                    version=o.version
+                    estado='Cerrada con rechazo' if any(rec.rechazada for x in o.lineas for rec in x.recepciones) else 'Recibida'
+                    resultado=db.session.execute(update(Orden).where(Orden.id==o.id,Orden.version==version).values(version=version+1,estado=estado).execution_options(synchronize_session=False))
+                    if resultado.rowcount!=1: raise ValueError('Otra persona actualizó esta orden. Recarga antes de recibir.')
+                    primera=None
+                    for x,base,lugar in nuevas:
+                        db.session.execute(update(MP).where(MP.id_mp==x.mp_id).values(fecha_actualizacion=MP.fecha_actualizacion))
+                        rec=RecepcionMP(linea_id=x.id,aceptada=x.pendiente,rechazada=Decimal('0'),lote='',caducidad=None,ubicacion=lugar[:220],referencia=referencia,coa='',observaciones='Recepción completa de toda la orden',usuario=usuario_actual(),token=f'{token}-{x.id}')
+                        db.session.add(rec); db.session.flush()
+                        db.session.add(MovimientoMP(recepcion_id=rec.id,mp_id=x.mp_id,cantidad=base,unidad=x.unidad))
+                        primera=primera or rec
+                    if evidencias and primera: guardar_evidencias(evidencias,o.id,tipo_evidencia,recepcion_id=primera.id)
+                    db.session.commit()
+                    return redirect(url_for('compra_detalle',id_orden=o.id))
                 version=o.version
                 if request.form.get('accion')=='cancelar':
                     if any(l.recepciones for l in o.lineas): raise ValueError('No se puede cancelar una orden con recepciones.')

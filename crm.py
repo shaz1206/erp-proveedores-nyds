@@ -1,5 +1,5 @@
 """CRM de pedidos y entregas conectado con inventario y producto terminado."""
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from functools import wraps
 import os
@@ -979,6 +979,14 @@ def registrar_crm(app, db, MP, PT, Receta, RecetaIngrediente, MovimientoMP, Ajus
         if len(consulta) < 2:
             return jsonify([])
         return jsonify([serializar_cliente(c) for c in buscar_clientes(consulta)[:20]])
+
+    @app.route("/api/crm/clientes/<int:id_cliente>")
+    @protegido_json()
+    def api_crm_cliente_uno(id_cliente):
+        cliente = db.session.get(ClienteCRM, id_cliente)
+        if not cliente:
+            return jsonify({"error": "Cliente no encontrado"}), 404
+        return jsonify(serializar_cliente(cliente))
 
     @app.route("/api/crm/clientes", methods=["POST"])
     @protegido_json("ventas", "cobranza")

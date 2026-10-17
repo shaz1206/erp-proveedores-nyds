@@ -12,9 +12,9 @@ from math import ceil, floor, log10
 from flask import redirect, render_template, request, session, url_for
 
 if __package__:
-    from .crm import (ESTADOS_SIN_VENTA, contexto_mes, dinero, hace_texto, meses_atras, nombre_mes, rango_mes)
+    from .crm import (ESTADOS_SIN_VENTA, contexto_mes, dinero, hace_texto, meses_atras, nombre_mes)
 else:
-    from crm import (ESTADOS_SIN_VENTA, contexto_mes, dinero, hace_texto, meses_atras, nombre_mes, rango_mes)
+    from crm import (ESTADOS_SIN_VENTA, contexto_mes, dinero, hace_texto, meses_atras, nombre_mes)
 
 TIPOS_ALTA_PT = ("Alta por produccion", "Alta por llenado")
 ESTADOS_POR_CONFIRMAR = ("Recibido", "Pendiente de pago")

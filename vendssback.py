@@ -1423,6 +1423,107 @@ def guardar_telefono_proveedor(id_proveedor):
     return jsonify({"mensaje": "Teléfono guardado", "telefono": telefono}), 200
 
 
+def _datos_proveedor(p):
+    contacto = p.contacto_principal()
+    return {
+        "razon_social": p.razon_social,
+        "nombre_comercial": p.nombre_comercial or "",
+        "rfc": rfc_visible(p.rfc),
+        "tipo_proveedor": p.tipo_proveedor,
+        "calle_numero": p.calle_numero or "",
+        "colonia": p.colonia or "",
+        "ciudad": p.ciudad or "",
+        "codigo_postal": p.codigo_postal or "",
+        "condicion_pago": p.condicion_pago or "",
+        "tiempo_entrega_normal": float(p.tiempo_entrega_normal or 0),
+        "contacto_nombre": contacto.nombre if contacto else "",
+        "telefono": (contacto.telefono or "") if contacto else "",
+        "correo": (contacto.correo or "") if contacto else "",
+        "estatus": p.estatus,
+    }
+
+
+@app.route("/api/proveedores/<int:id_proveedor>/datos", methods=["GET", "PATCH"])
+@admin_required_json
+def datos_proveedor(id_proveedor):
+    """Ver y completar los datos de un proveedor. Solo el nombre es obligatorio."""
+    proveedor = db.session.get(Proveedor, id_proveedor)
+    if not proveedor:
+        return jsonify({"error": "Proveedor no encontrado"}), 404
+    if request.method == "GET":
+        return jsonify(_datos_proveedor(proveedor)), 200
+
+    data = request.get_json(silent=True) or {}
+    if "razon_social" in data:
+        nombre = (data.get("razon_social") or "").strip()
+        if not nombre:
+            return jsonify({"error": "Escribe el nombre del proveedor."}), 400
+        proveedor.razon_social = nombre[:200]
+    if "rfc" in data:
+        rfc = normalizar_rfc(data.get("rfc"))
+        if rfc:
+            if not rfc_valido(rfc):
+                return jsonify({"error": "El RFC no tiene un formato válido."}), 400
+            repetido = Proveedor.query.filter(Proveedor.rfc == rfc, Proveedor.id_proveedor != id_proveedor).first()
+            if repetido:
+                return jsonify({"error": f"Ya existe otro proveedor con el RFC {rfc} ({repetido.razon_social})."}), 400
+            proveedor.rfc = rfc
+        else:
+            proveedor.rfc = rfc_marcador(proveedor.codigo_proveedor)
+    if "codigo_postal" in data:
+        cp = (data.get("codigo_postal") or "").strip()
+        if cp and (len(cp) != 5 or not cp.isdigit()):
+            return jsonify({"error": "El código postal debe tener 5 dígitos."}), 400
+        proveedor.codigo_postal = cp
+    if "tiempo_entrega_normal" in data:
+        bruto = data.get("tiempo_entrega_normal")
+        dias = decimal_o_none(bruto)
+        if bruto not in (None, "") and dias is None:
+            return jsonify({"error": "Los días de entrega deben ser un número."}), 400
+        dias = dias or Decimal("0")
+        if dias < 0:
+            return jsonify({"error": "Los días de entrega no pueden ser negativos."}), 400
+        proveedor.tiempo_entrega_normal = dias
+    for campo, largo in (("nombre_comercial", 200), ("calle_numero", 200), ("colonia", 120), ("ciudad", 120), ("condicion_pago", 120)):
+        if campo in data:
+            valor = (data.get(campo) or "").strip()[:largo]
+            setattr(proveedor, campo, (valor or None) if campo == "nombre_comercial" else valor)
+    if data.get("tipo_proveedor"):
+        proveedor.tipo_proveedor = str(data["tipo_proveedor"]).strip()[:50]
+
+    if any(k in data for k in ("telefono", "correo", "contacto_nombre")):
+        contacto = proveedor.contacto_principal()
+        telefono = (data.get("telefono") if "telefono" in data else (contacto.telefono if contacto else "")) or ""
+        correo = (data.get("correo") if "correo" in data else (contacto.correo if contacto else "")) or ""
+        nombre_contacto = (data.get("contacto_nombre") if "contacto_nombre" in data else (contacto.nombre if contacto else "")) or ""
+        telefono, correo, nombre_contacto = telefono.strip(), correo.strip(), nombre_contacto.strip()
+        if len(telefono) > 25:
+            return jsonify({"error": "El teléfono admite máximo 25 caracteres."}), 400
+        if correo and not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", correo):
+            return jsonify({"error": "El correo no parece válido."}), 400
+        if contacto:
+            contacto.telefono = telefono or None
+            contacto.correo = correo
+            if nombre_contacto:
+                contacto.nombre = nombre_contacto[:150]
+        elif telefono or correo or nombre_contacto:
+            db.session.add(Contacto(
+                id_proveedor=proveedor.id_proveedor,
+                nombre=(nombre_contacto or proveedor.razon_social)[:150],
+                telefono=telefono or None,
+                correo=correo,
+                tipo_contacto="Comercial Principal",
+                es_principal=True,
+                activo=True,
+            ))
+
+    usuario = usuario_actual()
+    proveedor.actualizado_por = usuario
+    db.session.add(Bitacora(id_proveedor=id_proveedor, accion="Edición", descripcion="Datos del proveedor actualizados", usuario=usuario))
+    db.session.commit()
+    return jsonify({"mensaje": "Datos guardados", **_datos_proveedor(proveedor)}), 200
+
+
 @app.route("/api/proveedores/<int:id_proveedor>/evaluaciones", methods=["GET", "POST"])
 @admin_required_json
 def evaluaciones_proveedor(id_proveedor):
@@ -2303,6 +2404,11 @@ if __package__:
 else:
     from habituales import registrar_habituales
 registrar_habituales(app, db, PedidoCRM, PedidoLineaCRM)
+if __package__:
+    from .respaldo import registrar_respaldo
+else:
+    from respaldo import registrar_respaldo
+registrar_respaldo(app)
 
 if __package__:
     from .tablero import registrar_tablero
