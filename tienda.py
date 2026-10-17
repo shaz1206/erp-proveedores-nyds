@@ -1,14 +1,19 @@
-"""Tienda en linea publica: cuentas de cliente, catalogo, carrito y checkout.
+"""Tienda en linea publica: cuentas de cliente, catalogo y carrito.
 
-Los pedidos que entran por aqui usan la misma logica que ya usaba el API
-interno del CRM (crear_pedido_desde_datos) y caen en 'Recibido', igual que
-un pedido capturado a mano por ventas: alguien de ventas sigue teniendo que
-confirmarlo/reservarlo desde el tablero del CRM. El precio SIEMPRE se toma
-del catalogo (ProductoTerminado.precio) al momento de pagar, nunca de lo que
-el navegador del cliente mande, para que no se pueda alterar el precio desde
-el carrito."""
+El flujo real del negocio es: el cliente arma su carrito aqui, pero quien
+recibe, atiende, confirma y cierra el pedido es ventas por WhatsApp (no un
+checkout 100% automatico). Por eso "Enviar pedido" no crea un PedidoCRM solo:
+arma un resumen del carrito y abre un enlace de WhatsApp (wa.me) con el
+mensaje listo para mandar al numero de ventas. Ya en la conversacion, ventas
+cierra el trato y lo captura en el CRM (crea el PedidoCRM a mano, como
+siempre); como busca al cliente por telefono, automaticamente se liga a la
+misma cuenta de este cliente y aparece despues en "Mis pedidos".
+
+El precio SIEMPRE se arma desde el catalogo (ProductoTerminado.precio),
+nunca de lo que el navegador del cliente mande."""
 from decimal import Decimal, InvalidOperation
 from functools import wraps
+from urllib.parse import quote
 
 from flask import abort, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -22,13 +27,28 @@ UBICACION_PT = "Almacen PT"
 RESERVAS_ABIERTAS = {"Activa"}
 
 
-def registrar_tienda(app, db, PT, ClienteCRM, ClienteDomicilio, PedidoCRM, PedidoLineaCRM, MovimientoPT, ReservaERP, crear_pedido_desde_datos):
+def registrar_tienda(app, db, PT, ClienteCRM, ClienteDomicilio, PedidoCRM, PedidoLineaCRM, MovimientoPT, ReservaERP):
+
+    class TiendaConfiguracion(db.Model):
+        """Ajustes de la tienda editables desde el ERP (sin tocar codigo).
+        Fila unica (id=1): por ahora solo el numero de WhatsApp de ventas al
+        que llegan los pedidos armados desde el carrito."""
+        __tablename__ = "tienda_configuracion"
+        id = db.Column(db.Integer, primary_key=True)
+        whatsapp_ventas = db.Column(db.String(20))
+
+    def obtener_configuracion():
+        config = db.session.get(TiendaConfiguracion, 1)
+        if not config:
+            config = TiendaConfiguracion(id=1)
+            db.session.add(config)
+            db.session.commit()
+        return config
 
     def disponible_pt(producto_id):
         """Fisico en almacen menos lo que ya esta reservado por otros pedidos
-        activos. La tienda solo deja pedir lo que hay fisicamente disponible
-        ahora mismo; un pedido por mas de eso lo tiene que armar ventas a
-        mano desde el CRM (ahi si se puede producir bajo pedido)."""
+        activos. Es informativo para el cliente y para ventas; el stock real
+        se vuelve a revisar cuando ventas reserva el pedido en el CRM."""
         fisico = (
             db.session.query(db.func.coalesce(db.func.sum(MovimientoPT.cantidad), 0))
             .filter_by(producto_id=producto_id, ubicacion=UBICACION_PT)
@@ -281,7 +301,32 @@ def registrar_tienda(app, db, PT, ClienteCRM, ClienteDomicilio, PedidoCRM, Pedid
         guardar_carrito(carrito)
         return redirect(url_for("tienda_carrito"))
 
-    # ---- Checkout ----
+    # ---- Enviar pedido por WhatsApp (ventas confirma y cierra alla) ----
+
+    def construir_mensaje_whatsapp(cliente, items, total, domicilio, forma_pago, nota, fuera_de_cobertura):
+        lineas = [
+            f"Hola, soy {cliente.nombre} ({cliente.telefono}). Quiero hacer este pedido "
+            "desde la tienda en linea de NYDS:",
+            "",
+        ]
+        for item in items:
+            lineas.append(
+                f"- {item['cantidad']:g} x {item['producto'].nombre} "
+                f"(${item['precio_unitario']:.2f} c/u) = ${item['subtotal']:.2f}"
+            )
+        lineas.append("")
+        lineas.append(f"Total: ${total:.2f}")
+        direccion_texto = domicilio.direccion
+        if domicilio.referencias:
+            direccion_texto += f" ({domicilio.referencias})"
+        lineas.append(f"Dirección de entrega: {direccion_texto}")
+        lineas.append(f"Zona: {domicilio.zona}")
+        lineas.append(f"Forma de pago preferida: {forma_pago}")
+        if fuera_de_cobertura:
+            lineas.append("Nota: esta dirección está marcada fuera de nuestra zona de cobertura habitual, favor de confirmar si se puede entregar.")
+        if nota:
+            lineas.append(f"Nota del cliente: {nota}")
+        return "\n".join(lineas)
 
     @app.route("/tienda/checkout", methods=["GET", "POST"])
     @requiere_cliente
@@ -305,6 +350,7 @@ def registrar_tienda(app, db, PT, ClienteCRM, ClienteDomicilio, PedidoCRM, Pedid
         forma_pago = request.form.get("forma_pago") or "Contra entrega"
         if forma_pago not in FORMAS_PAGO_TIENDA:
             forma_pago = "Contra entrega"
+        nota = (request.form.get("nota") or "").strip()[:500]
 
         def reintentar(error, codigo=400):
             domicilios = ClienteDomicilio.query.filter_by(cliente_id=cliente.id).all()
@@ -316,52 +362,40 @@ def registrar_tienda(app, db, PT, ClienteCRM, ClienteDomicilio, PedidoCRM, Pedid
         if not domicilio_id and not direccion:
             return reintentar("Indica una direccion de entrega.")
 
-        # Revalidamos el stock disponible justo antes de crear el pedido:
-        # pudo cambiar desde que se agrego al carrito (ventas reservo ese
-        # producto para otro pedido, o alguien mas ya lo compro).
-        for item in items:
-            disponible = disponible_pt(item["producto"].id)
-            if item["cantidad"] > disponible:
-                return reintentar(
-                    f"Ya no hay suficiente '{item['producto'].nombre}' disponible "
-                    f"(quedan {disponible:g}). Ajusta la cantidad en tu carrito."
-                )
-
-        data = {
-            "cliente_id": cliente.id,
-            "canal": CANAL_TIENDA,
-            "forma_pago": forma_pago,
-            # El precio SIEMPRE se toma de producto.precio (catalogo), nunca
-            # de algo que venga del cliente: evita que alguien manipule el
-            # precio desde el carrito/sesion antes de pagar.
-            "lineas": [
-                {
-                    "producto_id": item["producto"].id,
-                    "cantidad": str(item["cantidad"]),
-                    "precio_unitario": str(item["producto"].precio),
-                }
-                for item in items
-            ],
-        }
+        fuera_de_cobertura = False
         if domicilio_id:
             domicilio = ClienteDomicilio.query.filter_by(id=domicilio_id, cliente_id=cliente.id).first()
             if not domicilio:
                 return reintentar("Selecciona una direccion valida.")
-            if not domicilio.cobertura:
-                return reintentar("Esa direccion esta fuera de nuestra zona de cobertura. Elige otra o contacta a ventas.")
-            data["domicilio_id"] = domicilio.id
+            fuera_de_cobertura = not domicilio.cobertura
         else:
-            data["domicilio"] = {"alias": "Entrega", "direccion": direccion, "referencias": referencias, "zona": zona}
-
-        try:
-            pedido, ya_existia = crear_pedido_desde_datos(data)
+            # Direccion nueva: la guardamos en el perfil del cliente para que
+            # la pueda reutilizar despues, igual que si la hubiera capturado
+            # ventas desde el CRM.
+            domicilio = ClienteDomicilio(
+                cliente_id=cliente.id,
+                alias="Entrega",
+                direccion=direccion,
+                referencias=referencias,
+                zona=zona,
+            )
+            db.session.add(domicilio)
             db.session.commit()
-        except ValueError as e:
-            db.session.rollback()
-            return reintentar(str(e))
 
+        mensaje = construir_mensaje_whatsapp(cliente, items, total, domicilio, forma_pago, nota, fuera_de_cobertura)
         guardar_carrito({})
-        return redirect(url_for("tienda_pedido_confirmado", folio=pedido.folio))
+
+        config = obtener_configuracion()
+        wa_link = f"https://wa.me/{config.whatsapp_ventas}?text={quote(mensaje)}" if config.whatsapp_ventas else None
+
+        return render_template(
+            "tienda_pedido_whatsapp.html",
+            mensaje=mensaje,
+            wa_link=wa_link,
+            fuera_de_cobertura=fuera_de_cobertura,
+        )
+
+    # ---- Seguimiento de pedidos ya capturados por ventas ----
 
     @app.route("/tienda/pedido/<folio>")
     @requiere_cliente
@@ -376,3 +410,24 @@ def registrar_tienda(app, db, PT, ClienteCRM, ClienteDomicilio, PedidoCRM, Pedid
     def tienda_mis_pedidos():
         pedidos = PedidoCRM.query.filter_by(cliente_id=session["cliente_id"]).order_by(PedidoCRM.id.desc()).all()
         return render_template("tienda_mis_pedidos.html", pedidos=pedidos)
+
+    # ---- Configuracion (solo staff ERP: numero de WhatsApp de ventas) ----
+
+    @app.route("/admin/tienda/configuracion", methods=["GET", "POST"])
+    def tienda_configuracion_admin():
+        if not session.get("admin_logueado"):
+            return redirect(url_for("login_admin"))
+        config = obtener_configuracion()
+        if request.method == "POST":
+            numero = "".join(ch for ch in (request.form.get("whatsapp_ventas") or "") if ch.isdigit())
+            if not numero or not (10 <= len(numero) <= 15):
+                return render_template(
+                    "tienda_configuracion.html", config=config,
+                    error="Escribe el numero completo con lada de pais, solo digitos (10 a 15 digitos). Ej. 529981234567.",
+                ), 400
+            config.whatsapp_ventas = numero
+            db.session.commit()
+            return redirect(url_for("tienda_configuracion_admin", guardado=1))
+        return render_template("tienda_configuracion.html", config=config)
+
+    return TiendaConfiguracion

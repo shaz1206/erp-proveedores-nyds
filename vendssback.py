@@ -64,6 +64,20 @@ def normalizar_rfc(valor):
     return re.sub(r"\s+", "", (valor or "").strip().upper())
 
 
+# El RFC es opcional. La base exige un valor unico, asi que cuando no se tiene se guarda
+# un marcador interno (SINRFC0001) que nunca se muestra como si fuera un RFC real.
+MARCADORES_RFC = ("SINRFC", "PENDIENTE")
+
+
+def rfc_marcador(codigo_proveedor):
+    return "SINRFC" + re.sub(r"\D", "", codigo_proveedor or "")
+
+
+def rfc_visible(rfc):
+    rfc = rfc or ""
+    return "" if rfc.startswith(MARCADORES_RFC) else rfc
+
+
 def siguiente_codigo_proveedor():
     """Genera PROV-0001, PROV-0002, ... sin reutilizar códigos."""
     ultimo = 0
@@ -231,30 +245,17 @@ class Proveedor(db.Model):
     materias_primas = db.relationship("MateriaPrimaProveedor", back_populates="proveedor", lazy=True)
 
     def contacto_principal(self):
-        return next((c for c in self.contactos if c.es_principal and c.activo), None)
+        activos = [c for c in self.contactos if c.activo]
+        return next((c for c in activos if c.es_principal), None) or next((c for c in activos if c.telefono or c.whatsapp), None) or (activos[0] if activos else None)
 
     def campos_minimos_faltantes(self):
-        """Regresa la lista de requisitos incumplidos para poder quedar Activo (sección 12)."""
+        """Lo unico obligatorio de un proveedor es su nombre.
+
+        Todo lo demas (telefono, RFC, domicilio, correo, condiciones) se captura cuando se tiene.
+        """
         faltantes = []
-        if not self.razon_social:
-            faltantes.append("razón social")
-        if not self.rfc or not rfc_valido(self.rfc):
-            faltantes.append("RFC válido")
-        if not self.tipo_proveedor:
-            faltantes.append("tipo de proveedor")
-        if not self.codigo_postal or len(self.codigo_postal) != 5:
-            faltantes.append("código postal fiscal (5 dígitos)")
-        if not self.condicion_pago:
-            faltantes.append("condiciones de pago")
-        if self.tiempo_entrega_normal is None:
-            faltantes.append("tiempo de entrega habitual")
-        principal = self.contacto_principal()
-        if not principal or not principal.correo or not (principal.telefono or principal.whatsapp):
-            faltantes.append("un contacto principal activo con correo y teléfono o WhatsApp")
-        if (self.tipo_proveedor or "").strip().lower() in ("materia prima", "mixto"):
-            relaciones_activas = [r for r in self.materias_primas if r.activo]
-            if not relaciones_activas:
-                faltantes.append("al menos una materia prima relacionada y activa")
+        if not (self.razon_social or "").strip():
+            faltantes.append("nombre")
         return faltantes
 
 
@@ -1130,7 +1131,7 @@ def _construir_contactos(nuevo_proveedor, contactos_data):
     ya_hay_principal = False
     contactos_creados = []
     for c_data in contactos_data or []:
-        if not (c_data.get("nombre") and c_data.get("correo")):
+        if not (c_data.get("nombre") or "").strip():
             continue
         es_principal_solicitado = bool_value(c_data.get("es_principal"))
         es_principal_final = es_principal_solicitado and not ya_hay_principal
@@ -1144,7 +1145,7 @@ def _construir_contactos(nuevo_proveedor, contactos_data):
             puesto_area=(c_data.get("puesto_area") or "").strip() or None,
             telefono=(c_data.get("telefono") or "").strip() or None,
             whatsapp=(c_data.get("whatsapp") or "").strip() or None,
-            correo=c_data["correo"].strip(),
+            correo=(c_data.get("correo") or "").strip(),
             tipo_contacto=c_data.get("tipo_contacto", "Principal"),
             es_principal=es_principal_final,
             activo=bool_value(c_data.get("activo"), default=True),
@@ -1189,10 +1190,10 @@ def manejar_proveedores():
                     "codigo_proveedor": p.codigo_proveedor,
                     "razon_social": p.razon_social,
                     "nombre_comercial": p.nombre_comercial,
-                    "rfc": p.rfc,
+                    "rfc": rfc_visible(p.rfc),
                     "tipo_proveedor": p.tipo_proveedor,
                     "estatus": p.estatus,
-                    "domicilio": f"{p.calle_numero}, Col. {p.colonia}, {p.ciudad}, C.P. {p.codigo_postal}",
+                    "domicilio": ", ".join(x for x in [p.calle_numero, ("Col. " + p.colonia) if p.colonia else "", p.ciudad if (p.calle_numero or p.colonia or p.codigo_postal) else "", ("C.P. " + p.codigo_postal) if p.codigo_postal else ""] if x),
                     "contacto": contacto_prin.nombre if contacto_prin else "Sin contacto",
                     "telefono": (contacto_prin.telefono or contacto_prin.whatsapp) if contacto_prin else "N/A",
                     "materias_primas_relacionadas": len(p.materias_primas),
@@ -1202,14 +1203,28 @@ def manejar_proveedores():
 
     data = request.json or {}
     rfc_normalizado = normalizar_rfc(data.get("rfc", ""))
+    contactos_data = list(data.get("contactos") or [])
+    telefono_directo = (data.get("telefono") or "").strip()
+    correo_directo = (data.get("correo") or "").strip()
+    if telefono_directo or correo_directo or (data.get("contacto_nombre") or "").strip():
+        contactos_data.insert(0, {
+            "nombre": (data.get("contacto_nombre") or data.get("razon_social") or "").strip(),
+            "telefono": telefono_directo,
+            "correo": correo_directo,
+            "tipo_contacto": "Comercial Principal",
+            "es_principal": True,
+        })
+    # Solo el nombre es obligatorio; telefono, RFC y demas datos son opcionales.
+    for c in contactos_data:
+        if not (c.get("nombre") or "").strip() and (c.get("telefono") or c.get("whatsapp") or c.get("correo")):
+            c["nombre"] = (data.get("razon_social") or "").strip()
+    if not (data.get("razon_social") or "").strip():
+        return jsonify({"error": "Escribe el nombre del proveedor."}), 400
 
-    if not rfc_normalizado or not data.get("razon_social") or not data.get("codigo_postal"):
-        return jsonify({"error": "Complete los campos obligatorios marcados antes de guardar."}), 400
-
-    if not rfc_valido(rfc_normalizado):
+    if rfc_normalizado and not rfc_valido(rfc_normalizado):
         return jsonify({"error": "El RFC no tiene un formato válido."}), 400
 
-    existente = Proveedor.query.filter_by(rfc=rfc_normalizado).first()
+    existente = Proveedor.query.filter_by(rfc=rfc_normalizado).first() if rfc_normalizado else None
     if existente:
         if session.get("admin_logueado"):
             return jsonify(
@@ -1221,9 +1236,11 @@ def manejar_proveedores():
         # Portal público: no revelar datos del proveedor existente.
         return jsonify({"error": "Ya se encuentra registrado en el sistema."}), 400
 
-    if data.get("codigo_postal", "").strip() and len(data["codigo_postal"].strip()) != 5:
+    codigo_postal = (data.get("codigo_postal") or "").strip()
+    if codigo_postal and len(codigo_postal) != 5:
         return jsonify({"error": "El código postal fiscal debe tener 5 dígitos."}), 400
 
+    codigo_nuevo = siguiente_codigo_proveedor()
     estatus_solicitado = data.get("estatus_inicial") or data.get("estatus") or "Borrador"
     if estatus_solicitado not in ESTATUS_PROVEEDOR_VALIDOS:
         estatus_solicitado = "Borrador"
@@ -1231,19 +1248,19 @@ def manejar_proveedores():
     usuario = usuario_actual()
 
     nuevo_proveedor = Proveedor(
-        codigo_proveedor=siguiente_codigo_proveedor(),
+        codigo_proveedor=codigo_nuevo,
         razon_social=data["razon_social"].strip(),
         nombre_comercial=(data.get("nombre_comercial") or "").strip() or None,
-        rfc=rfc_normalizado,
+        rfc=rfc_normalizado or rfc_marcador(codigo_nuevo),
         tipo_proveedor=data.get("tipo_proveedor", "Materia prima"),
         estatus="Borrador",  # se activa más abajo solo si cumple los campos mínimos
         sitio_web=(data.get("sitio_web") or "").strip() or None,
         notas_generales=data.get("notas_generales"),
-        calle_numero=data.get("calle_numero") or "S/N",
-        colonia=data.get("colonia") or "Centro",
+        calle_numero=data.get("calle_numero") or "",
+        colonia=data.get("colonia") or "",
         ciudad=data.get("ciudad") or "Cancún",
         estado=data.get("estado") or "Quintana Roo",
-        codigo_postal=data["codigo_postal"].strip(),
+        codigo_postal=codigo_postal,
         regimen_fiscal=data.get("regimen_fiscal"),
         correo_facturacion=data.get("correo_facturacion"),
         forma_pago_habitual=data.get("forma_pago_habitual"),
@@ -1252,7 +1269,7 @@ def manejar_proveedores():
         beneficiario=data.get("beneficiario"),
         cuenta_bancaria=data.get("cuenta_bancaria"),
         clabe=data.get("clabe"),
-        condicion_pago=data.get("condicion_pago") or "Contado",
+        condicion_pago=data.get("condicion_pago") or "",
         dias_credito=int(data.get("dias_credito") or 0),
         tiempo_entrega_normal=decimal_o_none(tiempo_entrega) or Decimal("0"),
         lead_time_maximo=decimal_o_none(data.get("lead_time_maximo")),
@@ -1268,7 +1285,7 @@ def manejar_proveedores():
     db.session.add(nuevo_proveedor)
     db.session.flush()
 
-    _construir_contactos(nuevo_proveedor, data.get("contactos", []))
+    _construir_contactos(nuevo_proveedor, contactos_data)
 
     db.session.add(
         Bitacora(
@@ -1373,6 +1390,37 @@ def cambiar_estatus_proveedor(id_proveedor):
     )
     db.session.commit()
     return jsonify({"mensaje": f"Estatus actualizado a {nuevo_estatus}", "nuevo_estatus": proveedor.estatus}), 200
+
+
+@app.route("/api/proveedores/<int:id_proveedor>/telefono", methods=["PATCH"])
+@admin_required_json
+def guardar_telefono_proveedor(id_proveedor):
+    """Guarda o corrige el telefono del proveedor (opcional)."""
+    proveedor = db.session.get(Proveedor, id_proveedor)
+    if not proveedor:
+        return jsonify({"error": "Proveedor no encontrado"}), 404
+    data = request.json or {}
+    telefono = (data.get("telefono") or "").strip()
+    if not telefono or len(telefono) > 25:
+        return jsonify({"error": "Escribe un teléfono (máximo 25 caracteres)."}), 400
+    contacto = proveedor.contacto_principal()
+    if contacto:
+        contacto.telefono = telefono
+    else:
+        db.session.add(Contacto(
+            id_proveedor=proveedor.id_proveedor,
+            nombre=(data.get("nombre") or proveedor.razon_social).strip(),
+            telefono=telefono,
+            correo="",
+            tipo_contacto="Comercial Principal",
+            es_principal=True,
+            activo=True,
+        ))
+    usuario = usuario_actual()
+    proveedor.actualizado_por = usuario
+    db.session.add(Bitacora(id_proveedor=id_proveedor, accion="Edición", descripcion="Teléfono actualizado", usuario=usuario))
+    db.session.commit()
+    return jsonify({"mensaje": "Teléfono guardado", "telefono": telefono}), 200
 
 
 @app.route("/api/proveedores/<int:id_proveedor>/evaluaciones", methods=["GET", "POST"])
@@ -2218,11 +2266,56 @@ registrar_inventario_pt(app, db, ProductoTerminado, MovimientoPT, ReservaERP, us
 registrar_clientes_erp(app, db, ClienteCRM, PedidoCRM, PagoPedidoCRM, MovimientoPT, EvidenciaEntregaCRM, MovimientoTruequeCRM)
 
 if __package__:
+    from .precios import registrar_precios
+else:
+    from precios import registrar_precios
+PresentacionPT, ListaPrecios, ListaPreciosItem, ClienteListaPrecios, resolver_precio = registrar_precios(
+    app, db, ProductoTerminado, ClienteCRM)
+
+if __package__:
+    from .envases import registrar_envases
+else:
+    from envases import registrar_envases
+Envase = registrar_envases(app, db, MateriaPrima, Proveedor, PresentacionPT)
+
+if __package__:
+    from .proveedores_recetario import registrar_proveedores_recetario
+else:
+    from proveedores_recetario import registrar_proveedores_recetario
+registrar_proveedores_recetario(app, db, Proveedor, Bitacora, admin_required_json, usuario_actual, siguiente_codigo_proveedor, rfc_marcador)
+
+if __package__:
+    from .distribuidores import registrar_distribuidores
+else:
+    from distribuidores import registrar_distribuidores
+ClienteDistribuidor = registrar_distribuidores(app, db, Persona, ClienteCRM, PedidoCRM, EventoCRM)
+
+if __package__:
+    from .produccion import registrar_produccion
+else:
+    from produccion import registrar_produccion
+OrdenProduccion, ProduccionConsumo = registrar_produccion(
+    app, db, MateriaPrima, ProductoTerminado, Receta, AjusteInventario, MovimientoMP, MovimientoPT, ReservaERP,
+    Proveedor, MateriaPrimaProveedor, usuario_actual)
+
+if __package__:
+    from .habituales import registrar_habituales
+else:
+    from habituales import registrar_habituales
+registrar_habituales(app, db, PedidoCRM, PedidoLineaCRM)
+
+if __package__:
+    from .tablero import registrar_tablero
+else:
+    from tablero import registrar_tablero
+registrar_tablero(app, db, PedidoCRM, PedidoLineaCRM, PagoPedidoCRM, MovimientoPT)
+
+if __package__:
     from .tienda import registrar_tienda
 else:
     from tienda import registrar_tienda
 
-registrar_tienda(
+TiendaConfiguracion = registrar_tienda(
     app,
     db,
     ProductoTerminado,
@@ -2232,7 +2325,6 @@ registrar_tienda(
     PedidoLineaCRM,
     MovimientoPT,
     ReservaERP,
-    crear_pedido_desde_datos,
 )
 
 if __package__:
@@ -2258,6 +2350,12 @@ registrar_operaciones(
     OrdenLlenadoCRM,
     MovimientoPT,
 )
+
+if __package__:
+    from .bugs import registrar_bugs
+else:
+    from bugs import registrar_bugs
+registrar_bugs(app, db)
 
 with app.app_context():
     migrar_columnas_faltantes()

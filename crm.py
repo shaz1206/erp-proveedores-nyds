@@ -1775,7 +1775,10 @@ def registrar_crm(app, db, MP, PT, Receta, RecetaIngrediente, MovimientoMP, Ajus
     def api_crm_estado_pedido(id_pedido):
         pedido = db.get_or_404(PedidoCRM, id_pedido)
         data = request.json or {}
-        nuevo_estado = texto(data, "estado", 40, True)
+        try:
+            nuevo_estado = texto(data, "estado", 40, True)
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
         if nuevo_estado not in ESTADOS_PEDIDO:
             return jsonify({"error": "Estado no permitido."}), 400
         if nuevo_estado == "Entregado":
