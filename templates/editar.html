@@ -14,6 +14,73 @@
         <h4 class="fw-bold mb-1">Expediente del Proveedor</h4>
         <p class="text-muted mb-4"><span class="badge bg-secondary">{{ codigo }}</span> {{ razon }}</p>
 
+        <!-- Datos del proveedor -->
+        <div class="card mb-4">
+            <div class="card-body p-4">
+                <h5 class="fw-semibold text-dark mb-1">Datos del proveedor</h5>
+                <p class="text-muted small mb-3">Solo el nombre es obligatorio. Completa lo demás cuando lo tengas.</p>
+                <div id="avisoDatos" class="alert d-none" role="alert"></div>
+                <form id="formDatos">
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold" for="d_razon_social">Nombre *</label>
+                            <input type="text" id="d_razon_social" class="form-control" required maxlength="200">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label" for="d_telefono">Teléfono</label>
+                            <input type="tel" id="d_telefono" class="form-control" maxlength="25" placeholder="Opcional">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label" for="d_rfc">RFC</label>
+                            <input type="text" id="d_rfc" class="form-control" maxlength="13" placeholder="Opcional">
+                        </div>
+                    </div>
+                    <details id="masDatos">
+                        <summary class="fw-semibold text-secondary mb-3" style="cursor:pointer">Más datos (opcionales)</summary>
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-4">
+                                <label class="form-label" for="d_contacto_nombre">Nombre del contacto</label>
+                                <input type="text" id="d_contacto_nombre" class="form-control" maxlength="150">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label" for="d_correo">Correo electrónico</label>
+                                <input type="email" id="d_correo" class="form-control" maxlength="150">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label" for="d_tipo_proveedor">Qué te vende</label>
+                                <select id="d_tipo_proveedor" class="form-select"></select>
+                            </div>
+                            <div class="col-md-5">
+                                <label class="form-label" for="d_calle_numero">Calle y número</label>
+                                <input type="text" id="d_calle_numero" class="form-control" maxlength="200">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label" for="d_colonia">Colonia</label>
+                                <input type="text" id="d_colonia" class="form-control" maxlength="120">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label" for="d_ciudad">Ciudad</label>
+                                <input type="text" id="d_ciudad" class="form-control" maxlength="120">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label" for="d_codigo_postal">Código postal</label>
+                                <input type="text" id="d_codigo_postal" class="form-control" inputmode="numeric" maxlength="5">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="d_condicion_pago">Condición de pago</label>
+                                <select id="d_condicion_pago" class="form-select"></select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="d_tiempo_entrega">Días de entrega</label>
+                                <input type="number" id="d_tiempo_entrega" class="form-control" min="0" step="0.1">
+                            </div>
+                        </div>
+                    </details>
+                    <button type="submit" class="btn btn-primary" id="guardarDatos">Guardar datos</button>
+                </form>
+            </div>
+        </div>
+
         <!-- Asignación de Materia Prima -->
         <div class="card mb-4">
             <div class="card-body p-4">
@@ -124,7 +191,60 @@
 
     <script>
         const PROVEEDOR_ID = {{ id_proveedor }};
-        document.addEventListener('DOMContentLoaded', () => { cargarCatalogoMP(); cargarMPSuministradas(); cargarDocumentos(); });
+                // ---- Datos del proveedor ----
+        const TIPOS = ['Materia Prima', 'Empaque', 'Servicios', 'Mixto'];
+        const CONDICIONES = ['', 'Contado', 'Crédito 15 días', 'Crédito 30 días', 'Crédito 60 días'];
+        function llenarSelect(id, opciones, actual) {
+            const sel = document.getElementById(id);
+            const lista = opciones.slice();
+            if (actual && !lista.some(o => o.toLowerCase() === actual.toLowerCase())) lista.push(actual);
+            const igual = lista.find(o => o.toLowerCase() === (actual || '').toLowerCase());
+            sel.innerHTML = '';
+            lista.forEach(o => {
+                const op = document.createElement('option');
+                op.value = o; op.textContent = o || 'Sin definir';
+                if (o === igual) op.selected = true;
+                sel.appendChild(op);
+            });
+        }
+        function avisoDatos(texto, tipo) {
+            const caja = document.getElementById('avisoDatos');
+            caja.className = 'alert alert-' + tipo;
+            caja.textContent = texto;
+        }
+        async function cargarDatos() {
+            const res = await fetch(`/api/proveedores/${PROVEEDOR_ID}/datos`);
+            if (!res.ok) { avisoDatos('No se pudieron cargar los datos del proveedor.', 'warning'); return; }
+            const d = await res.json();
+            const campos = {razon_social: 'razon_social', telefono: 'telefono', rfc: 'rfc', contacto_nombre: 'contacto_nombre', correo: 'correo', calle_numero: 'calle_numero', colonia: 'colonia', ciudad: 'ciudad', codigo_postal: 'codigo_postal'};
+            Object.keys(campos).forEach(k => { document.getElementById('d_' + k).value = d[k] || ''; });
+            document.getElementById('d_tiempo_entrega').value = d.tiempo_entrega_normal || '';
+            llenarSelect('d_tipo_proveedor', TIPOS, d.tipo_proveedor);
+            llenarSelect('d_condicion_pago', CONDICIONES, d.condicion_pago);
+            if (d.calle_numero || d.colonia || d.codigo_postal || d.condicion_pago || d.correo || d.contacto_nombre) document.getElementById('masDatos').open = true;
+        }
+        document.getElementById('formDatos').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const v = (id) => document.getElementById('d_' + id).value.trim();
+            const boton = document.getElementById('guardarDatos');
+            boton.disabled = true;
+            try {
+                const res = await fetch(`/api/proveedores/${PROVEEDOR_ID}/datos`, {
+                    method: 'PATCH', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        razon_social: v('razon_social'), telefono: v('telefono'), rfc: v('rfc'),
+                        contacto_nombre: v('contacto_nombre'), correo: v('correo'), tipo_proveedor: v('tipo_proveedor'),
+                        calle_numero: v('calle_numero'), colonia: v('colonia'), ciudad: v('ciudad'), codigo_postal: v('codigo_postal'),
+                        condicion_pago: v('condicion_pago'), tiempo_entrega_normal: v('tiempo_entrega')
+                    })
+                });
+                const r = await res.json().catch(() => ({}));
+                if (res.ok) { avisoDatos('Datos guardados.', 'success'); document.getElementById('d_rfc').value = r.rfc || ''; }
+                else avisoDatos(r.error || 'No se pudo guardar.', 'danger');
+            } catch (err) { avisoDatos('No se pudo conectar con el servidor.', 'danger'); }
+            boton.disabled = false;
+        });
+        document.addEventListener('DOMContentLoaded', () => { cargarDatos(); cargarCatalogoMP(); cargarMPSuministradas(); cargarDocumentos(); });
 
         async function cargarCatalogoMP() {
             const res = await fetch('/api/materias-primas?estatus=Activo');

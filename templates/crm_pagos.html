@@ -15,6 +15,7 @@
                 <h2>Pagos</h2>
                 <p class="text-muted mb-0">Cobros y trueque de {{ mes.etiqueta }} · cobrado ${{ '%.2f' | format(total_cobrado) }}.</p>
             </div>
+            <a class="btn btn-primary align-self-center" href="/crm/pedidos?filtro=cobrar" title="Ver los pedidos con saldo y registrar el cobro">Cobrar pendientes</a>
             {% set pdf_url = '/crm/pagos/pdf' %}
             {% include 'crm_mes.html' %}
         </div>
@@ -58,7 +59,7 @@
                         {% for pago in pagos %}
                         <tr>
                             <td>{{ pago.fecha.strftime('%d/%m/%Y %H:%M') }}</td>
-                            <td>{{ pago.pedido.folio if pago.pedido else '—' }}</td>
+                            <td>{% if pago.pedido %}<a href="/crm/pedidos?filtro=#pedido-{{ pago.pedido.id }}">{{ pago.pedido.folio }}</a>{% else %}—{% endif %}</td>
                             <td>{{ pago.pedido.cliente.nombre_completo if pago.pedido and pago.pedido.cliente else '—' }}</td>
                             <td>${{ '%.2f' | format(pago.monto) }}</td>
                             <td><span class="badge {{ 'bg-success' if pago.metodo == 'Trueque' else 'bg-secondary' }}">{{ pago.metodo }}</span></td>
@@ -70,7 +71,7 @@
                         <tr>
                             <td colspan="8" class="text-center py-5">
                                 <strong>No hay pagos en {{ mes.etiqueta }}</strong>
-                                <p class="text-muted mt-2 mb-0">Los pagos se capturan desde el detalle de cada pedido.</p>
+                                <p class="text-muted mt-2 mb-0">Para cobrar, usa «Cobrar pendientes»: ahí cada pedido trae su botón Registrar pago.</p>
                             </td>
                         </tr>
                         {% endfor %}

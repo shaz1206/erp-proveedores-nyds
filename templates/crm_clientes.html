@@ -63,6 +63,9 @@
                             <td>{% if fila.saldo_trueque > 0 %}<span class="badge bg-success">${{ '%.2f' | format(fila.saldo_trueque) }}</span>{% else %}$0.00{% endif %}</td>
                             <td>
                                 <div class="d-flex flex-wrap gap-2">
+                                    {% if rol in ['supervisor', 'ventas'] %}
+                                    <a class="btn btn-primary btn-sm" href="/crm/pedidos?cliente={{ fila.cliente.id }}" title="Abrir una venta nueva para este cliente">Vender</a>
+                                    {% endif %}
                                     <a class="btn btn-outline-secondary btn-sm" target="_blank" href="/crm/clientes/{{ fila.cliente.id }}/pdf" title="Historial del cliente en PDF">&#8681; Historial</a>
                                     {% if rol in ['supervisor', 'cobranza'] %}
                                     <button class="btn btn-outline-secondary btn-sm" data-action="trueque" data-cliente="{{ fila.cliente.id }}" title="Registrar trueque a favor">+ Trueque</button>

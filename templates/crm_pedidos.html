@@ -610,6 +610,12 @@
                 carritoDe = c.id;
             }
 
+            // Enlace «Vender» desde Clientes: abre la venta con ese cliente ya elegido.
+            const clienteUrl = new URLSearchParams(location.search).get('cliente');
+            if (clienteUrl && /^\d+$/.test(clienteUrl)) {
+                jsonFetch('/api/crm/clientes/' + clienteUrl).then((c) => { seleccionarCliente(c); mostrarProductos(); }).catch(() => {});
+            }
+
             function opcionCliente(c) {
                 const boton = elemento('button', 'list-group-item list-group-item-action');
                 boton.type = 'button';
@@ -1001,6 +1007,8 @@
             const filas = [...cuerpo.querySelectorAll('tr[data-grupos]')];
             let grupo = '';
             try { grupo = sessionStorage.getItem('pedidosFiltro') || ''; } catch (e) { /* sin almacenamiento */ }
+            const filtroUrl = new URLSearchParams(location.search).get('filtro'); // enlaces desde Pagos
+            if (filtroUrl !== null && [...chips].some((c) => c.dataset.grupo === filtroUrl)) grupo = filtroUrl;
             const normalizar = (t) => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
             chips.forEach((chip) => {
                 const g = chip.dataset.grupo;
