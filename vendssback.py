@@ -31,7 +31,12 @@ MP_UPLOAD_FOLDER = os.path.join(UPLOAD_FOLDER, "materias_primas")
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(MP_UPLOAD_FOLDER, exist_ok=True)
 
+# Version del software: se muestra en el pie de ERP/CRM, en /api/version y en los reportes de bug.
+APP_VERSION = "1.1.0"
+APP_VERSION_FECHA = "2026-10-19"
+
 app = Flask(__name__)
+app.config["APP_VERSION"] = APP_VERSION
 # Misma base al iniciar como script o como módulo de Flask.
 DEFAULT_DATABASE = os.path.abspath(os.path.join(BASE_DIR, "..", "instance", "erp.db"))
 os.makedirs(os.path.dirname(DEFAULT_DATABASE), exist_ok=True)
@@ -2409,6 +2414,25 @@ if __package__:
 else:
     from respaldo import registrar_respaldo
 registrar_respaldo(app)
+
+@app.context_processor
+def datos_pie_nyds():
+    return {"app_version": APP_VERSION, "app_version_fecha": APP_VERSION_FECHA, "anio_actual": datetime.now().year}
+
+
+@app.route("/api/version")
+def api_version():
+    return jsonify({"software": "ERP/CRM NYDS", "version": APP_VERSION, "fecha": APP_VERSION_FECHA})
+
+
+if __package__:
+    from .importar_datos import registrar_importacion
+else:
+    from importar_datos import registrar_importacion
+registrar_importacion(
+    app, db, Proveedor, Contacto, Bitacora, ClienteCRM, ClienteDomicilio,
+    admin_required_json, usuario_actual, siguiente_codigo_proveedor, rfc_marcador, rfc_visible,
+)
 
 if __package__:
     from .tablero import registrar_tablero

@@ -60,7 +60,7 @@ def registrar_bugs(app, db):
             comentario=comentario,
             captura=captura,
             captura_tipo=tipo,
-            navegador=(request.headers.get("User-Agent") or "")[:300],
+            navegador=((request.headers.get("User-Agent") or "")[:260] + " | NYDS v" + str(app.config.get("APP_VERSION", "?")))[:300],
         ))
         db.session.commit()
         return jsonify({"mensaje": "Reporte enviado. ¡Gracias!"}), 201
