@@ -110,8 +110,6 @@ body.has-app-sidebar.app-sidebar-hidden .app-sidebar-reopen{display:flex}
     body.has-app-sidebar:not(.app-sidebar-hidden) .app-sidebar{transform:none}
 }
 
-/* Pie NYDS: derechos, equipo y version del software (menu lateral y accesos) */
+/* Pie NYDS: derechos y version del software (menu lateral y accesos) */
 .nyds-pie{display:flex;flex-direction:column;gap:2px;margin-top:14px;padding-top:12px;border-top:1px solid #455570;text-align:center;font-size:10.5px;line-height:1.4;color:#7086a8}
-.nyds-pie-version{display:inline-block;align-self:center;margin-top:4px;padding:1px 9px;border:1px solid #455570;border-radius:999px;font-weight:800;letter-spacing:.04em;color:#9db0c9}
 .nyds-pie--claro{border-top-color:#dee2e6;color:#6c757d;margin-top:22px}
-.nyds-pie--claro .nyds-pie-version{border-color:#ced4da;color:#495057}

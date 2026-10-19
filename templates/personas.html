@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Personas - ERP NYDS</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20261019-v1-1-0') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20261019-v1-1-1') }}">
 </head>
 <body class="bg-light">
 {% include 'erp_header.html' %}
@@ -16,26 +16,26 @@
             <h4 class="fw-bold mb-1">Personas y accesos</h4>
             <p class="text-muted mb-4">Cada quien entra con su usuario y contraseña. Supervisor usa ERP y CRM; los demás roles solo el CRM.</p>
 
-            <form id="formNuevaPersona" class="row g-2 align-items-end">
-                <div class="col-md-3">
+            <form id="formNuevaPersona" class="row g-3 align-items-end">
+                <div class="col-md-6">
                     <label class="form-label small fw-semibold">Nombre completo</label>
                     <input id="nuevoNombre" class="form-control" required maxlength="180" placeholder="Ej. Ana López">
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-6">
                     <label class="form-label small fw-semibold">Usuario</label>
                     <input id="nuevoUsuario" class="form-control" required maxlength="60" placeholder="ana.lopez">
                 </div>
-                <div class="col-md-2">
+                <div class="col-md-4">
                     <label class="form-label small fw-semibold">Rol</label>
                     <select id="nuevoRol" class="form-select">
                         {% for r in roles %}<option value="{{ r }}">{{ r|capitalize }}</option>{% endfor %}
                     </select>
                 </div>
-                <div class="col-md-2">
+                <div class="col-md-4">
                     <label class="form-label small fw-semibold">Contraseña</label>
                     <input id="nuevoPassword" type="password" class="form-control" required minlength="6" placeholder="Mínimo 6 caracteres">
                 </div>
-                <div class="col-md-2 d-grid">
+                <div class="col-md-4 d-grid">
                     <button class="btn btn-primary" type="submit">+ Agregar persona</button>
                 </div>
             </form>

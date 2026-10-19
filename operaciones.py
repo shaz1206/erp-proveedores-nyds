@@ -117,16 +117,8 @@ def registrar_operaciones(
         if metricas["pedidos_crm"] == 0:
             incidencias.append(incidencia("info", "CRM sin pedidos", "El flujo esta listo para probarse con pedidos demo cuando haya productos activos."))
 
-        for mp in MP.query.filter_by(activo=True).order_by(MP.nombre_oficial).all():
-            condiciones = CondicionMP.query.filter_by(id_mp=mp.id_mp, activo=True).all()
-            if mp.se_compra_externamente and not condiciones:
-                incidencias.append(incidencia("alerta", "Materia prima sin proveedor activo", mp.nombre_oficial, f"/admin/materias-primas/{mp.id_mp}"))
-            elif mp.se_compra_externamente and not any(c.principal for c in condiciones):
-                incidencias.append(incidencia("alerta", "Materia prima sin proveedor principal", mp.nombre_oficial, f"/admin/materias-primas/{mp.id_mp}"))
-            if not mp.inventario_config:
-                incidencias.append(incidencia("alerta", "Materia prima sin politica de inventario", mp.nombre_oficial, f"/admin/materias-primas/{mp.id_mp}"))
-            if not any(ubi.activo and ubi.principal for ubi in mp.ubicaciones):
-                incidencias.append(incidencia("alerta", "Materia prima sin ubicacion principal", mp.nombre_oficial, f"/admin/materias-primas/{mp.id_mp}"))
+        # Una materia prima registrada no genera alertas: proveedor, politica de
+        # inventario y ubicacion son opcionales.
 
         productos_activos = PT.query.filter_by(estatus="Activo").order_by(PT.nombre).all()
         for producto in productos_activos:

@@ -22,7 +22,7 @@ class VersionPieTest(unittest.TestCase):
 
     def assert_pie(self, html):
         self.assertIn("Todos los derechos reservados", html)
-        self.assertIn("Equipo NYDS: CRM ERP", html)
+        self.assertNotIn("Equipo NYDS: CRM ERP", html)
         self.assertIn(f"Versión {APP_VERSION}", html)
 
     def test_version_tiene_formato_x_y_z(self):

@@ -2,6 +2,7 @@
 import sqlite3
 import tempfile
 import unittest
+from contextlib import closing
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -15,9 +16,10 @@ class RespaldoTest(unittest.TestCase):
         raiz = Path(self.tmp.name)
         (raiz / "instance").mkdir()
         self.base = raiz / "instance" / "erp.db"
-        with sqlite3.connect(self.base) as con:
-            con.execute("create table t (x text)")
-            con.execute("insert into t values ('dato real')")
+        with closing(sqlite3.connect(self.base)) as con:
+            with con:
+                con.execute("create table t (x text)")
+                con.execute("insert into t values ('dato real')")
         self.copias = raiz / "backups"
 
     def tearDown(self):
@@ -28,7 +30,7 @@ class RespaldoTest(unittest.TestCase):
         creada = hacer_respaldo(self.base, self.copias, hoy)
         self.assertEqual(creada.name, "erp-diario-20261017.db")
         self.assertIsNone(hacer_respaldo(self.base, self.copias, hoy))  # el mismo dia no se repite
-        with sqlite3.connect(creada) as con:
+        with closing(sqlite3.connect(creada)) as con:
             self.assertEqual(con.execute("select x from t").fetchone()[0], "dato real")
         self.assertEqual([p.suffix for p in self.copias.iterdir()], [".db"])  # sin temporales
 

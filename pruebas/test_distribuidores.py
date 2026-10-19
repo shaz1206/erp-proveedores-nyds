@@ -119,7 +119,9 @@ class DistribuidoresTest(unittest.TestCase):
         self.assertNotIn(b"Pedido cambiado a Cancelado", pagina)
 
     def test_menus_muestran_los_enlaces_nuevos(self):
-        self.assertIn(b"/admin/distribuidores", self.client.get("/admin/operaciones").data)
+        # Distribuidores esta oculto del menu del ERP (aun no se usa), pero la pantalla sigue disponible.
+        self.assertNotIn(b"/admin/distribuidores", self.client.get("/admin/operaciones").data)
+        self.assertEqual(self.client.get("/admin/distribuidores").status_code, 200)
         pagina = self.client.get("/crm/ventas/confirmar").data
         self.assertIn(b"/crm/ventas/confirmar", pagina)
         self.assertIn(b"/crm/ventas/canceladas", pagina)
