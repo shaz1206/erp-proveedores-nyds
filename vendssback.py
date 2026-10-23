@@ -32,7 +32,7 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(MP_UPLOAD_FOLDER, exist_ok=True)
 
 # Version del software: se muestra en el pie de ERP/CRM, en /api/version y en los reportes de bug.
-APP_VERSION = "1.2.0"
+APP_VERSION = "1.2.1"
 APP_VERSION_FECHA = "2026-10-23"
 
 app = Flask(__name__)
@@ -1823,7 +1823,6 @@ def materia_prima_detalle(id_mp):
         return jsonify(serializar_mp_detalle(mp))
 
     data = request.json or {}
-    anterior = serializar_mp_detalle(mp)
     errores = aplicar_datos_mp(mp, data)
     if errores:
         db.session.rollback()

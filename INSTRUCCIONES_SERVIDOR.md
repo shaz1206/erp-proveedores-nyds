@@ -1,4 +1,4 @@
-# Actualizar el ERP/CRM de nyds.mx a la versión 1.2.0 y cargar el catálogo inicial
+# Actualizar el ERP/CRM de nyds.mx a la versión 1.2.1 y cargar el catálogo inicial
 
 Para: la persona que sube el sistema al servidor.
 Tiempo estimado: 15–20 minutos. Conviene hacerlo fuera de horario, porque hay que reiniciar la aplicación.
@@ -6,7 +6,7 @@ Tiempo estimado: 15–20 minutos. Conviene hacerlo fuera de horario, porque hay 
 ## Qué cambia
 
 - El servidor corre hoy una versión vieja (no tiene `/api/version`) y casi no tiene datos: 0 proveedores, 0 materias primas, 0 recetas, 1 producto (Lavatrastes A-001), 1 cliente (Bokka) con 1 pedido.
-- La versión 1.2.0 trae, entre otras cosas: cancelar pedidos, tipos de venta con listas de precios, alta de productos del recetario, importador de Excel, respaldo diario automático, versión visible en el pie y en `/api/version`.
+- La versión 1.2.1 trae, entre otras cosas: cancelar pedidos, tipos de venta con listas de precios, alta de productos del recetario, importador de Excel, respaldo diario automático, versión visible en el pie y en `/api/version`.
 - Un script de carga inicial agrega 8 proveedores, 55 materias primas con su condición de compra, 33 productos terminados con 87 presentaciones (1 L, 5 L, 20 L), 41 recetas y 4 listas de precios (Casa habitación, Restaurantes, Automotrices, Otros negocios).
 
 **El script solo agrega.** No modifica ni borra clientes, pedidos, personas, compras, inventarios, ni el producto A-001, y puede correrse más de una vez sin duplicar.
@@ -17,7 +17,7 @@ Tiempo estimado: 15–20 minutos. Conviene hacerlo fuera de horario, porque hay 
 2. **Actualizar el código** desde GitHub, rama `main`: <https://github.com/shaz1206/erp-proveedores-nyds>
    - `git pull origin main` (o el método que ya usen para publicar).
    - `python -m pip install -r requirements.txt`
-3. **Reiniciar la aplicación** como lo hagan normalmente. Al arrancar crea solas las tablas nuevas. Entra a `https://nyds.mx/api/version`: debe responder `"version": "1.2.0"`.
+3. **Reiniciar la aplicación** como lo hagan normalmente. Al arrancar crea solas las tablas nuevas. Entra a `https://nyds.mx/api/version`: debe responder `"version": "1.2.1"`.
 4. **Prueba en seco** de la carga (no guarda nada). Desde la carpeta del proyecto y con el mismo entorno que usa la aplicación:
    ```
    python cargar_datos_iniciales.py
