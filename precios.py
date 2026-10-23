@@ -181,6 +181,25 @@ def registrar_precios(app, db, PT, ClienteCRM):
               else f"{producto.nombre} ya tiene las presentaciones estandar.", "success" if nuevas else "info")
         return volver("precios_presentaciones")
 
+    @app.route("/admin/precios/presentaciones/estandar-todos", methods=["POST"])
+    def precios_presentaciones_estandar_todos():
+        """Agrega 1 L, 5 L y 20 L a todos los productos activos que no las tengan (sin precio)."""
+        if not autorizado_admin():
+            return redirect(url_for("login_admin"))
+        existentes = {(p.producto_id, p.nombre.lower()) for p in PresentacionPT.query}
+        nuevas = 0
+        for producto in PT.query.filter_by(estatus="Activo").order_by(PT.nombre):
+            for nombre, capacidad in PRESENTACIONES_ESTANDAR:
+                if (producto.id, nombre.lower()) in existentes:
+                    continue
+                precio = producto.precio if (producto.presentacion or "").strip().lower() == nombre.lower() else None
+                db.session.add(PresentacionPT(producto_id=producto.id, nombre=nombre, capacidad=capacidad, precio_base=precio))
+                nuevas += 1
+        db.session.commit()
+        flash(f"Se agregaron {nuevas} presentaciones (1 L, 5 L y 20 L) a los productos activos." if nuevas
+              else "Todos los productos activos ya tienen 1 L, 5 L y 20 L.", "success" if nuevas else "info")
+        return volver("precios_presentaciones")
+
     @app.route("/admin/precios/presentaciones/<int:id_presentacion>/editar", methods=["POST"])
     def precios_presentacion_editar(id_presentacion):
         if not autorizado_admin():
@@ -225,10 +244,31 @@ def registrar_precios(app, db, PT, ClienteCRM):
         if ListaPrecios.query.filter(db.func.lower(ListaPrecios.nombre) == nombre.lower()).first():
             flash(f"Ya existe una lista llamada {nombre}.", "danger")
             return volver("precios_listas")
+        try:
+            ajuste = Decimal((request.form.get("ajuste") or "0").strip().replace(",", "").replace("%", "") or "0")
+            if not ajuste.is_finite() or ajuste <= Decimal("-100") or ajuste > Decimal("1000"):
+                raise InvalidOperation
+        except InvalidOperation:
+            flash("Escribe el porcentaje solo con números, por ejemplo -10 o 5.", "danger")
+            return volver("precios_listas")
+        origen = (request.form.get("copiar_de") or "").strip()
         lista = ListaPrecios(nombre=nombre, descripcion=descripcion)
         db.session.add(lista)
+        db.session.flush()
+        copiados = 0
+        if origen:
+            propios = ({i.presentacion_id: i.precio for i in ListaPreciosItem.query.filter_by(lista_id=int(origen))}
+                       if origen.isdigit() else {})
+            for pres in presentaciones_activas():
+                precio = propios.get(pres.id, pres.precio_base)
+                if precio is None:
+                    continue
+                nuevo = (Decimal(precio) * (Decimal(100) + ajuste) / Decimal(100)).quantize(Decimal("0.01"))
+                if nuevo > 0:
+                    db.session.add(ListaPreciosItem(lista_id=lista.id, presentacion_id=pres.id, precio=nuevo))
+                    copiados += 1
         db.session.commit()
-        flash(f"Lista {nombre} creada. Captura sus precios abajo.", "success")
+        flash(f"Lista {nombre} creada" + (f" con {copiados} precios." if copiados else ". Captura sus precios abajo."), "success")
         return volver("precios_lista", id_lista=lista.id)
 
     @app.route("/admin/precios/<int:id_lista>")
@@ -340,6 +380,42 @@ def registrar_precios(app, db, PT, ClienteCRM):
             respuesta.append({"presentacion_id": pres.id, "nombre": pres.nombre,
                               "precio": float(precio) if precio is not None else None, "origen": origen})
         return jsonify({"lista": lista.nombre if lista else None, "presentaciones": respuesta})
+
+    @app.route("/api/precios/listas")
+    def api_precios_listas():
+        """Tipos de venta (listas activas) para elegir al registrar un cliente o un pedido."""
+        if not autorizado_api():
+            return jsonify({"error": "Necesitas iniciar sesion."}), 403
+        listas = ListaPrecios.query.filter_by(activa=True).order_by(ListaPrecios.id).all()
+        return jsonify([{"id": l.id, "nombre": l.nombre} for l in listas])
+
+    @app.route("/api/precios/cliente/<int:id_cliente>/lista", methods=["POST"])
+    def api_precios_cliente_lista(id_cliente):
+        """Cambia el tipo de venta de un cliente. lista_id vacio = precio general."""
+        if not autorizado_api():
+            return jsonify({"error": "Necesitas iniciar sesion."}), 403
+        cliente = db.session.get(ClienteCRM, id_cliente)
+        if not cliente:
+            return jsonify({"error": "Cliente no encontrado."}), 404
+        valor = (request.get_json(silent=True) or {}).get("lista_id")
+        asignacion = ClienteListaPrecios.query.filter_by(cliente_id=cliente.id).first()
+        if valor in (None, ""):
+            if asignacion:
+                db.session.delete(asignacion)
+            db.session.commit()
+            return jsonify({"lista": None})
+        try:
+            lista = db.session.get(ListaPrecios, int(valor))
+        except (TypeError, ValueError):
+            lista = None
+        if not lista or not lista.activa:
+            return jsonify({"error": "Ese tipo de venta no existe."}), 400
+        if asignacion:
+            asignacion.lista_id = lista.id
+        else:
+            db.session.add(ClienteListaPrecios(cliente_id=cliente.id, lista_id=lista.id))
+        db.session.commit()
+        return jsonify({"lista": lista.nombre})
 
     @app.route("/api/precios/catalogo")
     def api_precios_catalogo():

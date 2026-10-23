@@ -32,8 +32,8 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(MP_UPLOAD_FOLDER, exist_ok=True)
 
 # Version del software: se muestra en el pie de ERP/CRM, en /api/version y en los reportes de bug.
-APP_VERSION = "1.1.1"
-APP_VERSION_FECHA = "2026-10-19"
+APP_VERSION = "1.2.0"
+APP_VERSION_FECHA = "2026-10-23"
 
 app = Flask(__name__)
 app.config["APP_VERSION"] = APP_VERSION
@@ -2424,6 +2424,12 @@ def datos_pie_nyds():
 def api_version():
     return jsonify({"software": "ERP/CRM NYDS", "version": APP_VERSION, "fecha": APP_VERSION_FECHA})
 
+
+if __package__:
+    from .alta_productos import registrar_alta_productos
+else:
+    from alta_productos import registrar_alta_productos
+registrar_alta_productos(app, db, ProductoTerminado, Receta, admin_required_json)
 
 if __package__:
     from .importar_datos import registrar_importacion

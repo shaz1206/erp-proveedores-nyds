@@ -118,6 +118,26 @@ class DistribuidoresTest(unittest.TestCase):
         self.assertIn(pedido.folio.encode(), pagina)
         self.assertNotIn(b"Pedido cambiado a Cancelado", pagina)
 
+    def test_pedido_confirmado_se_cancela_desde_pedidos_y_en_ruta_no(self):
+        pedido = self.pedido()
+        self.client.post(f"/api/crm/pedidos/{pedido.id}/confirmar", json={})
+        self.assertIn(b'data-action="cancelar"', self.client.get("/crm/pedidos").data)
+        r = self.client.post(f"/api/crm/pedidos/{pedido.id}/estado", json={"estado": "Cancelado", "comentario": "Se equivocaron de producto"})
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(db.session.get(PedidoCRM, pedido.id).estado, "Cancelado")
+        self.assertIn(b"Se equivocaron de producto", self.client.get("/crm/ventas/canceladas").data)
+        # ya cancelado: no se vuelve a cancelar, y ya no ofrece el boton
+        self.assertEqual(self.client.post(f"/api/crm/pedidos/{pedido.id}/estado", json={"estado": "Cancelado"}).status_code, 400)
+        self.assertNotIn(b'data-action="cancelar"', self.client.get("/crm/pedidos").data)
+        # en ruta o entregado ya no se puede cancelar
+        for estado in ("En ruta", "Entregado"):
+            otro = self.pedido(token=f"p-{estado}")
+            otro.estado = estado
+            db.session.commit()
+            r = self.client.post(f"/api/crm/pedidos/{otro.id}/estado", json={"estado": "Cancelado"})
+            self.assertEqual(r.status_code, 400, estado)
+            self.assertEqual(db.session.get(PedidoCRM, otro.id).estado, estado)
+
     def test_menus_muestran_los_enlaces_nuevos(self):
         # Distribuidores esta oculto del menu del ERP (aun no se usa), pero la pantalla sigue disponible.
         self.assertNotIn(b"/admin/distribuidores", self.client.get("/admin/operaciones").data)

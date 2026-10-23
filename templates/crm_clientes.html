@@ -98,6 +98,7 @@
             if (!button) return;
             try {
                 if (button.dataset.action === 'nuevo-cliente') {
+                    const tipos = await jsonFetch('/api/precios/listas').catch(() => []);
                     const cliente = await openModal({
                         title: 'Nuevo cliente',
                         subtitle: 'Solo el nombre es obligatorio; lo demás puedes dejarlo en blanco.',
@@ -108,13 +109,18 @@
                             { name: 'telefono', label: 'Teléfono' },
                             { name: 'correo', label: 'Correo', type: 'email' },
                             { name: 'rfc', label: 'RFC' },
+                            ...(tipos.length ? [{ name: 'tipo', label: 'Tipo de venta', type: 'select', value: tipos[0].nombre, options: tipos.map((t) => t.nombre) }] : []),
                             { name: 'direccion', label: 'Dirección' },
                             { name: 'zona', label: 'Zona', value: 'Cancun' },
                             { name: 'canal_origen', label: 'Canal', type: 'select', value: 'Manual', options: ['Manual', 'WhatsApp', 'Instagram', 'Facebook'] },
                         ],
                     });
                     if (!cliente) return;
-                    await jsonFetch('/api/crm/clientes', { method: 'POST', body: JSON.stringify(cliente) });
+                    const creado = await jsonFetch('/api/crm/clientes', { method: 'POST', body: JSON.stringify(cliente) });
+                    const tipo = tipos.find((t) => t.nombre === cliente.tipo);
+                    if (tipo) {
+                        await jsonFetch('/api/precios/cliente/' + creado.id + '/lista', { method: 'POST', body: JSON.stringify({ lista_id: tipo.id }) });
+                    }
                     window.location.reload();
                 }
                 if (button.dataset.action === 'trueque') {

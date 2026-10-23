@@ -6,6 +6,7 @@ Proyecto Flask/SQLAlchemy para el ERP NYDS. Esta versión conserva el módulo ex
 
 La versión vigente vive en `vendssback.py` (`APP_VERSION` y `APP_VERSION_FECHA`). Se muestra en el pie del menú del ERP y del CRM, en las pantallas de acceso, en `GET /api/version` y se anota en cada reporte de bug. Al publicar cambios se sube el número: segundo dígito para funciones nuevas, tercero para correcciones.
 
+- **1.2.0** (2026-10-23): alta de los productos terminados del recetario en un clic (Producto terminado > Dar de alta del recetario); cancelar pedidos desde Pedidos (antes de salir a ruta); tipos de venta (listas de precios por cliente, elegibles al registrar el cliente y en la venta); crear listas copiando otra con un ajuste en %; presentaciones 1 L, 5 L y 20 L para todos los productos; script de carga inicial para un ERP nuevo (`cargar_datos_iniciales.py`, ver `INSTRUCCIONES_SERVIDOR.md`).
 - **1.1.1** (2026-10-19): pie simplificado (derechos y versión como texto); recepción de compras con un dato por campo; orden de compra con Material y Presentación separados; Operaciones sin alertas por materia prima; Distribuidores oculto del menú (y del CRM mientras no haya distribuidores); textos más claros en materia prima y personas.
 - **1.1.0** (2026-10-19): pie NYDS con versión; importación de proveedores y clientes desde Excel/CSV; "Recibir todo completo"; botones Vender y Cobrar pendientes; datos del proveedor editables; respaldo diario automático.
 - **1.0.0**: ERP de proveedores, compras, inventario, producción y CRM de pedidos.

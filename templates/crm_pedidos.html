@@ -117,7 +117,7 @@
                                     <div class="venta-quien">
                                         <strong id="ventaQuien"></strong>
                                         <span id="ventaHistorial"></span>
-                                        <span id="avisoLista" hidden></span>
+                                        <span class="d-inline-flex align-items-center gap-1 ms-2" id="tipoVentaCaja" hidden><label class="small text-muted mb-0" for="tipoVenta">Tipo de venta</label><select id="tipoVenta" class="form-select form-select-sm w-auto"></select></span>
                                     </div>
                                     <button type="button" class="btn btn-outline-primary btn-sm" id="repetirUltimo" hidden>Repetir último pedido</button>
                                 </div>
@@ -215,6 +215,10 @@
                                             <input class="form-control text-uppercase" id="cnRfc" maxlength="13" placeholder="Opcional">
                                         </div>
                                         <div class="col-12">
+                                            <label class="form-label" for="cnTipo">Tipo de venta</label>
+                                            <select class="form-select" id="cnTipo"></select>
+                                        </div>
+                                        <div class="col-12">
                                             <label class="form-label" for="cnDireccion">Dirección de entrega</label>
                                             <input class="form-control" id="cnDireccion" maxlength="280" placeholder="Calle, número, colonia (opcional, se puede capturar al finalizar)">
                                         </div>
@@ -242,6 +246,7 @@
                     {%- elif paso == 'ruta' -%}<button type="button" class="btn {{ clase }}" data-action="estado" data-estado="En ruta" data-pedido="{{ p.id }}">Salir a ruta</button>
                     {%- elif paso == 'entrega' -%}<button type="button" class="btn {{ clase }}" data-action="entrega" data-pedido="{{ p.id }}">Entregar</button>
                     {%- elif paso == 'fallo' -%}<button type="button" class="btn {{ clase }}" data-action="fallo" data-pedido="{{ p.id }}">No se pudo entregar</button>
+                    {%- elif paso == 'cancelar' -%}<button type="button" class="btn {{ clase }} text-danger" data-action="cancelar" data-pedido="{{ p.id }}" data-folio="{{ p.folio }}">Cancelar pedido</button>
                     {%- elif paso == 'documentos' -%}<button type="button" class="btn {{ clase }}" data-action="documentos" data-pedido="{{ p.id }}" data-folio="{{ p.folio }}">Documentos</button>
                     {%- endif -%}
                 {%- endmacro %}
@@ -293,6 +298,7 @@
                                 {% if rol in ['supervisor', 'cobranza'] and p.saldo > 0 and st not in ['Cancelado', 'Devuelto'] %}{% set _ = otras.append('pago') %}{% endif %}
                                 {% if rol in ['supervisor', 'cobranza'] %}{% set _ = otras.append('trueque') %}{% endif %}
                                 {% if rol in ['supervisor', 'reparto'] and st == 'En ruta' %}{% set _ = otras.append('fallo') %}{% endif %}
+                                {% if rol in ['supervisor', 'ventas'] and st in ['Recibido', 'Pendiente de pago', 'Pendiente de produccion', 'Confirmado', 'Listo para entrega'] %}{% set _ = otras.append('cancelar') %}{% endif %}
                                 {% set _ = otras.append('documentos') %}
                                 {% set grupos = [] %}
                                 {% if st in ['Recibido', 'Pendiente de pago', 'Pendiente de produccion'] %}{% set _ = grupos.append('confirmar') %}{% endif %}
@@ -663,6 +669,7 @@
 
             // ---- Cliente nuevo (aparte, como en Vendss) ----
             function abrirClienteNuevo(texto) {
+                cargarTipos();
                 $('formClienteNuevo').reset();
                 $('cnError').hidden = true;
                 if (texto) $('cnNombre').value = texto;
@@ -688,6 +695,11 @@
                             direccion: $('cnDireccion').value.trim(), zona: 'Cancun',
                         }),
                     });
+                    if ($('cnTipo').value) {
+                        await jsonFetch('/api/precios/cliente/' + cliente.id + '/lista', {
+                            method: 'POST', body: JSON.stringify({ lista_id: $('cnTipo').value }),
+                        });
+                    }
                     dlgNuevo.close();
                     seleccionarCliente(cliente);
                     showToast('Cliente registrado.', 'success');
@@ -764,13 +776,39 @@
                 }
             }
 
+            // ---- Tipo de venta (lista de precios del cliente: casa habitación, negocio...) ----
+            let tiposVenta = null;
+            async function cargarTipos() {
+                if (tiposVenta) return;
+                try { tiposVenta = await jsonFetch('/api/precios/listas'); } catch (error) { tiposVenta = []; }
+                const llenar = (select, conGeneral) => {
+                    select.replaceChildren();
+                    if (conGeneral) select.append(new Option('Precio general', ''));
+                    tiposVenta.forEach((t) => select.append(new Option(t.nombre, String(t.id))));
+                };
+                llenar($('tipoVenta'), true);
+                llenar($('cnTipo'), false);
+            }
+            $('tipoVenta').addEventListener('change', async () => {
+                if (!f.cliente_id.value) return;
+                try {
+                    await jsonFetch('/api/precios/cliente/' + f.cliente_id.value + '/lista', {
+                        method: 'POST', body: JSON.stringify({ lista_id: $('tipoVenta').value }),
+                    });
+                    await cargarCatalogo();
+                    pintarCatalogo(); pintarCarrito();
+                    showToast('Precios actualizados.', 'success');
+                } catch (error) { showToast(error.message); }
+            });
+
             async function cargarCatalogo() {
-                const aviso = $('avisoLista');
                 try {
                     const data = await jsonFetch('/api/precios/catalogo' + (f.cliente_id.value ? '?cliente_id=' + f.cliente_id.value : ''));
                     catalogo = data.productos;
-                    aviso.hidden = !data.lista;
-                    aviso.textContent = data.lista ? ' · Lista de precios ' + data.lista : '';
+                    await cargarTipos();
+                    const tipo = tiposVenta.find((t) => t.nombre === data.lista);
+                    $('tipoVenta').value = tipo ? String(tipo.id) : '';
+                    $('tipoVentaCaja').hidden = false;
                     // Los precios de lista se actualizan al cambiar de cliente; los editados a mano se respetan.
                     carrito.forEach((l) => {
                         if (l.manual) return;
@@ -1095,6 +1133,21 @@
                     await jsonFetch(`/api/crm/pedidos/${pedido}/estado`, {
                         method: 'POST',
                         body: JSON.stringify({ estado: button.dataset.estado }),
+                    });
+                }
+                if (action === 'cancelar') {
+                    const cancelacion = await openModal({
+                        title: `Cancelar pedido ${button.dataset.folio || ''}`,
+                        subtitle: 'Se libera el producto reservado y el pedido deja de contar como venta. Queda en "Cancelados" con el motivo.',
+                        submitText: 'Cancelar pedido',
+                        fields: [
+                            { name: 'motivo', label: 'Motivo de la cancelación', type: 'textarea', required: true },
+                        ],
+                    });
+                    if (!cancelacion) return;
+                    await jsonFetch(`/api/crm/pedidos/${pedido}/estado`, {
+                        method: 'POST',
+                        body: JSON.stringify({ estado: 'Cancelado', comentario: cancelacion.motivo }),
                     });
                 }
                 if (action === 'entrega') {

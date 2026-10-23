@@ -1,0 +1,87 @@
+{% extends 'productos_terminados_base.html' %}
+{% block contenido %}
+<div class="d-flex justify-content-between flex-wrap gap-3 mb-3">
+    <div>
+        <h3 class="mb-1">Dar de alta los productos del recetario</h3>
+        <p class="text-muted mb-0">Los productos terminados de tu recetario quedan <strong>Activos</strong> y salen directo en el CRM. Solo el nombre es necesario: precio, presentaci&oacute;n e imagen se completan despu&eacute;s (en el CRM el precio se captura al armar el pedido).</p>
+    </div>
+    <div><a href="{{ url_for('catalogo_productos_terminados') }}" class="btn btn-outline-secondary btn-sm">Ver cat&aacute;logo</a></div>
+</div>
+
+<div id="aviso" class="alert d-none" role="alert"></div>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-body">
+        <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-3">
+            <div id="resumen" class="d-flex flex-wrap gap-2 align-items-center"><span class="text-muted">Cargando&hellip;</span></div>
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="marcarTodos">Marcar pendientes</button>
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="desmarcarTodos">Quitar marcas</button>
+                <button type="button" class="btn btn-success" id="guardar" disabled>Dar de alta</button>
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+                <thead class="table-dark">
+                    <tr><th style="width:44px"></th><th>Producto</th><th style="width:130px">Estado</th><th style="width:130px">SKU</th><th style="width:260px">Categor&iacute;a</th></tr>
+                </thead>
+                <tbody id="filas"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+<datalist id="categorias">{% for c in categorias %}<option value="{{ c }}">{% endfor %}</datalist>
+
+<script>
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ESTADOS = { activo: ['bg-success', 'Ya activo'], borrador: ['bg-warning text-dark', 'Borrador'], inactivo: ['bg-secondary', 'Inactivo'], nuevo: ['bg-primary', 'No existe a&uacute;n'] };
+const $ = (id) => document.getElementById(id);
+let productos = [];
+
+function aviso(html, clase) { const a = $('aviso'); a.className = 'alert alert-' + clase; a.innerHTML = html; }
+function marcados() { return [...document.querySelectorAll('#filas input[type=checkbox]:checked')]; }
+function actualizar() {
+    const n = marcados().length;
+    $('guardar').disabled = n === 0;
+    $('guardar').textContent = n ? 'Dar de alta ' + n + ' producto' + (n === 1 ? '' : 's') + ' y mandar al CRM' : 'Dar de alta';
+}
+function pintar() {
+    $('filas').innerHTML = productos.map((p, i) => {
+        const [clase, etiqueta] = ESTADOS[p.estado];
+        const activo = p.estado === 'activo';
+        const base = p.base ? '<div class="small text-muted">Base del producto final de esta l&iacute;nea; viene sin marcar; m&aacute;rcalo solo si tambi&eacute;n lo vendes.</div>' : '';
+        return `<tr>
+            <td><input type="checkbox" class="form-check-input" data-i="${i}" aria-label="Dar de alta ${esc(p.nombre)}" ${activo ? 'disabled' : (p.base ? '' : 'checked')}></td>
+            <td><div class="fw-semibold">${esc(p.nombre)}</div>${base}</td>
+            <td><span class="badge ${clase}">${etiqueta}</span></td>
+            <td class="font-monospace small text-muted">${esc(p.sku) || '&mdash;'}</td>
+            <td><input type="text" class="form-control form-control-sm" list="categorias" maxlength="100" data-cat="${i}" value="${esc(p.categoria)}" aria-label="Categor&iacute;a de ${esc(p.nombre)}" ${activo ? 'disabled' : ''}></td>
+        </tr>`;
+    }).join('');
+    const ya = productos.filter(p => p.estado === 'activo').length;
+    $('resumen').innerHTML = `<span class="badge bg-success fs-6">${ya} ya activos</span><span class="badge bg-warning text-dark fs-6">${productos.length - ya} por dar de alta</span><span class="small text-muted">de ${productos.length} productos terminados del recetario</span>`;
+    document.querySelectorAll('#filas input[type=checkbox]').forEach(c => c.addEventListener('change', actualizar));
+    actualizar();
+}
+async function cargar() {
+    const res = await fetch('/api/productos-terminados/alta-recetario');
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) { aviso(esc(d.error || 'No se pudo leer el recetario.'), 'danger'); return; }
+    productos = d.productos;
+    pintar();
+}
+$('marcarTodos').addEventListener('click', () => { document.querySelectorAll('#filas input[type=checkbox]:not(:disabled)').forEach(c => c.checked = true); actualizar(); });
+$('desmarcarTodos').addEventListener('click', () => { document.querySelectorAll('#filas input[type=checkbox]').forEach(c => c.checked = false); actualizar(); });
+$('guardar').addEventListener('click', async () => {
+    const items = marcados().map(c => ({ clave: productos[c.dataset.i].clave, categoria: document.querySelector(`[data-cat="${c.dataset.i}"]`).value.trim() }));
+    $('guardar').disabled = true;
+    const res = await fetch('/api/productos-terminados/alta-recetario', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ productos: items }) });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) { aviso(esc(d.error || 'No se pudo dar de alta.'), 'danger'); actualizar(); return; }
+    const total = d.creados + d.activados;
+    aviso(`Listo: <strong>${total}</strong> producto${total === 1 ? '' : 's'} dado${total === 1 ? '' : 's'} de alta (${d.activados} activado${d.activados === 1 ? '' : 's'}, ${d.creados} creado${d.creados === 1 ? '' : 's'}). Ya salen en el CRM: <a class="alert-link" href="/crm/pedidos">Abrir pedidos del CRM</a> &middot; <a class="alert-link" href="/admin/productos-terminados">Ver cat&aacute;logo</a>`, 'success');
+    await cargar();
+});
+cargar();
+</script>
+{% endblock %}

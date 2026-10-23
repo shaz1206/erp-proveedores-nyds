@@ -8,17 +8,30 @@
         {% if not total_presentaciones %}
         <div class="alert alert-warning">Aún no hay presentaciones activas. Primero da de alta las presentaciones de tus productos (1 L, 5 L, 20 L) en <a href="{{ url_for('precios_presentaciones') }}">Presentaciones</a>.</div>
         {% endif %}
-        <form method="post" action="{{ url_for('precios_lista_crear') }}" class="row g-2 align-items-end">
-            <div class="col-md-4">
+        <form method="post" action="{{ url_for('precios_lista_crear') }}" class="row g-3 align-items-end">
+            <div class="col-md-6">
                 <label class="form-label small fw-semibold" for="nombreLista">Nombre de la lista</label>
-                <input id="nombreLista" name="nombre" class="form-control" required maxlength="100" placeholder="Ej. Distribuidores">
+                <input id="nombreLista" name="nombre" class="form-control" required maxlength="100" placeholder="Ej. Restaurantes">
             </div>
-            <div class="col-md-5">
+            <div class="col-md-6">
                 <label class="form-label small fw-semibold" for="descLista">Descripción (opcional)</label>
                 <input id="descLista" name="descripcion" class="form-control" maxlength="300" placeholder="Para quién es esta lista">
             </div>
+            <div class="col-md-6">
+                <label class="form-label small fw-semibold" for="copiarDe">Empezar con los precios de</label>
+                <select id="copiarDe" name="copiar_de" class="form-select">
+                    <option value="">Lista vacía (los capturo yo)</option>
+                    <option value="base">Precio base</option>
+                    {% for fila in resumen %}<option value="{{ fila.lista.id }}">{{ fila.lista.nombre }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small fw-semibold" for="ajusteLista">Subir o bajar %</label>
+                <input id="ajusteLista" name="ajuste" class="form-control" inputmode="decimal" placeholder="Ej. -10 o 5">
+            </div>
             <div class="col-md-3 d-grid"><button class="btn btn-primary" type="submit">+ Crear lista</button></div>
         </form>
+        <p class="form-text mb-0">Después de crearla puedes cambiar cualquier precio una por una.</p>
     </div>
 </div>
 

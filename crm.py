@@ -119,6 +119,8 @@ UBICACION_PT = "Almacen PT"
 UBICACION_TRANSITO = "En transito"
 TIPOS_DOCUMENTO_PEDIDO = ["Recibido firmado", "Factura", "CXC / Comprobante de cobro", "Otro"]
 ESTADOS_SIN_VENTA = {"Cancelado", "Devuelto"}
+# Un pedido se cancela mientras el producto no haya salido a ruta.
+ESTADOS_CANCELABLES = {"Recibido", "Pendiente de pago", "Pendiente de produccion", "Confirmado", "Listo para entrega"}
 RFC_CLIENTE_REGEX = re.compile(r"^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$")
 
 
@@ -1798,6 +1800,8 @@ def registrar_crm(app, db, MP, PT, Receta, RecetaIngrediente, MovimientoMP, Ajus
         if nuevo_estado in {"Cancelado", "Pendiente de pago", "Confirmado"} and not tiene_rol("ventas"):
             return jsonify({"error": "Solo ventas puede cambiar este estado."}), 403
         try:
+            if nuevo_estado == "Cancelado" and pedido.estado not in ESTADOS_CANCELABLES:
+                raise ValueError("Este pedido ya no se puede cancelar. Si ya salió a ruta, usa «No se pudo entregar»; si ya se entregó, registra una devolución.")
             if nuevo_estado == "En ruta":
                 if pedido.estado not in {"Listo para entrega", "Confirmado"}:
                     raise ValueError("Solo un pedido confirmado o listo puede salir a ruta.")

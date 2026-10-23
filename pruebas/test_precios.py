@@ -84,6 +84,46 @@ class PreciosTest(unittest.TestCase):
         self.client.post(f"/admin/precios/presentaciones/estandar/{self.pt.id}")
         self.assertEqual(PresentacionPT.query.count(), 3)
 
+    def test_estandar_a_todos_los_productos_activos_sin_duplicar(self):
+        self.pt.estatus = "Activo"
+        db.session.commit()
+        self.client.post("/admin/precios/presentaciones/estandar-todos")
+        self.assertEqual(sorted(p.nombre for p in PresentacionPT.query.all()), ["1 L", "20 L", "5 L"])
+        self.client.post("/admin/precios/presentaciones/estandar-todos")
+        self.assertEqual(PresentacionPT.query.count(), 3)
+
+    def test_tipo_de_venta_se_elige_y_cambia_el_precio(self):
+        pres = self.presentacion(base="150.00")
+        casa, negocio = self.lista("Casa habitación"), self.lista("Negocio")
+        self.client.post(f"/admin/precios/{negocio.id}/guardar", data={"nombre": "Negocio", "activa": "1", f"precio_{pres.id}": "120.00"})
+        c = self.cliente()
+        self.assertEqual([l["nombre"] for l in self.client.get("/api/precios/listas").get_json()], ["Casa habitación", "Negocio"])
+        r = self.client.post(f"/api/precios/cliente/{c.id}/lista", json={"lista_id": negocio.id})
+        self.assertEqual(r.get_json(), {"lista": "Negocio"})
+        cat = self.client.get(f"/api/precios/catalogo?cliente_id={c.id}").get_json()
+        self.assertEqual(cat["lista"], "Negocio")
+        self.client.post(f"/api/precios/cliente/{c.id}/lista", json={"lista_id": casa.id})
+        self.assertEqual(ClienteListaPrecios.query.filter_by(cliente_id=c.id).count(), 1)
+        self.client.post(f"/api/precios/cliente/{c.id}/lista", json={"lista_id": ""})
+        self.assertEqual(ClienteListaPrecios.query.filter_by(cliente_id=c.id).count(), 0)
+        self.assertEqual(self.client.post(f"/api/precios/cliente/{c.id}/lista", json={"lista_id": 999}).status_code, 400)
+        self.assertEqual(self.client.post("/api/precios/cliente/999/lista", json={"lista_id": negocio.id}).status_code, 404)
+
+    def test_crear_lista_copiando_otra_con_ajuste(self):
+        pres = self.presentacion(base="200.00")
+        casa = self.lista("Casa habitación")
+        self.client.post(f"/admin/precios/{casa.id}/guardar", data={"nombre": "Casa habitación", "activa": "1", f"precio_{pres.id}": "150.00"})
+        self.client.post("/admin/precios", data={"nombre": "Restaurantes", "copiar_de": str(casa.id), "ajuste": "-10"})
+        rest = ListaPrecios.query.filter_by(nombre="Restaurantes").one()
+        self.assertEqual(ListaPreciosItem.query.filter_by(lista_id=rest.id).one().precio, Decimal("135.00"))
+        self.client.post("/admin/precios", data={"nombre": "Autos", "copiar_de": "base", "ajuste": "5"})
+        autos = ListaPrecios.query.filter_by(nombre="Autos").one()
+        self.assertEqual(ListaPreciosItem.query.filter_by(lista_id=autos.id).one().precio, Decimal("210.00"))
+        self.client.post("/admin/precios", data={"nombre": "Vacia"})
+        self.assertEqual(ListaPreciosItem.query.filter_by(lista_id=ListaPrecios.query.filter_by(nombre="Vacia").one().id).count(), 0)
+        r = self.client.post("/admin/precios", data={"nombre": "Mala", "copiar_de": "base", "ajuste": "abc"})
+        self.assertIsNone(ListaPrecios.query.filter_by(nombre="Mala").first())
+
     def test_editar_precio_base_y_desactivar(self):
         pres = self.presentacion()
         self.client.post(f"/admin/precios/presentaciones/{pres.id}/editar", data={"precio_base": "155.50", "activa": "1"})
